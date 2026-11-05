@@ -161,3 +161,88 @@ def test_parameter_dashboard_contains_real_twenty_seed_statistics(tmp_path):
     text = (tmp_path / "index.html").read_text()
     assert "__DATA__" not in text
     assert "10.5" in text
+
+
+def test_failed_worker_exit_keeps_a_trial_id_for_resume(tmp_path, monkeypatch):
+    from gymtosha.benchmarks.study import run_trial
+
+    class ExitedWorker:
+        returncode = 1
+
+        def wait(self):
+            return 1
+
+    from gymtosha.benchmarks.study import runtime_fingerprint
+
+    runtime_fingerprint()
+    monkeypatch.setattr("subprocess.Popen", lambda *args, **kwargs: ExitedWorker())
+    config = reference_config(32)
+    record = run_trial(config, study_evaluation(config), tmp_path)
+    assert record["status"] == "failed"
+    assert record["trial_id"]
+    assert run_trial(config, study_evaluation(config), tmp_path) == record
+
+
+def test_tuning_cannot_reuse_selected_settings_from_another_device(tmp_path):
+    import json
+    from argparse import Namespace
+
+    from gymtosha.benchmarks.study import runtime_fingerprint, source_fingerprint, tune
+
+    config = reference_config(32)
+    (tmp_path / "selected.json").write_text(
+        json.dumps(
+            {
+                "32": {
+                    "source": source_fingerprint(),
+                    "runtime": runtime_fingerprint(),
+                    "config": asdict(config),
+                }
+            }
+        )
+    )
+    with pytest.raises(ValueError, match="device|runtime"):
+        tune(Namespace(output=tmp_path, min_envs=32, max_envs=32, device="mps"))
+
+
+def test_training_fingerprint_includes_cartpole_environment_source(monkeypatch):
+    from pathlib import Path
+
+    from gymtosha.benchmarks.study import source_fingerprint
+
+    before = source_fingerprint()
+    original = Path.read_bytes
+
+    def changed_source(path):
+        content = original(path)
+        return content + b"\n# changed dynamics\n" if path.name == "cartpole.py" else content
+
+    monkeypatch.setattr(Path, "read_bytes", changed_source)
+    assert source_fingerprint() != before
+
+
+def test_comparison_records_unsupported_capacity_without_stopping(tmp_path):
+    import json
+    from argparse import Namespace
+
+    from gymtosha.benchmarks.study import compare
+
+    presets = tmp_path / "presets.json"
+    presets.write_text("{}")
+    capacities = tmp_path / "capacity.json"
+    capacities.write_text(
+        json.dumps(
+            [
+                {
+                    "backend": "gymnasium-async",
+                    "device": "cuda",
+                    "compile_env": False,
+                    "maximum_verified": None,
+                }
+            ]
+        )
+    )
+    compare(
+        Namespace(presets=presets, capacity=capacities, devices=["cuda"], output=tmp_path / "run")
+    )
+    assert (tmp_path / "run/unsupported/gymnasium-async-cuda-0.json").exists()

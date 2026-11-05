@@ -142,7 +142,18 @@ def source_fingerprint():
     from pathlib import Path
 
     digest = hashlib.sha256()
-    for name in ("train.py", "algorithms.py", "adapters.py", "evaluation.py", "normalization.py"):
+    for name in (
+        "train.py",
+        "algorithms.py",
+        "adapters.py",
+        "evaluation.py",
+        "normalization.py",
+        "../base.py",
+        "../registry.py",
+        "../__init__.py",
+        "../envs/cartpole.py",
+    ):
+        digest.update(name.encode())
         digest.update((Path(__file__).parent / name).read_bytes())
     return digest.hexdigest()
 
@@ -184,6 +195,7 @@ def run_trial(config, evaluation, output):
         record = json.loads(path.read_text())
         if record["request"] != request:
             raise ValueError("cached trial request changed")
+        record.setdefault("trial_id", key)
         return record
     request_path = directory / f"{key}.request.json"
     _write(request, request_path)
@@ -214,6 +226,7 @@ def run_trial(config, evaluation, output):
                 "request": request,
                 "status": "failed",
                 "seed": config.seed,
+                "trial_id": key,
                 "error": f"worker exited with code {process.returncode}",
             },
             path,
@@ -318,6 +331,7 @@ def tune_count(config, output):
             if (
                 phase["starting_config"] != asdict(config)
                 or phase["source"] != source_fingerprint()
+                or phase.get("runtime") != runtime_fingerprint()
             ):
                 raise ValueError("saved parameter search starts from a different configuration")
             config = TrainConfig(**phase["selected_config"])
@@ -345,6 +359,7 @@ def tune_count(config, output):
         config = change_parameter(config, parameter, winner["value"])
         phase = {
             "source": source_fingerprint(),
+            "runtime": runtime_fingerprint(),
             "num_envs": config.num_envs,
             "parameter": parameter,
             "starting_config": starting_config,
@@ -379,10 +394,19 @@ def tune(args):
             saved = selected[str(count)]
             if saved["source"] != source_fingerprint():
                 raise ValueError("selected training source changed")
+            if (
+                saved["config"]["device"] != args.device
+                or saved.get("runtime") != runtime_fingerprint()
+            ):
+                raise ValueError("selected device or runtime changed")
             previous = TrainConfig(**saved["config"])
         else:
             previous = tune_count(base, args.output)
-            selected[str(count)] = {"source": source_fingerprint(), "config": asdict(previous)}
+            selected[str(count)] = {
+                "source": source_fingerprint(),
+                "runtime": runtime_fingerprint(),
+                "config": asdict(previous),
+            }
             _write(selected, path)
         render_dashboard(args.output)
         count *= 2
@@ -400,6 +424,13 @@ def compare(args):
     directory = Path(args.output)
     for condition in capacity:
         if condition["device"] not in args.devices:
+            continue
+        if condition["maximum_verified"] is None:
+            name = f"{condition['backend']}-{condition['device']}-{int(condition['compile_env'])}"
+            _write(
+                {"condition": condition, "status": "unsupported"},
+                directory / "unsupported" / f"{name}.json",
+            )
             continue
         for count in sorted(map(int, selected)):
             maximum = condition["maximum_verified"]
