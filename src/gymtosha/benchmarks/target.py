@@ -131,3 +131,18 @@ def target_summary(records):
             }
         )
     return result
+
+
+def target_rows(records):
+    return [
+        {
+            **r["config"],
+            "status": r["evaluation"]["status"],
+            "target": r["evaluation"]["target"],
+            "wall_seconds": r["wall_seconds"],
+            "time_to_target_seconds": r["evaluation"]["time_to_target_seconds"],
+            "transitions_to_target": r["evaluation"]["transitions_to_target"],
+            "final_score": r["evaluation"]["checkpoints"][-1]["mean_return"],
+        }
+        for r in records
+    ]

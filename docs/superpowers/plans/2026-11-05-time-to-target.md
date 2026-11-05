@@ -46,24 +46,24 @@ Incomplete runs and heterogeneous configs cannot be aggregated as successes.
 
 ### 1. Evaluation and early stopping
 
-- [ ] Write failing tests for policy evaluation, RNG preservation, consecutive
+- [x] Write failing tests for policy evaluation, RNG preservation, consecutive
   target confirmation, early stop and unchanged throughput mode.
-- [ ] Add `EvaluationConfig` and a held-out Gymnasium evaluator.
-- [ ] Integrate optional evaluation into existing training loops and expose
+- [x] Add `EvaluationConfig` and a held-out Gymnasium evaluator.
+- [x] Integrate optional evaluation into existing training loops and expose
   effective transition counts and target status.
-- [ ] Verify and commit.
+- [x] Verify and commit.
 
 ### 2. Repeatable target benchmark
 
-- [ ] Add predefined environment/learner budgets and the `time-to-target` CLI.
-- [ ] Persist checkpoint progress, final JSON/CSV and target-time figures.
-- [ ] Verify comparison config equality and censored result handling.
-- [ ] Run on the RTX 3090 server using push/pull and inspect all outcomes.
+- [x] Add predefined environment/learner budgets and the `time-to-target` CLI.
+- [x] Persist checkpoint progress, final JSON/CSV and target-time figures.
+- [x] Verify comparison config equality and censored result handling.
+- [x] Run on the RTX 3090 server using push/pull and inspect all outcomes.
 
 ### 3. Public documentation and packaging
 
-- [ ] Publish API and benchmark specifications.
-- [ ] Redesign README hierarchy, installation, examples and evidence sections.
-- [ ] Verify an external-project Git/wheel installation and every public env ID.
-- [ ] Run Ruff lint/format, tests, build and independent code review.
-- [ ] Commit, push and synchronize the server checkout.
+- [x] Publish API and benchmark specifications.
+- [x] Redesign README hierarchy, installation, examples and evidence sections.
+- [x] Verify an external-project Git/wheel installation and every public env ID.
+- [x] Run Ruff lint/format, tests, build and independent code review.
+- [x] Commit, push and synchronize the server checkout.

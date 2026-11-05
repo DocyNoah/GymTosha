@@ -1,0 +1,6 @@
+env_id,algorithm,device,seeds,gymnasium_reached,gymtosha_reached,gymnasium_median_seconds,gymtosha_median_seconds,speedup
+CartPole-v1,ppo,cuda,3,3,3,17.75367005300359,15.863665366981877,1.119140478716571
+MountainCar-v0,dqn,cuda,3,2,3,,90.78751889400883,
+MountainCarContinuous-v0,ppo,cuda,3,3,3,12.945072178001283,12.498275128018577,1.0288525794383625
+LunarLander-v3,ppo,cuda,3,3,0,183.69952719999128,,
+FrozenLake-v1,dqn,cuda,3,3,3,16.466615042998455,13.78253461199347,1.194699464109448

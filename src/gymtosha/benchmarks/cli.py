@@ -127,6 +127,7 @@ def _time_to_target(args):
     from gymtosha.benchmarks.evaluation import EvaluationConfig
     from gymtosha.benchmarks.target import (
         target_preset,
+        target_rows,
         target_summary,
         validate_target_comparisons,
     )
@@ -237,19 +238,7 @@ def _time_to_target(args):
                     summary = target_summary(records)
                     _write(summary, args.output / "target_summary.json")
                     _csv(summary, args.output / "target_summary.csv")
-                    flat = [
-                        {
-                            **r["config"],
-                            "status": r["evaluation"]["status"],
-                            "target": r["evaluation"]["target"],
-                            "wall_seconds": r["wall_seconds"],
-                            "time_to_target_seconds": r["evaluation"]["time_to_target_seconds"],
-                            "transitions_to_target": r["evaluation"]["transitions_to_target"],
-                            "final_score": r["evaluation"]["checkpoints"][-1]["mean_return"],
-                        }
-                        for r in records
-                    ]
-                    _csv(flat, args.output / "time_to_target.csv")
+                    _csv(target_rows(records), args.output / "time_to_target.csv")
                     progress_path.unlink(missing_ok=True)
                     plot_time_to_target(records, args.output)
 
@@ -320,8 +309,18 @@ def main(argv=None):
                 path = folder / f"{name}.json"
                 if path.exists():
                     records.extend(json.loads(path.read_text()))
+            if not records:
+                continue
             _write(records, args.output / f"{name}.json")
-            _csv(records, args.output / f"{name}.csv")
+            if name == "time_to_target":
+                from gymtosha.benchmarks.target import target_rows, target_summary
+
+                summary = target_summary(records)
+                _write(summary, args.output / "target_summary.json")
+                _csv(summary, args.output / "target_summary.csv")
+                _csv(target_rows(records), args.output / f"{name}.csv")
+            else:
+                _csv(records, args.output / f"{name}.csv")
             plotter(records, args.output)
         return
     name = "training" if args.command == "train" else "throughput"

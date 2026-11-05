@@ -146,10 +146,32 @@ uv run --extra benchmark gymtosha-benchmark throughput --device cuda --compile \
 
 [검증 프로토콜](docs/BENCHMARKS.md) · [처리량 실측과 원시 데이터](benchmarks/results/README.md)
 
+### 일정 성능까지의 시간
+
+RTX 3090에서 하이퍼파라미터 탐색 30회와 별도 시드의 본 비교 30회를 수행했습니다.
+아래 시간에는 생성·컴파일·학습·공통 평가가 포함됩니다.
+
+| 환경 | 학습기 | 목표 | Gymnasium 달성 | 시간(초) | GymTosha 달성 | 시간(초) | 대응 시드 배율 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| CartPole-v1 | PPO | 475 | 3/3 | 17.75 | 3/3 | 15.86 | 1.12× |
+| MountainCar-v0 | DQN | -110 | 2/3 | — | 3/3 | 90.79 | 산정 보류 |
+| MountainCarContinuous-v0 | PPO | 90 | 3/3 | 12.95 | 3/3 | 12.50 | 1.03× |
+| LunarLander-v3 | PPO | 200 | 3/3 | 183.70 | 0/3 | — | 산정 보류 |
+| FrozenLake-v1 | DQN | 0.7 | 3/3 | 16.47 | 3/3 | 13.78 | 1.19× |
+
+![목표 성능 도달 시간](benchmarks/results/time-to-target/time_to_target.png)
+
+[설정·해석·평가 곡선·원시 기록](benchmarks/results/time-to-target/README.md)
+
+<details>
+<summary>초기 고정 스텝 처리량 실험</summary>
+
 CPU·MPS는 Apple M3 Max, CUDA는 AMD Ryzen 5 5600X + RTX 3090에서 검증했습니다.
-고정 스텝 처리량은 학습 198회·환경 처리량 315회 결과를 포함합니다.
+초기 처리량 실험은 학습 198회·환경 처리량 315회이며, 여러 알고리즘 조합을 포함합니다.
 
 ![학습 처리량 비교](benchmarks/results/combined/training_speed.png)
+
+</details>
 
 ## 개발
 

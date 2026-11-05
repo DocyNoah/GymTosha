@@ -255,3 +255,42 @@ def test_zero_evaluation_episodes_is_rejected(tmp_path):
                 str(tmp_path),
             ]
         )
+
+
+def test_target_plot_preserves_flat_csv_and_does_not_create_empty_results(tmp_path):
+    import csv
+
+    source = tmp_path / "source"
+    output = tmp_path / "plot"
+    main(
+        [
+            "time-to-target",
+            "--env-ids",
+            "CartPole-v1",
+            "--seeds",
+            "1",
+            "--device",
+            "cpu",
+            "--num-envs",
+            "4",
+            "--total-timesteps",
+            "128",
+            "--rollout-steps",
+            "16",
+            "--eval-interval",
+            "64",
+            "--eval-episodes",
+            "4",
+            "--target",
+            "-1",
+            "--output",
+            str(source),
+        ]
+    )
+    main(["plot", "--inputs", str(source), "--output", str(output)])
+    with (output / "time_to_target.csv").open() as handle:
+        rows = list(csv.DictReader(handle))
+    assert rows and "status" in rows[0] and "evaluation" not in rows[0]
+    assert (output / "target_summary.json").exists()
+    assert not (output / "training.json").exists()
+    assert not (output / "throughput.json").exists()

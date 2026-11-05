@@ -1,0 +1,57 @@
+[
+  {
+    "env_id": "CartPole-v1",
+    "algorithm": "ppo",
+    "device": "cuda",
+    "seeds": 3,
+    "gymnasium_reached": 3,
+    "gymtosha_reached": 3,
+    "gymnasium_median_seconds": 17.75367005300359,
+    "gymtosha_median_seconds": 15.863665366981877,
+    "speedup": 1.119140478716571
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "algorithm": "dqn",
+    "device": "cuda",
+    "seeds": 3,
+    "gymnasium_reached": 2,
+    "gymtosha_reached": 3,
+    "gymnasium_median_seconds": null,
+    "gymtosha_median_seconds": 90.78751889400883,
+    "speedup": null
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "algorithm": "ppo",
+    "device": "cuda",
+    "seeds": 3,
+    "gymnasium_reached": 3,
+    "gymtosha_reached": 3,
+    "gymnasium_median_seconds": 12.945072178001283,
+    "gymtosha_median_seconds": 12.498275128018577,
+    "speedup": 1.0288525794383625
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "algorithm": "ppo",
+    "device": "cuda",
+    "seeds": 3,
+    "gymnasium_reached": 3,
+    "gymtosha_reached": 0,
+    "gymnasium_median_seconds": 183.69952719999128,
+    "gymtosha_median_seconds": null,
+    "speedup": null
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "algorithm": "dqn",
+    "device": "cuda",
+    "seeds": 3,
+    "gymnasium_reached": 3,
+    "gymtosha_reached": 3,
+    "gymnasium_median_seconds": 16.466615042998455,
+    "gymtosha_median_seconds": 13.78253461199347,
+    "speedup": 1.194699464109448
+  }
+]
