@@ -62,22 +62,26 @@ def test_accelerator(device, env_id):
         "LunarLanderContinuous-v3",
     ],
 )
-def test_mps_inductor_including_autoreset(env_id):
-    if not torch.backends.mps.is_available():
-        pytest.skip("MPS unavailable")
-    eager = gymtosha.make(env_id, num_envs=8, device="mps", max_episode_steps=3)
-    compiled = gymtosha.make(env_id, num_envs=8, device="mps", max_episode_steps=3).compile()
+@pytest.mark.parametrize("device", ["cuda", "mps"])
+def test_accelerator_inductor_including_autoreset(env_id, device):
+    available = torch.cuda.is_available() if device == "cuda" else torch.backends.mps.is_available()
+    if not available:
+        pytest.skip(f"{device} unavailable")
+    eager = gymtosha.make(env_id, num_envs=8, device=device, max_episode_steps=3)
+    compiled = gymtosha.make(env_id, num_envs=8, device=device, max_episode_steps=3).compile()
     eager.reset(seed=14)
     compiled.reset(seed=14)
     for _ in range(5):
         actions = torch.zeros(
             (8, *eager.single_action_space.shape),
-            device="mps",
+            device=device,
             dtype=torch.float32 if eager.continuous else torch.long,
         )
         expected, actual = eager.step(actions), compiled.step(actions)
         for left, right in zip(expected[:4], actual[:4], strict=True):
             torch.testing.assert_close(left, right, rtol=1e-4, atol=2e-5)
+        for key in expected[4]:
+            torch.testing.assert_close(expected[4][key], actual[4][key], rtol=1e-4, atol=2e-5)
 
 
 @pytest.mark.accelerator

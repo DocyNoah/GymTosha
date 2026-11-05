@@ -34,3 +34,6 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["accelerator: requires a GPU", "compile: compiles tensor kernels"]
+
+[tool.uv.extra-build-dependencies]
+box2d-py = ["swig>=4"]
