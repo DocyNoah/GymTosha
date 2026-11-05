@@ -20,11 +20,11 @@
 실패 0이므로 평균 리턴 0.70은 성공률 70%입니다. 기본 slippery 4×4 맵을 사용합니다.
 
 두 학습 백엔드 모두 **별도의 Gymnasium 환경**에서 결정론적 정책을 평가합니다.
-학습과 독립적인 seed 100000부터 100개 에피소드를 실행하며, 같은 평가 seed를 모든 백엔드와
+학습과 독립적인 seed 100000부터 100개 에피소드(FrozenLake는 1,000개)를 실행하며, 같은 평가 seed를 모든 백엔드와
 체크포인트에 사용합니다. 정책 가중치를 CPU로 복사하므로 평가 디바이스도 동일합니다.
 평가는 학습 환경과 학습 난수 상태를 변경하지 않습니다.
 
-100개 에피소드의 평균이 목표 이상인 평가가 연속 두 번 확인되어야 달성입니다.
+100개 에피소드(FrozenLake는 1,000개)의 평균이 목표 이상인 평가가 연속 두 번 확인되어야 달성입니다.
 목표 도달 시점은 두 번째 확인 평가가 끝난 시각이며 첫 평가 시각으로 소급하지 않습니다.
 보고하는 wall time은 환경 생성 시작부터 모델 생성, 환경 컴파일·워밍업, 학습과 평가를
 포함합니다. Python import 시간은 제외합니다. 디스크 컴파일 캐시는 재사용할 수 있으며
@@ -62,7 +62,7 @@ TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark gymtosha-benchmark time-to-t
 `--target`, `--eval-interval`, `--eval-episodes`, `--confirmations`, `--eval-seed`로 평가 조건을
 명시할 수 있습니다. `--resume`는 설정까지 일치하는 완료 실행을 건너뜁니다.
 
-- `time_to_target.json`에는 전체 설정, 평가별 100개 리턴, 완료 상태와 시간이 있습니다.
+- `time_to_target.json`에는 전체 설정, 평가별 평가 에피소드 리턴, 완료 상태와 시간이 있습니다.
 - `time_to_target.csv`에는 실행별 요약이 있습니다.
 - `target_summary.json`과 `.csv`에는 대응 seed의 달성률과 시간 비교가 있습니다.
 - `*.progress.json`은 진행 중인 체크포인트 기록입니다.
@@ -99,3 +99,5 @@ TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark gymtosha-benchmark time-to-t
 연속 PPO의 선택 후보는 CleanRL 원본과 같이 관측의 running mean/variance 및 discounted-return
 기반 보상 정규화, ±10 clipping을 적용합니다. 학습 중 관측 통계를 동결해 평가 정책에 복사하며,
 평가 점수는 정규화 이전의 실제 환경 리턴입니다. 이전 처리량 모드는 정규화를 기본으로 켜지 않습니다.
+
+FrozenLake는 100회 평가의 이항 표본 변동이 후보 선택에 미치는 영향을 줄이기 위해 탐색과 본 실험 모두 1,000개 에피소드로 평가합니다.

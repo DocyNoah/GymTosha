@@ -79,8 +79,10 @@ def main():
     selected = (
         json.loads(selected_path.read_text()) if args.resume and selected_path.exists() else {}
     )
-    evaluation = EvaluationConfig(seed=900000)
     for env_id in args.env_ids:
+        evaluation = EvaluationConfig(
+            seed=900000, episodes=1000 if env_id.startswith("FrozenLake") else 100
+        )
         configs = candidates(env_id, args.device)
         for seed in (101, 202):
             ids = list(range(len(configs)))
@@ -103,7 +105,9 @@ def main():
                     if t["env_id"] == env_id and t["candidate"] == index and t["seed"] == seed
                 ]
                 if old:
-                    if old[0]["result"]["config"] != asdict(config):
+                    if old[0]["result"]["config"] != asdict(config) or old[0]["result"][
+                        "evaluation"
+                    ]["config"] != asdict(evaluation):
                         raise ValueError("resume tuning configuration changed")
                     continue
 

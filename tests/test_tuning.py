@@ -50,6 +50,7 @@ def test_resume_keeps_finalists_and_other_environment_selections(tmp_path, monke
                 "result": {
                     "config": asdict(configs[index]),
                     "evaluation": {
+                        "config": asdict(EvaluationConfig(seed=900000)),
                         "status": "reached",
                         "time_to_target_seconds": seconds,
                         "checkpoints": [{"mean_return": 500}],
@@ -66,6 +67,7 @@ def test_resume_keeps_finalists_and_other_environment_selections(tmp_path, monke
                 "result": {
                     "config": asdict(replace(configs[index], seed=202)),
                     "evaluation": {
+                        "config": asdict(EvaluationConfig(seed=900000)),
                         "status": "reached",
                         "time_to_target_seconds": seconds,
                         "checkpoints": [{"mean_return": 500}],

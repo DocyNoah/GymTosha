@@ -12,7 +12,7 @@ and clean installation using env IDs.
 
 Use a common Gymnasium evaluation environment for both training backends,
 including LunarLander. Evaluate the deterministic policy on 100 held-out episode
-seeds. Require two consecutive evaluation checkpoints at or above the target.
+seeds (1,000 for stochastic FrozenLake). Require two consecutive evaluation checkpoints at or above the target.
 Report confirmation time, transitions, evaluation scores and unsuccessful runs.
 Measure wall time from environment creation, including compilation, model setup,
 training and evaluation. Also retain training-only timing for diagnosis.

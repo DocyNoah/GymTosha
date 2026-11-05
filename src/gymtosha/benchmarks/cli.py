@@ -137,11 +137,15 @@ def _time_to_target(args):
     evaluation = EvaluationConfig(
         target=args.target,
         interval=args.eval_interval,
-        episodes=args.eval_episodes,
+        episodes=args.eval_episodes or 100,
         confirmations=args.confirmations,
         seed=args.eval_seed,
     )
     for env_id in args.env_ids:
+        evaluation = replace(
+            evaluation,
+            episodes=args.eval_episodes or (1000 if env_id.startswith("FrozenLake") else 100),
+        )
         if args.presets and env_id not in selected:
             raise ValueError(f"no selected hyperparameters for {env_id}")
         preset = (
@@ -288,7 +292,7 @@ def main(argv=None):
     target.add_argument("--num-envs", type=int)
     target.add_argument("--rollout-steps", type=int)
     target.add_argument("--eval-interval", type=int, default=65536)
-    target.add_argument("--eval-episodes", type=int, default=100)
+    target.add_argument("--eval-episodes", type=int)
     target.add_argument("--eval-seed", type=int, default=100000)
     target.add_argument("--confirmations", type=int, default=2)
     target.add_argument("--target", type=float)
