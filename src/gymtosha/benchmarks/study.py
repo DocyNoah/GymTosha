@@ -473,7 +473,7 @@ def tune_count(config, output, *, parallelism=16):
             and phase.get("score_metric") == SCORE_METRIC
         ):
             if (
-                phase["starting_config"] != asdict(config)
+                phase.get("resume_from_config", phase["starting_config"]) != asdict(config)
                 or phase["source"] != source_fingerprint()
                 or phase.get("runtime") != runtime_fingerprint()
             ):

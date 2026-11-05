@@ -160,6 +160,7 @@ def test_worker_runs_fixed_budget_and_trial_cache_is_reusable(tmp_path, monkeypa
 
 
 def test_parameter_dashboard_contains_real_ten_seed_statistics(tmp_path):
+    import csv
     import json
 
     from gymtosha.benchmarks.study_plot import plot_parameter, render_dashboard
@@ -184,18 +185,28 @@ def test_parameter_dashboard_contains_real_ten_seed_statistics(tmp_path):
     trial_directory.mkdir()
     for record in trials():
         record["result"]["checkpoints"] = [
-            {"timesteps": step, "episodes": 4, "mean_return": 100 + step} for step in range(1, 9)
+            {"timesteps": step, "episodes": 4, "mean_return": 100 + step} for step in range(1, 21)
         ]
         record["result"]["evaluation"]["checkpoints"] = [
-            {"timesteps": 0, "mean_return": 20},
-            {"timesteps": 4, "mean_return": 150},
-            {"timesteps": 8, "mean_return": 400},
+            {
+                "timesteps": step,
+                "mean_return": 20 + step,
+                "std_return": 0,
+                "episode_returns": [20 + step] * 100,
+            }
+            for step in range(0, 21, 4)
         ]
         (trial_directory / f"{record['seed']}.json").write_text(json.dumps(record))
     plot_parameter(phase, directory / "learning_rate.png")
     render_dashboard(tmp_path)
     assert (directory / "learning_rate.png").stat().st_size > 1000
     assert (directory / "learning_rate-learning.png").stat().st_size > 1000
+    with (tmp_path / "final-evaluation-checkpoints.csv").open() as stream:
+        rows = list(csv.DictReader(stream))
+    assert len(rows) == 50
+    assert {int(row["episodes"]) for row in rows} == {100}
+    assert {int(row["sampling_slots"]) for row in rows} == {4, 8, 12, 16, 20}
+    assert {float(row["episode_population_std"]) for row in rows} == {0.0}
     text = (tmp_path / "index.html").read_text()
     assert "__DATA__" not in text
     assert "5.5" in text
@@ -532,3 +543,40 @@ def test_comparison_exports_seed_metrics_and_evaluation_curves(tmp_path, monkeyp
     assert {int(row["transitions_to_target"]) for row in rows} == {81920}
     assert {float(row["time_to_target_seconds"]) for row in rows} == {50.0}
     assert (output / "best-learning-curves.png").stat().st_size > 1000
+
+
+def test_tuning_reuses_completed_search_from_original_context(tmp_path, monkeypatch):
+    import json
+
+    from gymtosha.benchmarks.study import (
+        SCORE_METRIC,
+        runtime_fingerprint,
+        source_fingerprint,
+        tune_count,
+    )
+
+    original = reference_config(32)
+    current = change_parameter(original, "learning_rate", 0.003)
+    selected = change_parameter(current, "rollout_steps", 512)
+    path = tmp_path / "search/32/rollout_steps.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps(
+            {
+                "starting_config": asdict(original),
+                "resume_from_config": asdict(current),
+                "selected_config": asdict(selected),
+                "source": source_fingerprint(),
+                "runtime": runtime_fingerprint(),
+                "score_metric": SCORE_METRIC,
+                "seeds": list(SEEDS),
+            }
+        )
+    )
+    monkeypatch.setattr("gymtosha.benchmarks.study.PARAMETERS", {"rollout_steps": [128, 512]})
+
+    def unexpected_search(*args, **kwargs):
+        raise AssertionError("completed search should be reused")
+
+    monkeypatch.setattr("gymtosha.benchmarks.study.collect_candidates", unexpected_search)
+    assert tune_count(current, tmp_path) == selected

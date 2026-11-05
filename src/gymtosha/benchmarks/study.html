@@ -72,7 +72,8 @@
       const phase = data.phases.find(item =>
         item.num_envs === Number(count.value) && item.parameter === parameter.value);
       document.getElementById('status').textContent = phase
-        ? '선택값 ' + phase.selected_value
+        ? '선택값 ' + phase.selected_value + (phase.reused_original_search
+          ? ' · 완료된 후보 재집계. 다른 파라미터는 원래 실험 설정을 따릅니다.' : '')
         : '후보별 10개 시드가 완료되면 통계가 표시됩니다.';
       const image = document.getElementById('plot');
       const learning = document.getElementById('learning');

@@ -241,7 +241,7 @@ def render_dashboard(output, *, figures=True):
     selected_path = root / "selected.json"
     if figures and selected_path.exists():
         plot_selected_trends(json.loads(selected_path.read_text()), root)
-    export_tables(phases, comparisons, root)
+    export_tables(phases, comparisons, root, include_checkpoints=figures)
     learning_curves = {}
     for phase, phase_path in zip(phases, phase_paths, strict=True):
         curve = phase_path.with_name(f"{phase_path.stem}-learning.png")
@@ -258,6 +258,7 @@ def render_dashboard(output, *, figures=True):
             "num_envs": phase["num_envs"],
             "parameter": phase["parameter"],
             "selected_value": phase["selected_value"],
+            "reused_original_search": "resume_from_config" in phase,
             "learning_curve": learning_curves.get((phase["num_envs"], phase["parameter"])),
             "candidates": [
                 {"value": candidate["value"], "summary": candidate["summary"]}
@@ -424,7 +425,42 @@ def plot_best_learning_curves(best, path):
     plt.close(fig)
 
 
-def export_tables(phases, comparisons, root):
+def final_checkpoint_rows(root, seeds):
+    from gymtosha.benchmarks.study import FINAL_EVAL_CHECKPOINTS
+
+    for seed in seeds:
+        path = root / "trials" / f"{seed['trial_id']}.json"
+        if not path.exists():
+            continue
+        record = json.loads(path.read_text())
+        if record["status"] != "completed":
+            continue
+        points = record["result"]["evaluation"]["checkpoints"]
+        tail = points[-FINAL_EVAL_CHECKPOINTS:]
+        if len(tail) != FINAL_EVAL_CHECKPOINTS:
+            raise ValueError(f"trial {seed['trial_id']} has fewer than five evaluation checkpoints")
+        scope = {
+            key: seed[key]
+            for key in ("condition", "num_envs", "parameter", "value", "seed", "trial_id")
+            if key in seed
+        }
+        for index, point in enumerate(tail, start=len(points) - len(tail) + 1):
+            scores = np.asarray(point["episode_returns"], dtype=np.float32)
+            if len(scores) != 100:
+                raise ValueError(
+                    f"trial {seed['trial_id']} checkpoint {index} must have 100 episodes"
+                )
+            yield {
+                **scope,
+                "checkpoint": index,
+                "sampling_slots": point["timesteps"],
+                "episodes": len(scores),
+                "mean_return": float(scores.mean()),
+                "episode_population_std": float(scores.std()),
+            }
+
+
+def export_tables(phases, comparisons, root, *, include_checkpoints=False):
     import csv
 
     searches = [
@@ -465,12 +501,16 @@ def export_tables(phases, comparisons, root):
         for row in comparisons
         for seed in row.get("seed_results", [])
     ]
-    for name, rows in [
+    tables = [
         ("search-summary.csv", searches),
         ("search-seeds.csv", search_seeds),
         ("comparison-summary.csv", results),
         ("comparison-seeds.csv", comparison_seeds),
-    ]:
+    ]
+    if include_checkpoints:
+        rows = list(final_checkpoint_rows(root, search_seeds + comparison_seeds))
+        tables.append(("final-evaluation-checkpoints.csv", rows))
+    for name, rows in tables:
         if not rows:
             continue
         with (Path(root) / name).open("w", newline="") as stream:
