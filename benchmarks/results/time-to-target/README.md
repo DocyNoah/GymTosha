@@ -70,3 +70,13 @@ TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark gymtosha-benchmark time-to-t
 
 원시 결과는 `time_to_target.json`, 행 단위 요약은 `time_to_target.csv`입니다.
 `target_summary.json`과 `.csv`에 달성률과 대응 시드 비교가 있습니다.
+
+## 코드와 설치 검증
+
+최종 코드 검증에서 RTX 3090은 테스트 84개 통과·10개 건너뜀, Apple MPS는
+85개 통과·9개 건너뜀을 기록했습니다. 장치별 실행 로그는 `pytest-cuda.txt`와
+`pytest-mps.txt`에 있습니다. Ruff 검사·포맷 검사와 wheel·sdist 빌드도 통과했습니다.
+
+저장소 밖의 독립 Python 3.12 환경에 공개 Git URL로 설치한 뒤 일곱 env ID의
+생성·초기화·전이를 확인했습니다. 결과는 `install_verification.json`에 있습니다.
+학습에 사용한 커밋과 최종 검증 커밋, 장치 정보는 `metadata.json`에 기록했습니다.

@@ -1,0 +1,29 @@
+{
+  "python": "3.12.12 (main, Dec  9 2025, 19:02:36) [Clang 21.1.4 ]",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "cpu": "AMD Ryzen 5 5600X 6-Core Processor",
+  "torch": "2.15.0+cu132",
+  "cuda_runtime": "13.2",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "gpu_inventory": "NVIDIA GeForce RTX 3090, 580.178.04, 24576 MiB",
+  "triton_default_fp_fusion": 1,
+  "source_commits": {
+    "initial_tuning": "8372bca5c080d53afe10236108b4723a59ac6fc5",
+    "resumed_tuning_and_final_training": "8f777dadf7cfe453a193fc5c5dc7892044489bc2",
+    "final_code_verification": "2ccea3e61c4b01a6c4431c58a2dd6de2b42b4855"
+  },
+  "verification": {
+    "cuda": {
+      "passed": 84,
+      "skipped": 10
+    },
+    "mps": {
+      "passed": 85,
+      "skipped": 9
+    },
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "wheel_and_sdist_build": "passed",
+    "public_git_install": "passed"
+  }
+}
