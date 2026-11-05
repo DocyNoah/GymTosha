@@ -141,6 +141,8 @@ def _isolated_probe(args, count):
                 terminate_probe(process)
     if path.exists():
         result = json.loads(path.read_text())
+        result["observed_seconds"] = time.perf_counter() - started
+        _write(result, path)
         if reason is not None:
             result["supervisor_stop_reason"] = reason
             _write(result, path)
@@ -207,10 +209,12 @@ def main():
     parser.add_argument("--device", choices=["cpu", "cuda", "mps"], required=True)
     parser.add_argument("--compile", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--timeout", type=float, default=300)
+    parser.add_argument("--timeout", type=float, default=60)
     parser.add_argument("--probe", action="store_true")
     parser.add_argument("--num-envs", type=int)
     args = parser.parse_args()
+    if not 0 < args.timeout <= 60:
+        parser.error("capacity verification must finish within 60 seconds")
     if args.backend == "gymnasium-async" and args.num_envs is not None and args.num_envs > 32:
         parser.error("AsyncVectorEnv is capped at 32 environments")
     if args.probe:
