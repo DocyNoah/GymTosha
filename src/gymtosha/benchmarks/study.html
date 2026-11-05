@@ -25,14 +25,24 @@
 <body>
   <h1>CartPole PPO · 20개 시드</h1>
   <p>평균 학습 에피소드 보상으로 후보를 선택합니다. 오차 막대는 시드 간 표본 표준편차입니다.</p>
+  <p id="progress" aria-live="polite"></p>
   <label>환경 수 <select id="count"></select></label>
   <label>파라미터 <select id="parameter"></select></label>
   <div id="status" aria-live="polite"></div>
   <div id="table" class="table-container"></div>
   <img id="plot" alt="후보별 보상과 시간 평균 및 표준편차">
+  <img id="heatmap" alt="환경 수와 파라미터 후보별 평균 학습 보상">
   <div id="comparison"></div>
+  <div id="best"></div>
+  <div id="trends"></div>
   <script>
     const data = __DATA__;
+    if (data.progress) {
+      const p = data.progress;
+      document.getElementById('progress').textContent =
+        '진행 중 · 환경 ' + p.num_envs + ' · ' + (p.parameter || '비교') +
+        ' · seed ' + p.seed + (p.value === undefined ? '' : ' · 후보 ' + p.value);
+    }
     const count = document.getElementById('count');
     const parameter = document.getElementById('parameter');
     const counts = [...new Set(data.phases.map(phase => phase.num_envs))].sort((a, b) => a - b);
@@ -53,6 +63,7 @@
         : '이 조합의 탐색 결과가 아직 없습니다.';
       const image = document.getElementById('plot');
       image.hidden = !phase;
+      document.getElementById('heatmap').hidden = true;
       if (!phase) {
         document.getElementById('table').replaceChildren();
         return;
@@ -81,10 +92,27 @@
       }
       document.getElementById('table').replaceChildren(table);
       image.src = 'search/' + phase.num_envs + '/' + phase.parameter + '.png';
+      const sizes = new Set(data.phases.filter(p => p.parameter === phase.parameter).map(p => p.num_envs));
+      if (sizes.size > 1) {
+        const heatmap = document.getElementById('heatmap');
+        heatmap.hidden = false;
+        heatmap.src = 'heatmap-' + phase.parameter + '.png';
+      }
     }
     count.onchange = update;
     parameter.onchange = update;
     update();
+    for (const [enabled, id, filename, description] of [
+      [data.has_best, 'best', 'best-backends.png', '백엔드별 최적 환경 수의 비교'],
+      [data.has_trends, 'trends', 'selected-trends.png', '환경 수에 따른 선택 파라미터 변화']
+    ]) {
+      if (enabled) {
+        const image = document.createElement('img');
+        image.src = filename;
+        image.alt = description;
+        document.getElementById(id).append(image);
+      }
+    }
     if (data.comparisons.length) {
       const image = document.createElement('img');
       image.src = 'comparison.png';

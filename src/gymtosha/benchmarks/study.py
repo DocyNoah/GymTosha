@@ -470,6 +470,7 @@ def compare(args):
                     "config": asdict(config),
                     "summary": summarize_trials(records, seeds=COMPARISON_SEEDS),
                     "seeds": list(COMPARISON_SEEDS),
+                    "trial_ids": [record["trial_id"] for record in records],
                 },
                 directory / "comparison" / f"{name}.json",
             )

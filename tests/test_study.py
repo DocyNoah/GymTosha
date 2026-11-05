@@ -246,3 +246,27 @@ def test_comparison_records_unsupported_capacity_without_stopping(tmp_path):
         Namespace(presets=presets, capacity=capacities, devices=["cuda"], output=tmp_path / "run")
     )
     assert (tmp_path / "run/unsupported/gymnasium-async-cuda-0.json").exists()
+
+
+def test_best_backend_uses_fastest_stably_solved_size():
+    from gymtosha.benchmarks.study_plot import best_backend_conditions
+
+    def condition(n, score, target_time):
+        return {
+            "config": {"backend": "gymtosha", "device": "cuda", "compile_env": True, "num_envs": n},
+            "summary": {
+                "complete": True,
+                "successful_trials": 20,
+                "mean_training_return": score,
+                "std_training_return": 1.0,
+                "mean_wall_seconds": 100.0,
+                "mean_target_seconds": target_time,
+                "std_target_seconds": 1.0 if target_time else None,
+            },
+        }
+
+    result = best_backend_conditions(
+        [condition(32, 450, 20), condition(64, 470, 15), condition(128, 490, None)]
+    )
+    assert result[0]["config"]["num_envs"] == 64
+    assert result[0]["selection_basis"] == "stable_target_time"
