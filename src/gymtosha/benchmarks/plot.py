@@ -54,6 +54,14 @@ def plot_training(records, output):
     for record in records:
         config = record["config"]
         groups[(config["env_id"], config["algorithm"])].append(record)
+    env_order = list(dict.fromkeys(record["config"]["env_id"] for record in records))
+    algo_order = ["ppo", "dqn", "sac", "td3"]
+    groups = dict(
+        sorted(
+            groups.items(),
+            key=lambda item: (env_order.index(item[0][0]), algo_order.index(item[0][1])),
+        )
+    )
     labels = list(dict.fromkeys(label(record["config"]) for record in records))
     colors = dict(zip(labels, plt.get_cmap("tab10").colors, strict=False))
     fig, ax = plt.subplots(figsize=(max(9, len(groups) * 1.2), 5.2))
@@ -76,9 +84,10 @@ def plot_training(records, output):
     ax.set_ylabel("Training transitions / second (log scale)")
     ax.set_title("End-to-end training speed · identical learner and budget per comparison")
     ax.legend(fontsize=8, loc="upper left", bbox_to_anchor=(1, 1))
+    fig.subplots_adjust(bottom=0.34, right=0.82)
     fig.text(
         0.01,
-        -0.02,
+        0.015,
         "Bars = median; whiskers = seed standard deviation. "
         "Warm-up excluded and recorded separately. LunarLander uses approximate tensor physics.",
         fontsize=8,
@@ -103,6 +112,8 @@ def plot_training(records, output):
                 color=colors[name],
                 alpha=0.65,
                 linewidth=1.4,
+                marker=".",
+                markersize=4,
                 label=name if name not in shown else None,
             )
             shown.add(name)
@@ -115,9 +126,15 @@ def plot_training(records, output):
     for ax in list(axes.flat)[len(groups) :]:
         ax.set_visible(False)
     handles = [plt.Line2D([0], [0], color=colors[name], label=name) for name in labels]
-    fig.legend(handles=handles, loc="upper center", ncol=min(len(labels), 3), fontsize=8)
-    fig.suptitle("Training returns versus wall time · individual seeds", y=1.02)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.legend(
+        handles=handles,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.97),
+        ncol=min(len(labels), 3),
+        fontsize=8,
+    )
+    fig.suptitle("Training returns versus wall time · individual seeds", y=0.995)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
     for extension in ("png", "svg"):
         fig.savefig(output / f"learning_curves.{extension}")
     plt.close(fig)
@@ -156,9 +173,15 @@ def plot_throughput(records, output):
     for ax in list(axes.flat)[len(environments) :]:
         ax.set_visible(False)
     handles = [plt.Line2D([0], [0], color=colors[name], label=name) for name in labels]
-    fig.legend(handles=handles, loc="upper center", ncol=min(len(labels), 3), fontsize=8)
-    fig.suptitle("Environment-only throughput · synchronized device timing", y=1.03)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.legend(
+        handles=handles,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.97),
+        ncol=min(len(labels), 3),
+        fontsize=8,
+    )
+    fig.suptitle("Environment + tensor-adapter throughput · synchronized device timing", y=0.995)
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
     for extension in ("png", "svg"):
         fig.savefig(output / f"environment_throughput.{extension}")
     plt.close(fig)

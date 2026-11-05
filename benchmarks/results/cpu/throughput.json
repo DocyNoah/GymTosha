@@ -1,0 +1,2702 @@
+[
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.00446008425205946,
+    "steps_per_second": 44842.20223141509,
+    "setup_seconds": 0.0015557082369923592,
+    "warmup_seconds": 0.00044783297926187515,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.003197084181010723,
+    "steps_per_second": 62557.00152905333,
+    "setup_seconds": 0.5647572502493858,
+    "warmup_seconds": 0.885383415967226,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.00432145781815052,
+    "steps_per_second": 46280.678515472624,
+    "setup_seconds": 0.0006443331949412823,
+    "warmup_seconds": 0.0003522089682519436,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.0032282499596476555,
+    "steps_per_second": 61953.0713234575,
+    "setup_seconds": 0.0006890827789902687,
+    "warmup_seconds": 0.03820370836183429,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.004290000069886446,
+    "steps_per_second": 46620.045860580576,
+    "setup_seconds": 0.00044079171493649483,
+    "warmup_seconds": 0.0002931663766503334,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.003110417164862156,
+    "steps_per_second": 64300.05668029529,
+    "setup_seconds": 0.0005536251701414585,
+    "warmup_seconds": 0.03593900008127093,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.055773583240807056,
+    "steps_per_second": 229499.33026061713,
+    "setup_seconds": 0.004571625031530857,
+    "warmup_seconds": 0.003218250349164009,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.003957499749958515,
+    "steps_per_second": 3234365.3338535717,
+    "setup_seconds": 0.0005943751893937588,
+    "warmup_seconds": 0.12347987527027726,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.05725529184564948,
+    "steps_per_second": 223560.12147325388,
+    "setup_seconds": 0.004588332958519459,
+    "warmup_seconds": 0.003246332984417677,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.004154750145971775,
+    "steps_per_second": 3080811.01156232,
+    "setup_seconds": 0.000630625057965517,
+    "warmup_seconds": 0.09108245884999633,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.05737441685050726,
+    "steps_per_second": 223095.94942552922,
+    "setup_seconds": 0.00468679191544652,
+    "warmup_seconds": 0.003272749949246645,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.003979208879172802,
+    "steps_per_second": 3216719.8025203603,
+    "setup_seconds": 0.0005886252038180828,
+    "warmup_seconds": 0.09224929194897413,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.8548577497713268,
+    "steps_per_second": 239572.0224268701,
+    "setup_seconds": 0.06833762489259243,
+    "warmup_seconds": 0.04802862508222461,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.007073999848216772,
+    "steps_per_second": 28951089.114262052,
+    "setup_seconds": 0.000731790903955698,
+    "warmup_seconds": 0.29062708420678973,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.8656983338296413,
+    "steps_per_second": 236572.01590537207,
+    "setup_seconds": 0.1299479161389172,
+    "warmup_seconds": 0.047436167020350695,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.007182249799370766,
+    "steps_per_second": 28514741.998801332,
+    "setup_seconds": 0.0007330416701734066,
+    "warmup_seconds": 0.09240345796570182,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.8905994170345366,
+    "steps_per_second": 229957.48266030816,
+    "setup_seconds": 0.06848179223015904,
+    "warmup_seconds": 0.04920233320444822,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.007411249913275242,
+    "steps_per_second": 27633665.35962529,
+    "setup_seconds": 0.0008670841343700886,
+    "warmup_seconds": 0.10013991687446833,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.004525625146925449,
+    "steps_per_second": 44192.7896162308,
+    "setup_seconds": 0.0005237921141088009,
+    "warmup_seconds": 0.0003937501460313797,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.0029731658287346363,
+    "steps_per_second": 67268.36359649638,
+    "setup_seconds": 0.0005718329921364784,
+    "warmup_seconds": 0.046359249856323004,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.0044920421205461025,
+    "steps_per_second": 44523.18002211559,
+    "setup_seconds": 0.0004392080008983612,
+    "warmup_seconds": 0.00033791735768318176,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.003089125268161297,
+    "steps_per_second": 64743.246918906465,
+    "setup_seconds": 0.0004502907395362854,
+    "warmup_seconds": 0.033250332809984684,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.004447625018656254,
+    "steps_per_second": 44967.81971525678,
+    "setup_seconds": 0.0004285830073058605,
+    "warmup_seconds": 0.00030066585168242455,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.0029797502793371677,
+    "steps_per_second": 67119.71851697892,
+    "setup_seconds": 0.00047512538731098175,
+    "warmup_seconds": 0.03420479083433747,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.07831433275714517,
+    "steps_per_second": 163443.9003610379,
+    "setup_seconds": 0.004512416198849678,
+    "warmup_seconds": 0.004382333252578974,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.0039417920634150505,
+    "steps_per_second": 3247253.988560336,
+    "setup_seconds": 0.0007412084378302097,
+    "warmup_seconds": 0.08546295808628201,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.07759391702711582,
+    "steps_per_second": 164961.3847375038,
+    "setup_seconds": 0.0048391250893473625,
+    "warmup_seconds": 0.004633457865566015,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.0037691667675971985,
+    "steps_per_second": 3395976.031105638,
+    "setup_seconds": 0.0006601670756936073,
+    "warmup_seconds": 0.08915095822885633,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.07741533266380429,
+    "steps_per_second": 165341.92335757628,
+    "setup_seconds": 0.004584457725286484,
+    "warmup_seconds": 0.004332667216658592,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.0039252908900380135,
+    "steps_per_second": 3260904.824273047,
+    "setup_seconds": 0.0006759581156075001,
+    "warmup_seconds": 0.08173754205927253,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 1.186349792405963,
+    "steps_per_second": 172630.36695497518,
+    "setup_seconds": 0.06863354193046689,
+    "warmup_seconds": 0.06436554109677672,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.005529332906007767,
+    "steps_per_second": 37038826.10820545,
+    "setup_seconds": 0.0007211673073470592,
+    "warmup_seconds": 0.1672843750566244,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 1.181700374931097,
+    "steps_per_second": 173309.58366831485,
+    "setup_seconds": 0.06816733302548528,
+    "warmup_seconds": 0.06564720813184977,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.005479417275637388,
+    "steps_per_second": 37376237.23431007,
+    "setup_seconds": 0.0007264171727001667,
+    "warmup_seconds": 0.08357216604053974,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 1.1744730421341956,
+    "steps_per_second": 174376.07561246987,
+    "setup_seconds": 0.06727629108354449,
+    "warmup_seconds": 0.0656662080436945,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.005470416974276304,
+    "steps_per_second": 37437731.15706477,
+    "setup_seconds": 0.0006721671670675278,
+    "warmup_seconds": 0.08230420807376504,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.0034812078811228275,
+    "steps_per_second": 57451.32345715938,
+    "setup_seconds": 0.0004919166676700115,
+    "warmup_seconds": 0.00026950007304549217,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.0033138752914965153,
+    "steps_per_second": 60352.30128098208,
+    "setup_seconds": 0.00048112496733665466,
+    "warmup_seconds": 0.03976266738027334,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.003617625217884779,
+    "steps_per_second": 55284.88661878019,
+    "setup_seconds": 0.00045004207640886307,
+    "warmup_seconds": 0.0002736249007284641,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.003342917189002037,
+    "steps_per_second": 59827.985167561426,
+    "setup_seconds": 0.000501750037074089,
+    "warmup_seconds": 0.03602920938283205,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.0035061673261225224,
+    "steps_per_second": 57042.34321902155,
+    "setup_seconds": 0.00046454183757305145,
+    "warmup_seconds": 0.00026787491515278816,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.0032303747721016407,
+    "steps_per_second": 61912.321049325976,
+    "setup_seconds": 0.00048491591587662697,
+    "warmup_seconds": 0.03554779104888439,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.026564333122223616,
+    "steps_per_second": 481849.099734846,
+    "setup_seconds": 0.006103333085775375,
+    "warmup_seconds": 0.0017439168877899647,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.0041626254096627235,
+    "steps_per_second": 3074982.4306283467,
+    "setup_seconds": 0.0006157499738037586,
+    "warmup_seconds": 0.09206166723743081,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.025798416696488857,
+    "steps_per_second": 496154.47919104545,
+    "setup_seconds": 0.08029262535274029,
+    "warmup_seconds": 0.0016853748820722103,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.004160374868661165,
+    "steps_per_second": 3076645.8321865406,
+    "setup_seconds": 0.0005654171109199524,
+    "warmup_seconds": 0.09072366636246443,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.025613415986299515,
+    "steps_per_second": 499738.1062661323,
+    "setup_seconds": 0.006304957903921604,
+    "warmup_seconds": 0.0017208750359714031,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.0041345832869410515,
+    "steps_per_second": 3095837.98696918,
+    "setup_seconds": 0.0006160000339150429,
+    "warmup_seconds": 0.09167549991980195,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.36633795872330666,
+    "steps_per_second": 559046.6265459663,
+    "setup_seconds": 0.09387654112651944,
+    "warmup_seconds": 0.02347241574898362,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.00596400024369359,
+    "steps_per_second": 34339368.147504374,
+    "setup_seconds": 0.0007391250692307949,
+    "warmup_seconds": 0.20226845890283585,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.35843862500041723,
+    "steps_per_second": 571366.9948370146,
+    "setup_seconds": 0.09520579222589731,
+    "warmup_seconds": 0.025090917013585567,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.005715208128094673,
+    "steps_per_second": 35834215.55432941,
+    "setup_seconds": 0.0006978330202400684,
+    "warmup_seconds": 0.09088308410719037,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.3661407083272934,
+    "steps_per_second": 559347.8008376199,
+    "setup_seconds": 0.09282524976879358,
+    "warmup_seconds": 0.02342587523162365,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.005694500170648098,
+    "steps_per_second": 35964526.097589254,
+    "setup_seconds": 0.0007242499850690365,
+    "warmup_seconds": 0.09171070903539658,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.007465832866728306,
+    "steps_per_second": 26788.705770699158,
+    "setup_seconds": 0.06592287495732307,
+    "warmup_seconds": 0.00043633393943309784,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.006742249708622694,
+    "steps_per_second": 29663.689219967495,
+    "setup_seconds": 0.0008622081950306892,
+    "warmup_seconds": 0.17721070908010006,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.007064166944473982,
+    "steps_per_second": 28311.901682398955,
+    "setup_seconds": 0.0006176247261464596,
+    "warmup_seconds": 0.0004004999063909054,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.006845917087048292,
+    "steps_per_second": 29214.493464780284,
+    "setup_seconds": 0.0007696659304201603,
+    "warmup_seconds": 0.1320944158360362,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.0073195830918848515,
+    "steps_per_second": 27323.960598485177,
+    "setup_seconds": 0.0006389999762177467,
+    "warmup_seconds": 0.00040329108014702797,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.006670166738331318,
+    "steps_per_second": 29984.257942258606,
+    "setup_seconds": 0.0007272078655660152,
+    "warmup_seconds": 0.13145862519741058,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.2367473328486085,
+    "steps_per_second": 54066.07899648502,
+    "setup_seconds": 0.013043082784861326,
+    "warmup_seconds": 0.010422833263874054,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.008926666807383299,
+    "steps_per_second": 1433905.8773217618,
+    "setup_seconds": 0.0010525421239435673,
+    "warmup_seconds": 0.4090427909977734,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.23417374957352877,
+    "steps_per_second": 54660.268383245486,
+    "setup_seconds": 0.09878824977204204,
+    "warmup_seconds": 0.010181916877627373,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.009158208034932613,
+    "steps_per_second": 1397653.33471093,
+    "setup_seconds": 0.0009213341400027275,
+    "warmup_seconds": 0.383842000272125,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.240426667034626,
+    "steps_per_second": 53238.68669758067,
+    "setup_seconds": 0.01241787476465106,
+    "warmup_seconds": 0.01046925038099289,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.00978441582992673,
+    "steps_per_second": 1308202.7810847706,
+    "setup_seconds": 0.0010160831734538078,
+    "warmup_seconds": 0.39276208309456706,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 3.991877374704927,
+    "steps_per_second": 51304.18115990812,
+    "setup_seconds": 0.1833526249974966,
+    "warmup_seconds": 0.17115787509828806,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.03437324985861778,
+    "steps_per_second": 5958121.528874123,
+    "setup_seconds": 0.001170292031019926,
+    "warmup_seconds": 0.8923508333973587,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 4.033491832669824,
+    "steps_per_second": 50774.864186210594,
+    "setup_seconds": 0.30613304069265723,
+    "warmup_seconds": 0.1740352911874652,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.03389891562983394,
+    "steps_per_second": 6041491.186218315,
+    "setup_seconds": 0.0015155421569943428,
+    "warmup_seconds": 0.40351287508383393,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 3.9772435422055423,
+    "steps_per_second": 51492.94928176064,
+    "setup_seconds": 0.17900320887565613,
+    "warmup_seconds": 0.17591904196888208,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.03439095802605152,
+    "steps_per_second": 5955053.646509696,
+    "setup_seconds": 0.0011963751167058945,
+    "warmup_seconds": 0.4074824173003435,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.004303916823118925,
+    "steps_per_second": 46469.29952867113,
+    "setup_seconds": 0.0015531671233475208,
+    "warmup_seconds": 0.0003176662139594555,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.0037039159797132015,
+    "steps_per_second": 53996.9051931589,
+    "setup_seconds": 0.000547999981790781,
+    "warmup_seconds": 0.8824607501737773,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.005276540759950876,
+    "steps_per_second": 37903.62078087348,
+    "setup_seconds": 0.0008205417543649673,
+    "warmup_seconds": 0.00038287462666630745,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.0029147500172257423,
+    "steps_per_second": 68616.51902153857,
+    "setup_seconds": 0.0006869169883430004,
+    "warmup_seconds": 0.04075458412989974,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.004137208219617605,
+    "steps_per_second": 48341.77768758413,
+    "setup_seconds": 0.00046612508594989777,
+    "warmup_seconds": 0.0002727922983467579,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.003008957952260971,
+    "steps_per_second": 66468.19369799347,
+    "setup_seconds": 0.0004204576835036278,
+    "warmup_seconds": 0.03659779205918312,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.055361959151923656,
+    "steps_per_second": 231205.69062367151,
+    "setup_seconds": 0.16458429163321853,
+    "warmup_seconds": 0.003053249791264534,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.005016625393182039,
+    "steps_per_second": 2551516.008629254,
+    "setup_seconds": 0.0006017498672008514,
+    "warmup_seconds": 1.0702888341620564,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.05671787494793534,
+    "steps_per_second": 225678.41287689056,
+    "setup_seconds": 0.013318958692252636,
+    "warmup_seconds": 0.003591666929423809,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.003791332710534334,
+    "steps_per_second": 3376121.5322608873,
+    "setup_seconds": 0.0007641669362783432,
+    "warmup_seconds": 0.09551633428782225,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.05573312472552061,
+    "steps_per_second": 229665.93140145228,
+    "setup_seconds": 0.010620124638080597,
+    "warmup_seconds": 0.0030973749235272408,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.003721333108842373,
+    "steps_per_second": 3439627.581198128,
+    "setup_seconds": 0.0005745831876993179,
+    "warmup_seconds": 0.09213575022295117,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.9283737088553607,
+    "steps_per_second": 220600.81844897175,
+    "setup_seconds": 0.16984350001439452,
+    "warmup_seconds": 0.05187950003892183,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.006237334106117487,
+    "steps_per_second": 32834540.6091258,
+    "setup_seconds": 0.0007289592176675797,
+    "warmup_seconds": 0.1817076657898724,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.9135088329203427,
+    "steps_per_second": 224190.4978031651,
+    "setup_seconds": 0.28772116731852293,
+    "warmup_seconds": 0.04877987504005432,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.006216083187609911,
+    "steps_per_second": 32946792.02624149,
+    "setup_seconds": 0.0007674591615796089,
+    "warmup_seconds": 0.09224112518131733,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.9369529578834772,
+    "steps_per_second": 218580.87780909665,
+    "setup_seconds": 0.1653114170767367,
+    "warmup_seconds": 0.04915862483903766,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.006315208040177822,
+    "steps_per_second": 32429652.15034045,
+    "setup_seconds": 0.0007222909480333328,
+    "warmup_seconds": 0.09119283268228173,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.014091250021010637,
+    "steps_per_second": 14193.204981942106,
+    "setup_seconds": 0.0008743330836296082,
+    "warmup_seconds": 0.0009009577333927155,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.014831250067800283,
+    "steps_per_second": 13485.039972066445,
+    "setup_seconds": 0.0006277919746935368,
+    "warmup_seconds": 0.0008372082374989986,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.014389332849532366,
+    "steps_per_second": 13899.185048492345,
+    "setup_seconds": 0.00039062462747097015,
+    "warmup_seconds": 0.0007985001429915428,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.014997458085417747,
+    "steps_per_second": 853477.9645389129,
+    "setup_seconds": 0.0002928338944911957,
+    "warmup_seconds": 0.0007747500203549862,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.015106500126421452,
+    "steps_per_second": 847317.372844862,
+    "setup_seconds": 0.0003415411338210106,
+    "warmup_seconds": 0.0007723751477897167,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.014847999904304743,
+    "steps_per_second": 862068.97107327,
+    "setup_seconds": 0.00045495806261897087,
+    "warmup_seconds": 0.0007647499442100525,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.020566958002746105,
+    "steps_per_second": 9957719.560309067,
+    "setup_seconds": 0.000525791198015213,
+    "warmup_seconds": 0.0010670418851077557,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.020697833970189095,
+    "steps_per_second": 9894755.185251346,
+    "setup_seconds": 0.00037416722625494003,
+    "warmup_seconds": 0.0010803327895700932,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.0209500421769917,
+    "steps_per_second": 9775636.644059876,
+    "setup_seconds": 0.0003375830128788948,
+    "warmup_seconds": 0.0010157092474400997,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.00864241598173976,
+    "steps_per_second": 23141.67709846096,
+    "setup_seconds": 0.0004796660505235195,
+    "warmup_seconds": 0.0005844593979418278,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.008521083276718855,
+    "steps_per_second": 23471.194155141784,
+    "setup_seconds": 0.00022170832380652428,
+    "warmup_seconds": 0.00043566711246967316,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.008502458687871695,
+    "steps_per_second": 23522.607676446503,
+    "setup_seconds": 0.00019516609609127045,
+    "warmup_seconds": 0.00043004099279642105,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.008736875373870134,
+    "steps_per_second": 1465054.6622516422,
+    "setup_seconds": 0.0002387920394539833,
+    "warmup_seconds": 0.00048075011000037193,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.008958791848272085,
+    "steps_per_second": 1428764.0807804663,
+    "setup_seconds": 0.0001921253278851509,
+    "warmup_seconds": 0.0004465421661734581,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.008727999869734049,
+    "steps_per_second": 1466544.4765170498,
+    "setup_seconds": 0.0002502910792827606,
+    "warmup_seconds": 0.00045120809227228165,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.012230750173330307,
+    "steps_per_second": 16744680.178863883,
+    "setup_seconds": 0.0002287495881319046,
+    "warmup_seconds": 0.0006339168176054955,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.012471292167901993,
+    "steps_per_second": 16421714.545915645,
+    "setup_seconds": 0.0002977498807013035,
+    "warmup_seconds": 0.0006200000643730164,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.012642834335565567,
+    "steps_per_second": 16198899.27876987,
+    "setup_seconds": 0.0004286249168217182,
+    "warmup_seconds": 0.000712249893695116,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.009430958889424801,
+    "steps_per_second": 21206.75133302358,
+    "setup_seconds": 0.00031800009310245514,
+    "warmup_seconds": 0.0005133748054504395,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.009309375192970037,
+    "steps_per_second": 21483.718923588956,
+    "setup_seconds": 0.000218250323086977,
+    "warmup_seconds": 0.00047624995931982994,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.009262375067919493,
+    "steps_per_second": 21592.733886657847,
+    "setup_seconds": 0.0002037077210843563,
+    "warmup_seconds": 0.0004721246659755707,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.009627083782106638,
+    "steps_per_second": 1329582.279505108,
+    "setup_seconds": 0.0002354579046368599,
+    "warmup_seconds": 0.0005213748663663864,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.010328083764761686,
+    "steps_per_second": 1239339.2899922275,
+    "setup_seconds": 0.00022641709074378014,
+    "warmup_seconds": 0.0005237502045929432,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.009919208008795977,
+    "steps_per_second": 1290425.6054162234,
+    "setup_seconds": 0.0003308327868580818,
+    "warmup_seconds": 0.0005139168351888657,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.013369665946811438,
+    "steps_per_second": 15318258.572409824,
+    "setup_seconds": 0.00025354186072945595,
+    "warmup_seconds": 0.0006872089579701424,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.013498417101800442,
+    "steps_per_second": 15172149.330952547,
+    "setup_seconds": 0.00027529196813702583,
+    "warmup_seconds": 0.000684207770973444,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.01322654215618968,
+    "steps_per_second": 15484016.727997113,
+    "setup_seconds": 0.00030124979093670845,
+    "warmup_seconds": 0.0006706672720611095,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.07699195807799697,
+    "steps_per_second": 2597.6738998817164,
+    "setup_seconds": 0.0005892920307815075,
+    "warmup_seconds": 0.004219959024339914,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.07498616678640246,
+    "steps_per_second": 2667.1586049957523,
+    "setup_seconds": 0.0006072083488106728,
+    "warmup_seconds": 0.0038930000737309456,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.07455516699701548,
+    "steps_per_second": 2682.57731899395,
+    "setup_seconds": 0.000559583306312561,
+    "warmup_seconds": 0.0037232497707009315,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.08010187512263656,
+    "steps_per_second": 159796.50888825144,
+    "setup_seconds": 0.0005620410665869713,
+    "warmup_seconds": 0.004022958222776651,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.08067162474617362,
+    "steps_per_second": 158667.9336169825,
+    "setup_seconds": 0.0005239997990429401,
+    "warmup_seconds": 0.004003375303000212,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.08189116697758436,
+    "steps_per_second": 156305.01398891624,
+    "setup_seconds": 0.0005829581059515476,
+    "warmup_seconds": 0.00407195882871747,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.12180716684088111,
+    "steps_per_second": 1681346.0596085773,
+    "setup_seconds": 0.0008040000684559345,
+    "warmup_seconds": 0.00607979204505682,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.12090020906180143,
+    "steps_per_second": 1693959.0228112089,
+    "setup_seconds": 0.0007641250267624855,
+    "warmup_seconds": 0.006155041977763176,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.1251835827715695,
+    "steps_per_second": 1635997.2726911937,
+    "setup_seconds": 0.0008647078648209572,
+    "warmup_seconds": 0.006275624968111515,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.01137825008481741,
+    "steps_per_second": 17577.395338398335,
+    "setup_seconds": 0.00047070765867829323,
+    "warmup_seconds": 0.0006623747758567333,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.011281291954219341,
+    "steps_per_second": 17728.465924968597,
+    "setup_seconds": 0.0003264169208705425,
+    "warmup_seconds": 0.0005668750964105129,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.011284000240266323,
+    "steps_per_second": 17724.210895202854,
+    "setup_seconds": 0.000244959257543087,
+    "warmup_seconds": 0.000619709026068449,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.011389541905373335,
+    "steps_per_second": 1123838.0003642852,
+    "setup_seconds": 0.0002322089858353138,
+    "warmup_seconds": 0.0005756672471761703,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.011445832904428244,
+    "steps_per_second": 1118310.926507397,
+    "setup_seconds": 0.0001726248301565647,
+    "warmup_seconds": 0.0005738330073654652,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.011361832730472088,
+    "steps_per_second": 1126578.8102715851,
+    "setup_seconds": 0.0002488330937922001,
+    "warmup_seconds": 0.0006170831620693207,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.015707749873399734,
+    "steps_per_second": 13038150.062907372,
+    "setup_seconds": 0.00020908284932374954,
+    "warmup_seconds": 0.0007811672985553741,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.01580766588449478,
+    "steps_per_second": 12955739.417600011,
+    "setup_seconds": 0.00019299983978271484,
+    "warmup_seconds": 0.0007836250588297844,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cpu",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.015860999934375286,
+    "steps_per_second": 12912174.569532676,
+    "setup_seconds": 0.00022920919582247734,
+    "warmup_seconds": 0.0007669157348573208,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "macOS-26.6.2-arm64-arm-64bit",
+      "torch": "2.15.0",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  }
+]

@@ -1,6 +1,6 @@
 # GymTosha
 
-[![Naoya Hair Flip](https://media1.tenor.com/m/lT3BqvL0Jv4AAAAd/naoya-hair-flip-meme.gif)](https://tenor.com/view/naoya-hair-flip-meme-gif-10753964425195300606)
+[![Naoya Hair Flip](https://media.tenor.com/lT3BqvL0Jv4AAAAC/naoya-hair-flip-meme.gif)](https://tenor.com/view/naoya-hair-flip-meme-gif-10753964425195300606)
 
 **GymTosha**는 투사주법(投射呪法, Tōsha Juhō)에서 이름을 가져온 배치형 강화학습 환경 라이브러리입니다.
 하나의 PyTorch 상태 텐서에 모든 환경을 담고, 배치 전체의 전이·보상·종료·자동 초기화를 계산합니다.
@@ -8,7 +8,7 @@ CPU, CUDA, Apple MPS를 지정할 수 있고 `torch.compile(fullgraph=True)`을 
 
 ## 설치
 
-Python 3.12 이상이 필요합니다. 저장소에서 설치할 수 있습니다.
+Python 3.12 이상과 PyTorch 2.15 이상이 필요합니다. 저장소에서 설치할 수 있습니다.
 
 ```bash
 uv sync --extra benchmark
@@ -18,7 +18,7 @@ uv run python examples/batched_cartpole.py
 다른 프로젝트에서는 다음과 같이 설치합니다.
 
 ```bash
-uv add "gymtosha @ git+https://github.com/DocyNoah/GymTosha.git@codex/initial-batched-envs"
+uv add /absolute/path/to/GymTosha
 ```
 
 ## 사용법
@@ -39,6 +39,7 @@ env.close()
 
 GPU가 없는 시스템에서는 `device="cpu"`를 사용합니다. Apple GPU는 `device="mps"`입니다.
 `compile()`의 첫 스텝에는 컴파일 시간이 포함됩니다. 이후 스텝은 생성된 커널을 재사용합니다.
+환경별 컴파일 캐시를 분리하여 여러 env ID와 배치 크기를 한 프로세스에서 사용할 수 있습니다.
 MPS의 큰 그래프는 Metal 버퍼 한도에 맞게 커널 융합 크기를 제한합니다.
 
 ## 환경
@@ -97,17 +98,17 @@ FrozenLake 관측은 학습기에서 one-hot으로 인코딩합니다. 출처와
 
 ```bash
 # 다섯 환경, 호환되는 네 알고리즘, seed 세 개, CPU 비교
-uv run gymtosha-benchmark train --compile --output outputs/cpu
+uv run --extra benchmark gymtosha-benchmark train --compile --output outputs/cpu
 
 # 동일한 학습기로 CUDA에서 비교
-uv run gymtosha-benchmark train --device cuda --compile --output outputs/cuda
+uv run --extra benchmark gymtosha-benchmark train --device cuda --compile --output outputs/cuda
 
-# 환경 전이 자체의 처리량 비교
-uv run gymtosha-benchmark throughput --device cuda --compile \
+# 정책 추론·역전파를 제외한 환경 처리량 비교
+uv run --extra benchmark gymtosha-benchmark throughput --device cuda --compile \
   --batch-sizes 1 64 1024 --output outputs/cuda-throughput
 
 # 여러 측정 폴더의 그래프 합치기
-uv run gymtosha-benchmark plot --inputs outputs/cpu outputs/cuda \
+uv run --extra benchmark gymtosha-benchmark plot --inputs outputs/cpu outputs/cuda \
   --output outputs/combined
 ```
 
@@ -118,7 +119,9 @@ PPO의 샘플 예산은 `num_envs × rollout_steps`의 배수여야 합니다.
 
 결과 폴더에는 원시 JSON, 요약 CSV, PNG·SVG 그래프가 생성됩니다.
 학습 처리량에는 정책 추론·환경 전이·replay/rollout·역전파·주기적 로깅이 포함됩니다.
-환경 생성과 컴파일 워밍업은 별도로 기록합니다. GPU 시간은 디바이스를 동기화하여 측정합니다.
+환경 처리량 그래프에는 Gymnasium의 텐서 어댑터 변환도 포함됩니다.
+환경·학습기 생성과 환경 커널 워밍업은 학습 처리량에서 제외합니다.
+환경 생성과 커널 워밍업 시간은 별도로 기록합니다. GPU 시간은 디바이스를 동기화하여 측정합니다.
 학습 곡선은 각 기록 구간에서 종료된 에피소드의 평균 리턴이며, 별도 평가 에피소드가 아닙니다.
 
 ### 로컬 실측

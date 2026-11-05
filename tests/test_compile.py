@@ -87,3 +87,23 @@ def test_mps_compile_mode():
         pytest.skip("MPS unavailable")
     env = gymtosha.make("CartPole-v1", num_envs=4, device="mps").compile(mode="default")
     env.step(torch.zeros(4, dtype=torch.long, device="mps"))
+
+
+@pytest.mark.compile
+def test_many_environment_compilations_do_not_share_cache_limit():
+    torch.compiler.reset()
+    for env_id in [
+        "CartPole-v1",
+        "MountainCar-v0",
+        "MountainCarContinuous-v0",
+        "FrozenLake-v1",
+        "LunarLander-v3",
+    ]:
+        for size in [1, 4, 16]:
+            env = gymtosha.make(env_id, num_envs=size).compile(backend="eager")
+            action = torch.zeros(
+                (size, *env.single_action_space.shape),
+                dtype=torch.float32 if env.continuous else torch.long,
+            )
+            env.step(action)
+    torch.compiler.reset()

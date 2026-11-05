@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Python 3.12, uv, Ruff. Environments execute whole batches as PyTorch tensors on
+Python 3.12, PyTorch 2.15+, uv, Ruff. Environments execute whole batches as PyTorch tensors on
 CPU, CUDA or MPS without Python loops over environments. Support torch.compile.
 Expose an env-ID factory and Gymnasium-style five-value step results.
 Initial environments are CartPole-v1, MountainCar-v0, MountainCarContinuous-v0,

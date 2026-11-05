@@ -133,6 +133,7 @@ class BatchedEnv(ABC):
                 raise ValueError("specify either compile mode or options")
             mode_options = torch._inductor.list_mode_options(mode) if mode else {}
             kwargs["options"] = {"max_fusion_size": 8, **mode_options, **(options or {})}
+        kwargs.setdefault("isolate_recompiles", True)
         kwargs.setdefault("fullgraph", True)
         self._step_fn = torch.compile(self._step, **kwargs)
         return self

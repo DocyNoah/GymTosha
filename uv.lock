@@ -373,7 +373,7 @@ requires-dist = [
     { name = "gymnasium", specifier = ">=1.1,<2" },
     { name = "gymnasium", extras = ["box2d"], marker = "extra == 'benchmark'", specifier = ">=1.1,<2" },
     { name = "matplotlib", marker = "extra == 'benchmark'", specifier = ">=3.9" },
-    { name = "torch", specifier = ">=2.5" },
+    { name = "torch", specifier = ">=2.15" },
 ]
 provides-extras = ["benchmark"]
 
