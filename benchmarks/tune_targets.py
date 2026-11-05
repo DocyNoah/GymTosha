@@ -75,7 +75,10 @@ def main():
     args = parser.parse_args()
     path = args.output / "search.json"
     trials = json.loads(path.read_text()) if args.resume and path.exists() else []
-    selected = {}
+    selected_path = args.output / "selected.json"
+    selected = (
+        json.loads(selected_path.read_text()) if args.resume and selected_path.exists() else {}
+    )
     evaluation = EvaluationConfig(seed=900000)
     for env_id in args.env_ids:
         configs = candidates(env_id, args.device)
@@ -85,7 +88,11 @@ def main():
                 ids = sorted(
                     ids,
                     key=lambda i: rank(
-                        [t for t in trials if t["env_id"] == env_id and t["candidate"] == i]
+                        [
+                            t
+                            for t in trials
+                            if t["env_id"] == env_id and t["candidate"] == i and t["seed"] == 101
+                        ]
                     ),
                 )[:2]
             for index in ids:

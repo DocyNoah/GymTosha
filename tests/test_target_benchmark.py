@@ -194,3 +194,35 @@ def test_target_cli_uses_selected_hyperparameters(tmp_path):
     records = json.loads((tmp_path / "run/time_to_target.json").read_text())
     assert all(r["config"]["learning_rate"] == 0.0007 for r in records)
     assert all(r["config"]["seed"] == 11 for r in records)
+
+
+def test_alternative_algorithm_gets_its_own_valid_preset(tmp_path):
+    import json
+
+    main(
+        [
+            "time-to-target",
+            "--env-ids",
+            "MountainCarContinuous-v0",
+            "--algorithms",
+            "sac",
+            "--device",
+            "cpu",
+            "--seeds",
+            "11",
+            "--total-timesteps",
+            "16384",
+            "--num-envs",
+            "4",
+            "--eval-interval",
+            "64",
+            "--eval-episodes",
+            "2",
+            "--target",
+            "-1000",
+            "--output",
+            str(tmp_path),
+        ]
+    )
+    records = json.loads((tmp_path / "time_to_target.json").read_text())
+    assert all(not r["config"]["normalize_observations"] for r in records)

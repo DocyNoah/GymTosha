@@ -157,15 +157,23 @@ def _time_to_target(args):
                         raise ValueError(
                             "selected preset uses a different representative algorithm"
                         )
-                    config = replace(
-                        preset,
-                        env_id=env_id,
-                        backend=backend,
-                        device=args.device,
-                        seed=seed,
-                        algorithm=algorithm,
-                        compile_env=backend == "gymtosha",
-                    )
+                    if args.presets:
+                        config = replace(
+                            preset,
+                            env_id=env_id,
+                            backend=backend,
+                            device=args.device,
+                            seed=seed,
+                            compile_env=backend == "gymtosha",
+                        )
+                    else:
+                        config = target_preset(
+                            env_id,
+                            backend=backend,
+                            device=args.device,
+                            seed=seed,
+                            algorithm=algorithm,
+                        )
                     overrides = {
                         name: getattr(args, name)
                         for name in ("total_timesteps", "num_envs", "rollout_steps")
