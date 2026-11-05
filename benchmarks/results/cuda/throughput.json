@@ -1,0 +1,1802 @@
+[
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.03785954098566435,
+    "steps_per_second": 5282.684226830185,
+    "setup_seconds": 0.21965399297187105,
+    "warmup_seconds": 0.03753561299527064,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.012297164998017251,
+    "steps_per_second": 16263.911237447594,
+    "setup_seconds": 0.9324405640072655,
+    "warmup_seconds": 1.9888696550042368,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.03776483199908398,
+    "steps_per_second": 5295.9324697870015,
+    "setup_seconds": 0.0008401870145462453,
+    "warmup_seconds": 0.0020618599955923855,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.012278795009478927,
+    "steps_per_second": 16288.243255596737,
+    "setup_seconds": 0.0013519040076062083,
+    "warmup_seconds": 0.07659055897966027,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.03738759399857372,
+    "steps_per_second": 5349.368028539887,
+    "setup_seconds": 0.0007627469894941896,
+    "warmup_seconds": 0.002072111004963517,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.012517563998699188,
+    "steps_per_second": 15977.54962713063,
+    "setup_seconds": 0.0015291629824787378,
+    "warmup_seconds": 0.07626126101240516,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.12464756600093096,
+    "steps_per_second": 102689.53025448087,
+    "setup_seconds": 0.008391003008000553,
+    "warmup_seconds": 0.006988539011217654,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.014582825009711087,
+    "steps_per_second": 877744.8808084951,
+    "setup_seconds": 0.0015612129936926067,
+    "warmup_seconds": 1.0581341150100343,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.12313645199174061,
+    "steps_per_second": 103949.72238487561,
+    "setup_seconds": 0.008289223012980074,
+    "warmup_seconds": 0.006854709004983306,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.014408576011192054,
+    "steps_per_second": 888359.8205719587,
+    "setup_seconds": 0.001329563994659111,
+    "warmup_seconds": 0.1854872349940706,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.12382770900148898,
+    "steps_per_second": 103369.43244137776,
+    "setup_seconds": 0.008155473013175651,
+    "warmup_seconds": 0.006817170011345297,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.014178427023580298,
+    "steps_per_second": 902779.9754311377,
+    "setup_seconds": 0.0012769850145559758,
+    "warmup_seconds": 0.18437145999632776,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 1.325311087013688,
+    "steps_per_second": 154529.75682975238,
+    "setup_seconds": 0.12063361299806274,
+    "warmup_seconds": 0.07445782900322229,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.014606974989874288,
+    "steps_per_second": 14020699.025086958,
+    "setup_seconds": 0.0013343839964363724,
+    "warmup_seconds": 0.4100042470090557,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 1.3328629340103362,
+    "steps_per_second": 153654.20912696174,
+    "setup_seconds": 0.11991795699577779,
+    "warmup_seconds": 0.07441127899801359,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.014542105986038223,
+    "steps_per_second": 14083242.151902007,
+    "setup_seconds": 0.0014531040214933455,
+    "warmup_seconds": 0.1863491010153666,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 1.3180031299998518,
+    "steps_per_second": 155386.5809104892,
+    "setup_seconds": 0.1191977999988012,
+    "warmup_seconds": 0.07449849898694083,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "CartPole-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.014515304996166378,
+    "steps_per_second": 14109245.383000186,
+    "setup_seconds": 0.0013276940153446048,
+    "warmup_seconds": 0.18497906700940803,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.03888912801630795,
+    "steps_per_second": 5142.82551967046,
+    "setup_seconds": 0.0006820860144216567,
+    "warmup_seconds": 0.0021222509967628866,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.011904296989087015,
+    "steps_per_second": 16800.656114623594,
+    "setup_seconds": 0.0011119749979116023,
+    "warmup_seconds": 0.4825584140198771,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.03884870701585896,
+    "steps_per_second": 5148.176486758111,
+    "setup_seconds": 0.0007301470031961799,
+    "warmup_seconds": 0.002118069998687133,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.011691297986544669,
+    "steps_per_second": 17106.740434652926,
+    "setup_seconds": 0.0011224359914194793,
+    "warmup_seconds": 0.0673280899936799,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.03892727702623233,
+    "steps_per_second": 5137.785513875628,
+    "setup_seconds": 0.0006306770083028823,
+    "warmup_seconds": 0.0020787410030607134,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.01173494799877517,
+    "steps_per_second": 17043.109183004042,
+    "setup_seconds": 0.0010562649986241013,
+    "warmup_seconds": 0.06623571598902345,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.15056844099308364,
+    "steps_per_second": 85011.17442391509,
+    "setup_seconds": 0.15724080099607818,
+    "warmup_seconds": 0.008577731990953907,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.013368930987780914,
+    "steps_per_second": 957443.7935014466,
+    "setup_seconds": 0.0012555150024127215,
+    "warmup_seconds": 0.7245962579909246,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.1493412459967658,
+    "steps_per_second": 85709.74424759523,
+    "setup_seconds": 0.00822576298378408,
+    "warmup_seconds": 0.00839642298524268,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.013172741018934175,
+    "steps_per_second": 971703.6098714453,
+    "setup_seconds": 0.001155295001808554,
+    "warmup_seconds": 0.1683210110059008,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.1475741239846684,
+    "steps_per_second": 86736.07306203493,
+    "setup_seconds": 0.007958805013913661,
+    "warmup_seconds": 0.008279562985990196,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.012960441992618144,
+    "steps_per_second": 987620.6388092685,
+    "setup_seconds": 0.0011112949869129807,
+    "warmup_seconds": 0.1668770289979875,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 1.7690013259998523,
+    "steps_per_second": 115771.53560596998,
+    "setup_seconds": 0.11865197299630381,
+    "warmup_seconds": 0.10000268500880338,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.013462300004903227,
+    "steps_per_second": 15212853.667308552,
+    "setup_seconds": 0.0012420249986462295,
+    "warmup_seconds": 0.32819765101885423,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 1.7773232589825056,
+    "steps_per_second": 115229.46034996769,
+    "setup_seconds": 0.11792293598409742,
+    "warmup_seconds": 0.10075453197350726,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.013518499996280298,
+    "steps_per_second": 15149609.798154531,
+    "setup_seconds": 0.0013357340067159384,
+    "warmup_seconds": 0.16904134801006876,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 1.769446374004474,
+    "steps_per_second": 115742.4169552607,
+    "setup_seconds": 0.11677183100255206,
+    "warmup_seconds": 0.09997837600531057,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCar-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.013214170990977436,
+    "steps_per_second": 15498512.932807993,
+    "setup_seconds": 0.0011925349826924503,
+    "warmup_seconds": 0.16752096498385072,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.034796205000020564,
+    "steps_per_second": 5747.7532391788645,
+    "setup_seconds": 0.0007620359829161316,
+    "warmup_seconds": 0.001901712006656453,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.013440340000670403,
+    "steps_per_second": 14880.575937068856,
+    "setup_seconds": 0.001090504985768348,
+    "warmup_seconds": 0.4438385469838977,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.03470407598069869,
+    "steps_per_second": 5763.011817725205,
+    "setup_seconds": 0.0007927860133349895,
+    "warmup_seconds": 0.0018782219849526882,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.013477980013703927,
+    "steps_per_second": 14839.018888338398,
+    "setup_seconds": 0.0011286750086583197,
+    "warmup_seconds": 0.0702552369912155,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.03458713600412011,
+    "steps_per_second": 5782.49670560105,
+    "setup_seconds": 0.0006834559899289161,
+    "warmup_seconds": 0.0018686919938772917,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.013247210998088121,
+    "steps_per_second": 15097.517509826379,
+    "setup_seconds": 0.0010816650174092501,
+    "warmup_seconds": 0.06913556298241019,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.06791822798550129,
+    "steps_per_second": 188461.92516583993,
+    "setup_seconds": 0.010592952981824055,
+    "warmup_seconds": 0.004148380976403132,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.01514522300567478,
+    "steps_per_second": 845150.9756709395,
+    "setup_seconds": 0.0011259549937676638,
+    "warmup_seconds": 0.7250615670054685,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.07067180599551648,
+    "steps_per_second": 181118.9033546426,
+    "setup_seconds": 0.010952272015856579,
+    "warmup_seconds": 0.004337029997259378,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.014964943984523416,
+    "steps_per_second": 855332.3028297081,
+    "setup_seconds": 0.0012012840015813708,
+    "warmup_seconds": 0.18571178501588292,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.06952401099260896,
+    "steps_per_second": 184109.05552271366,
+    "setup_seconds": 0.010749041975941509,
+    "warmup_seconds": 0.0042515110108070076,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.01484020400675945,
+    "steps_per_second": 862521.8355603351,
+    "setup_seconds": 0.00114334502723068,
+    "warmup_seconds": 0.1841225610114634,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.567222859011963,
+    "steps_per_second": 361057.3811442262,
+    "setup_seconds": 0.3397312500164844,
+    "warmup_seconds": 0.03757209298782982,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.015396991017041728,
+    "steps_per_second": 13301300.219849635,
+    "setup_seconds": 0.0013505340029951185,
+    "warmup_seconds": 0.37522639299277216,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.5660765040083788,
+    "steps_per_second": 361788.55428517953,
+    "setup_seconds": 0.16205591001198627,
+    "warmup_seconds": 0.03747565299272537,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.015349622000940144,
+    "steps_per_second": 13342348.103911372,
+    "setup_seconds": 0.0012551039981190115,
+    "warmup_seconds": 0.18788923500687815,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.5666263120074291,
+    "steps_per_second": 361437.50415408675,
+    "setup_seconds": 0.16153051200672053,
+    "warmup_seconds": 0.037322313990443945,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "MountainCarContinuous-v0",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.015183042007265612,
+    "steps_per_second": 13488733.015557494,
+    "setup_seconds": 0.001233095012139529,
+    "warmup_seconds": 0.18752868700539693,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.04408308400888927,
+    "steps_per_second": 4536.887663296659,
+    "setup_seconds": 0.01742956298403442,
+    "warmup_seconds": 0.002343699015909806,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.03460411701234989,
+    "steps_per_second": 5779.659106129535,
+    "setup_seconds": 0.007769156014546752,
+    "warmup_seconds": 2.176246268005343,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.044781050994060934,
+    "steps_per_second": 4466.174767236368,
+    "setup_seconds": 0.0010314949904568493,
+    "warmup_seconds": 0.0023512700281571597,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.03375344001688063,
+    "steps_per_second": 5925.321979033154,
+    "setup_seconds": 0.002689627988729626,
+    "warmup_seconds": 0.260178033990087,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.0452138590044342,
+    "steps_per_second": 4423.422472750793,
+    "setup_seconds": 0.0010077659972012043,
+    "warmup_seconds": 0.0023337900056503713,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.03437060699798167,
+    "steps_per_second": 5818.92545603703,
+    "setup_seconds": 0.0027394479839131236,
+    "warmup_seconds": 0.2672471519908868,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.35566885900334455,
+    "steps_per_second": 35988.53168047427,
+    "setup_seconds": 0.24084489900269546,
+    "warmup_seconds": 0.015573031007079408,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.032560365012614056,
+    "steps_per_second": 393115.9861089153,
+    "setup_seconds": 0.003020955977262929,
+    "warmup_seconds": 4.024193877005018,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.35646531599923037,
+    "steps_per_second": 35908.12184383076,
+    "setup_seconds": 0.021838832995854318,
+    "warmup_seconds": 0.015502220980124548,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.03216781700029969,
+    "steps_per_second": 397913.23109929246,
+    "setup_seconds": 0.002925816981587559,
+    "warmup_seconds": 0.7779375230020378,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.3539559069904499,
+    "steps_per_second": 36162.69639016184,
+    "setup_seconds": 0.022301240998785943,
+    "warmup_seconds": 0.01525443300488405,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.03286112399655394,
+    "steps_per_second": 389518.02139641665,
+    "setup_seconds": 0.002792618004605174,
+    "warmup_seconds": 0.7542081480205525,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 4.958987496007467,
+    "steps_per_second": 41298.75305491023,
+    "setup_seconds": 0.6078125390049536,
+    "warmup_seconds": 0.20953267900040373,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.034210668003652245,
+    "steps_per_second": 5986436.744764413,
+    "setup_seconds": 0.0032534649944864213,
+    "warmup_seconds": 1.733376727992436,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 4.958436332002748,
+    "steps_per_second": 41303.3436928855,
+    "setup_seconds": 0.3452349159924779,
+    "warmup_seconds": 0.206817772006616,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.03324574200087227,
+    "steps_per_second": 6160187.3706000205,
+    "setup_seconds": 0.0031265759898815304,
+    "warmup_seconds": 0.7704702079936396,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 5.005883634003112,
+    "steps_per_second": 40911.8579203219,
+    "setup_seconds": 0.6129283570044208,
+    "warmup_seconds": 0.21255579599528573,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "LunarLander-v3",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.03433055800269358,
+    "steps_per_second": 5965530.766611232,
+    "setup_seconds": 0.0030979870061855763,
+    "warmup_seconds": 0.7794265180127695,
+    "physics_equivalent": false,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.04015649200300686,
+    "steps_per_second": 4980.514731840229,
+    "setup_seconds": 0.001761402003467083,
+    "warmup_seconds": 0.002149791020201519,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.013257031998364255,
+    "steps_per_second": 15086.333051370579,
+    "setup_seconds": 0.00988714600680396,
+    "warmup_seconds": 0.44332280100206845,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.040195150999352336,
+    "steps_per_second": 4975.724559492825,
+    "setup_seconds": 0.0008178369898814708,
+    "warmup_seconds": 0.0021391100017353892,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.013150232000043616,
+    "steps_per_second": 15208.857151671291,
+    "setup_seconds": 0.0011451350001152605,
+    "warmup_seconds": 0.08152395801153034,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.0400770420092158,
+    "steps_per_second": 4990.388261539102,
+    "setup_seconds": 0.0007124769908841699,
+    "warmup_seconds": 0.002115709998179227,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.013185921008698642,
+    "steps_per_second": 15167.692864841347,
+    "setup_seconds": 0.0010970650182571262,
+    "warmup_seconds": 0.0813998689991422,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.1286182690237183,
+    "steps_per_second": 99519.29921899019,
+    "setup_seconds": 0.016028909012675285,
+    "warmup_seconds": 0.006988128996454179,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.01447626599110663,
+    "steps_per_second": 884205.9138636697,
+    "setup_seconds": 0.0011376150068826973,
+    "warmup_seconds": 0.7156425710127223,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.12800321099348366,
+    "steps_per_second": 99997.49147426948,
+    "setup_seconds": 0.016016278008464724,
+    "warmup_seconds": 0.0069471889873966575,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.014712355012306944,
+    "steps_per_second": 870017.0699587353,
+    "setup_seconds": 0.0011655749985948205,
+    "warmup_seconds": 0.1934315009857528,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.12861506899935193,
+    "steps_per_second": 99521.7753221786,
+    "setup_seconds": 0.01590210900758393,
+    "warmup_seconds": 0.007023929007118568,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 64,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.014543284982210025,
+    "steps_per_second": 880131.2781574117,
+    "setup_seconds": 0.0011253950069658458,
+    "warmup_seconds": 0.18822580398409627,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 1.4460559280123562,
+    "steps_per_second": 141626.61072279775,
+    "setup_seconds": 0.5692719919898082,
+    "warmup_seconds": 0.07922646799124777,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 0,
+    "seconds": 0.01501035300316289,
+    "steps_per_second": 13643916.299426522,
+    "setup_seconds": 0.001464803994167596,
+    "warmup_seconds": 0.36010125098982826,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 1.4626366650045384,
+    "steps_per_second": 140021.1036001648,
+    "setup_seconds": 0.2568539500061888,
+    "warmup_seconds": 0.07955412598676048,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 1,
+    "seconds": 0.015003772976342589,
+    "steps_per_second": 13649899.950027322,
+    "setup_seconds": 0.001463603024603799,
+    "warmup_seconds": 0.19309153300127946,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymnasium-sync",
+    "device": "cuda",
+    "compile_env": false,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 1.4549914590024855,
+    "steps_per_second": 140756.84000262586,
+    "setup_seconds": 0.538003291003406,
+    "warmup_seconds": 0.08014271399588324,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  },
+  {
+    "env_id": "FrozenLake-v1",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "compile_env": true,
+    "num_envs": 1024,
+    "vector_steps": 200,
+    "repeat": 2,
+    "seconds": 0.01508572298916988,
+    "steps_per_second": 13575749.743451275,
+    "setup_seconds": 0.0015042939921841025,
+    "warmup_seconds": 0.19363378998241387,
+    "physics_equivalent": true,
+    "metadata": {
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.15.0+cu132",
+      "gymnasium": "1.4.0",
+      "num_threads": 1
+    }
+  }
+]

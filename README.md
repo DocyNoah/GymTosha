@@ -124,10 +124,10 @@ PPO의 샘플 예산은 `num_envs × rollout_steps`의 배수여야 합니다.
 환경 생성과 커널 워밍업 시간은 별도로 기록합니다. GPU 시간은 디바이스를 동기화하여 측정합니다.
 학습 곡선은 각 기록 구간에서 종료된 에피소드의 평균 리턴이며, 별도 평가 에피소드가 아닙니다.
 
-### 로컬 실측
+### 실측 결과
 
-Apple M3 Max에서 Python 3.12, PyTorch 2.15.0, Gymnasium 1.4.0을 사용한 결과입니다.
-NVIDIA CUDA 성능은 이 저장소의 로컬 결과에 포함되어 있지 않습니다.
+Apple M3 Max의 CPU·MPS와 AMD Ryzen 5 5600X + NVIDIA RTX 3090의 CUDA에서 측정했습니다.
+세 디바이스에서 학습 198회와 환경 처리량 315회를 실행했습니다.
 실험 설정과 해석은 [측정 기록](benchmarks/results/README.md)에 정리했습니다.
 
 ![학습 처리량](benchmarks/results/combined/training_speed.png)
@@ -146,5 +146,5 @@ uv build
 ```
 
 GPU가 없는 환경에서는 accelerator 테스트를 건너뜁니다. 실제 GPU에서 실행하면
-MPS 커널·자동 초기화·컴파일 경로도 검사합니다. CPU full-graph 테스트는 기본 테스트에 포함됩니다.
+해당 장치의 CUDA·MPS 커널·자동 초기화·컴파일 경로도 검사합니다. CPU full-graph 테스트는 기본 테스트에 포함됩니다.
 `uv build`는 설치 가능한 wheel과 sdist를 만듭니다.
