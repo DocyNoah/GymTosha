@@ -5,14 +5,14 @@ import csv
 import json
 import platform
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import gymnasium as gym
 import torch
 
 from gymtosha.benchmarks.adapters import make_backend, synchronize
-from gymtosha.benchmarks.plot import plot_throughput, plot_training
+from gymtosha.benchmarks.plot import plot_throughput, plot_time_to_target, plot_training
 from gymtosha.benchmarks.train import TrainConfig, train
 
 ENVIRONMENTS = [
@@ -123,6 +123,86 @@ def _common(parser):
     parser.add_argument("--append", action="store_true")
 
 
+def _time_to_target(args):
+    from gymtosha.benchmarks.evaluation import EvaluationConfig
+    from gymtosha.benchmarks.target import target_preset, target_summary
+
+    path = args.output / "time_to_target.json"
+    records = json.loads(path.read_text()) if args.resume and path.exists() else []
+    evaluation = EvaluationConfig(
+        target=args.target,
+        interval=args.eval_interval,
+        episodes=args.eval_episodes,
+        confirmations=args.confirmations,
+        seed=args.eval_seed,
+    )
+    for env_id in args.env_ids:
+        algorithms = args.algorithms or [target_preset(env_id).algorithm]
+        for algorithm in algorithms:
+            if not _compatible(algorithm, env_id):
+                continue
+            for seed in args.seeds:
+                for backend in args.backends:
+                    config = target_preset(
+                        env_id, backend=backend, device=args.device, seed=seed, algorithm=algorithm
+                    )
+                    overrides = {
+                        name: getattr(args, name)
+                        for name in ("total_timesteps", "num_envs", "rollout_steps")
+                        if getattr(args, name) is not None
+                    }
+                    config = replace(config, **overrides)
+                    if args.device == "cpu" and not args.compile_env:
+                        config = replace(config, compile_env=False)
+                    saved = [
+                        r
+                        for r in records
+                        if r["config"] == asdict(config)
+                        and r["evaluation"]["config"] == asdict(evaluation)
+                    ]
+                    if saved:
+                        continue
+                    progress_path = (
+                        args.output / f"{env_id}__{algorithm}__{backend}__{seed}.progress.json"
+                    )
+
+                    def progress(value, config=config, progress_path=progress_path):
+                        _write(
+                            {"state": "running", "config": asdict(config), "evaluation": value},
+                            progress_path,
+                        )
+                        point = value["checkpoints"][-1]
+                        print(
+                            f"{config.env_id} {config.algorithm} {config.backend} "
+                            f"seed={config.seed} "
+                            f"step={point['timesteps']} score={point['mean_return']:.3f} "
+                            f"wall={point['wall_seconds']:.1f}s",
+                            flush=True,
+                        )
+
+                    result = train(config, evaluation=evaluation, on_progress=progress)
+                    records.append(result)
+                    _write(records, path)
+                    summary = target_summary(records)
+                    _write(summary, args.output / "target_summary.json")
+                    _csv(summary, args.output / "target_summary.csv")
+                    flat = [
+                        {
+                            **r["config"],
+                            "status": r["evaluation"]["status"],
+                            "target": r["evaluation"]["target"],
+                            "wall_seconds": r["wall_seconds"],
+                            "time_to_target_seconds": r["evaluation"]["time_to_target_seconds"],
+                            "transitions_to_target": r["evaluation"]["transitions_to_target"],
+                            "final_score": r["evaluation"]["checkpoints"][-1]["mean_return"],
+                        }
+                        for r in records
+                    ]
+                    _csv(flat, args.output / "time_to_target.csv")
+                    progress_path.unlink(missing_ok=True)
+                    plot_time_to_target(records, args.output)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -157,12 +237,32 @@ def main(argv=None):
     throughput.add_argument("--batch-sizes", nargs="+", type=int, default=[1, 64, 1024])
     throughput.add_argument("--steps", type=int, default=200)
     throughput.add_argument("--repeats", type=int, default=3)
+    target = commands.add_parser("time-to-target")
+    _common(target)
+    target.add_argument("--algorithms", nargs="+", choices=["ppo", "dqn", "sac", "td3"])
+    target.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3])
+    target.add_argument("--total-timesteps", type=int)
+    target.add_argument("--num-envs", type=int)
+    target.add_argument("--rollout-steps", type=int)
+    target.add_argument("--eval-interval", type=int, default=65536)
+    target.add_argument("--eval-episodes", type=int, default=100)
+    target.add_argument("--eval-seed", type=int, default=100000)
+    target.add_argument("--confirmations", type=int, default=2)
+    target.add_argument("--target", type=float)
+    target.add_argument("--resume", action="store_true")
     plots = commands.add_parser("plot")
     plots.add_argument("--inputs", type=Path, nargs="+", required=True)
     plots.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
+    if args.command == "time-to-target":
+        _time_to_target(args)
+        return
     if args.command == "plot":
-        for name, plotter in [("training", plot_training), ("throughput", plot_throughput)]:
+        for name, plotter in [
+            ("training", plot_training),
+            ("throughput", plot_throughput),
+            ("time_to_target", plot_time_to_target),
+        ]:
             records = []
             for folder in args.inputs:
                 path = folder / f"{name}.json"

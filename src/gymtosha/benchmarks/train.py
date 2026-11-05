@@ -47,8 +47,11 @@ class TrainConfig:
     train_every: int = 256
     gradient_steps: int = 1
     log_every: int = 4096
+    exploration_fraction: float = 0.5
 
     def validate(self):
+        if not 0 < self.exploration_fraction <= 1:
+            raise ValueError("exploration_fraction must be in (0, 1]")
         if self.algorithm not in ("ppo", "dqn", "sac", "td3"):
             raise ValueError(f"unknown algorithm {self.algorithm!r}")
         positive = (
@@ -113,7 +116,7 @@ class Recorder:
         self.stats.zero_()
 
 
-def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate):
+def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None):
     device = env.device
     agent = ActorCritic(obs_dim, action_dim, continuous).to(device)
     optimizer = torch.optim.Adam(agent.parameters(), lr=rate, eps=1e-5)
@@ -133,7 +136,11 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate):
     recorder = Recorder(device)
     updates = 0
     iterations = config.total_timesteps // size
+    timesteps = 0
+    stop = evaluator is not None and evaluator.check(agent, 0, config.algorithm)
     for iteration in range(iterations):
+        if stop:
+            break
         optimizer.param_groups[0]["lr"] = rate * (1 - iteration / iterations)
         for step in range(config.rollout_steps):
             observations[step] = obs
@@ -193,16 +200,23 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate):
                 nn.utils.clip_grad_norm_(agent.parameters(), config.max_grad_norm)
                 optimizer.step()
                 updates += 1
-        recorder.record((iteration + 1) * size, loss)
+        timesteps = (iteration + 1) * size
+        recorder.record(timesteps, loss)
+        if evaluator is not None:
+            stop = evaluator.check(
+                agent, timesteps, config.algorithm, force=timesteps == config.total_timesteps
+            )
     synchronize(device)
     elapsed = time.perf_counter() - recorder.start
+    if evaluator is not None:
+        elapsed -= evaluator.evaluation_seconds
     delta = float(
         (nn.utils.parameters_to_vector(agent.parameters()).detach() - initial).norm().cpu()
     )
-    return elapsed, recorder.checkpoints, updates, delta
+    return elapsed, recorder.checkpoints, updates, delta, timesteps
 
 
-def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate):
+def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None):
     device = env.device
     learner = OffPolicyLearner(config.algorithm, obs_dim, action_dim, device, rate, config.gamma)
     initial = nn.utils.parameters_to_vector(learner.actor.parameters()).detach().clone()
@@ -218,12 +232,20 @@ def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate):
     synchronize(device)
     recorder = Recorder(device)
     loss = torch.zeros((), device=device)
-    for timesteps in range(config.num_envs, config.total_timesteps + 1, config.num_envs):
+    timesteps = 0
+    stop = evaluator is not None and evaluator.check(learner.actor, 0, config.algorithm)
+    for next_timesteps in range(config.num_envs, config.total_timesteps + 1, config.num_envs):
+        if stop:
+            break
+        timesteps = next_timesteps
         before_step = timesteps - config.num_envs
         if continuous and before_step < config.learning_starts:
             action = torch.rand(config.num_envs, action_dim, device=device) * 2 - 1
         else:
-            epsilon = max(0.05, 1 - 0.95 * before_step / (0.5 * config.total_timesteps))
+            epsilon = max(
+                0.05,
+                1 - 0.95 * before_step / (config.exploration_fraction * config.total_timesteps),
+            )
             action = learner.act(obs, epsilon)
         transition = env.step(action)
         buffer.add(
@@ -240,20 +262,40 @@ def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate):
                 loss = learner.update(buffer.sample(config.batch_size))
         if timesteps % config.log_every == 0 or timesteps == config.total_timesteps:
             recorder.record(timesteps, loss)
+        if evaluator is not None:
+            stop = evaluator.check(
+                learner.actor,
+                timesteps,
+                config.algorithm,
+                force=timesteps == config.total_timesteps,
+            )
+    if not recorder.checkpoints or recorder.checkpoints[-1]["timesteps"] != timesteps:
+        recorder.record(timesteps, loss)
     synchronize(device)
     elapsed = time.perf_counter() - recorder.start
+    if evaluator is not None:
+        elapsed -= evaluator.evaluation_seconds
     delta = float(
         (nn.utils.parameters_to_vector(learner.actor.parameters()).detach() - initial).norm().cpu()
     )
-    return elapsed, recorder.checkpoints, learner.updates, delta
+    return elapsed, recorder.checkpoints, learner.updates, delta, timesteps
 
 
-def train(config: TrainConfig) -> dict:
+def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
+    from gymtosha.benchmarks.evaluation import TargetEvaluator
+
     config.validate()
+    if evaluation is not None:
+        evaluation.validate(config)
     torch.set_num_threads(config.num_threads)
     torch.manual_seed(config.seed)
     torch.backends.cudnn.deterministic = True
     setup_start = time.perf_counter()
+    evaluator = (
+        TargetEvaluator(config.env_id, evaluation, started=setup_start, on_progress=on_progress)
+        if evaluation is not None
+        else None
+    )
     env = make_backend(
         config.env_id, config.backend, config.num_envs, config.device, config.compile_env
     )
@@ -279,14 +321,14 @@ def train(config: TrainConfig) -> dict:
         obs = encode(env.reset(config.seed), env.observation_space)
         rate = config.learning_rate or (2.5e-4 if config.algorithm in ("ppo", "dqn") else 3e-4)
         loop = _ppo if config.algorithm == "ppo" else _off_policy
-        elapsed, checkpoints, updates, delta = loop(
-            config, env, obs, obs.shape[-1], action_dim, continuous, rate
+        elapsed, checkpoints, updates, delta, timesteps = loop(
+            config, env, obs, obs.shape[-1], action_dim, continuous, rate, evaluator
         )
-        return {
+        result = {
             "config": asdict(config),
-            "timesteps": config.total_timesteps,
+            "timesteps": timesteps,
             "seconds": elapsed,
-            "steps_per_second": config.total_timesteps / elapsed,
+            "steps_per_second": timesteps / elapsed,
             "setup_seconds": setup_seconds,
             "warmup_seconds": warmup_seconds,
             "gradient_updates": updates,
@@ -305,5 +347,9 @@ def train(config: TrainConfig) -> dict:
                 else None,
             },
         }
+        if evaluator is not None:
+            result["evaluation"] = evaluator.summary()
+            result["wall_seconds"] = time.perf_counter() - setup_start
+        return result
     finally:
         env.close()

@@ -185,3 +185,109 @@ def plot_throughput(records, output):
     for extension in ("png", "svg"):
         fig.savefig(output / f"environment_throughput.{extension}")
     plt.close(fig)
+
+
+def plot_time_to_target(records, output):
+    """Show every trial and mark budget-exhausted observations explicitly."""
+    if not records:
+        return
+    from gymtosha.benchmarks.target import validate_target_comparisons
+
+    validate_target_comparisons(records)
+    plt = _pyplot()
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=True)
+    groups = list(dict.fromkeys((r["config"]["env_id"], r["config"]["algorithm"]) for r in records))
+    names = list(dict.fromkeys(label(r["config"]) for r in records))
+    colors = dict(zip(names, plt.get_cmap("tab10").colors, strict=False))
+    fig, ax = plt.subplots(figsize=(max(10, 2 * len(groups)), 5.5))
+    for offset, name in enumerate(names):
+        for index, key in enumerate(groups):
+            rows = [
+                r
+                for r in records
+                if label(r["config"]) == name
+                and (r["config"]["env_id"], r["config"]["algorithm"]) == key
+            ]
+            for trial, row in enumerate(rows):
+                reached = row["evaluation"]["status"] == "reached"
+                duration = (
+                    row["evaluation"]["time_to_target_seconds"] if reached else row["wall_seconds"]
+                )
+                position = (
+                    index
+                    + (offset - (len(names) - 1) / 2) * 0.2
+                    + (trial - (len(rows) - 1) / 2) * 0.035
+                )
+                ax.scatter(
+                    position, duration, color=colors[name], marker="o" if reached else "x", s=45
+                )
+    handles = [
+        plt.Line2D([0], [0], color=colors[name], marker="o", linestyle="", label=name)
+        for name in names
+    ]
+    handles += [
+        plt.Line2D(
+            [0], [0], color="black", marker="x", linestyle="", label="Target not reached by budget"
+        )
+    ]
+    ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(1, 1), fontsize=8)
+    ax.set_xticks(
+        range(len(groups)),
+        [f"{env}\n{algo.upper()}" for env, algo in groups],
+        rotation=20,
+        ha="right",
+    )
+    ax.set_yscale("log")
+    ax.set_ylabel("Wall time including setup, compilation and evaluation (s)")
+    ax.set_title("Time to confirmed target · common Gymnasium evaluation")
+    fig.tight_layout()
+    for extension in ("png", "svg"):
+        fig.savefig(output / f"time_to_target.{extension}")
+    plt.close(fig)
+
+    columns = min(3, len(groups))
+    fig, axes = plt.subplots(
+        (len(groups) + columns - 1) // columns,
+        columns,
+        figsize=(5 * columns, 3.8 * ((len(groups) + columns - 1) // columns)),
+        squeeze=False,
+    )
+    for ax, key in zip(axes.flat, groups, strict=False):
+        shown = set()
+        group_rows = [
+            r for r in records if (r["config"]["env_id"], r["config"]["algorithm"]) == key
+        ]
+        for row in group_rows:
+            name = label(row["config"])
+            points = row["evaluation"]["checkpoints"]
+            ax.plot(
+                [p["wall_seconds"] for p in points],
+                [p["mean_return"] for p in points],
+                color=colors[name],
+                alpha=0.7,
+                marker=".",
+                markersize=3,
+                label=name if name not in shown else None,
+            )
+            shown.add(name)
+        ax.axhline(
+            group_rows[0]["evaluation"]["target"], color="black", linestyle="--", linewidth=1
+        )
+        ax.set_title(f"{key[0]} · {key[1].upper()}", fontsize=10)
+        ax.set_xlabel("Wall time (s)")
+        ax.set_ylabel("Held-out mean return")
+    for ax in list(axes.flat)[len(groups) :]:
+        ax.set_visible(False)
+    fig.suptitle("Held-out Gymnasium evaluation · dashed line is the target", y=0.995)
+    fig.legend(
+        handles=handles[:-1],
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.96),
+        ncol=min(3, len(names)),
+        fontsize=8,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    for extension in ("png", "svg"):
+        fig.savefig(output / f"evaluation_curves.{extension}")
+    plt.close(fig)
