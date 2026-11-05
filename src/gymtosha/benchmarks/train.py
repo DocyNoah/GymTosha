@@ -55,8 +55,13 @@ class TrainConfig:
     ppo_minibatch_size: int | None = None
     adam_eps: float = 1e-5
     anneal_learning_rate: bool = True
+    rollout_timeout_seconds: float | None = None
 
     def validate(self):
+        if self.rollout_timeout_seconds is not None and (
+            not math.isfinite(self.rollout_timeout_seconds) or self.rollout_timeout_seconds <= 0
+        ):
+            raise ValueError("rollout timeout must be finite and positive")
         if not math.isfinite(self.adam_eps) or self.adam_eps <= 0:
             raise ValueError("Adam epsilon must be finite and positive")
         if not self.hidden_sizes or any(
@@ -139,7 +144,10 @@ class Recorder:
         self.stats.zero_()
 
 
-def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None):
+def _ppo(
+    config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None, *, startup_seconds=0
+):
+    learner_setup_start = time.perf_counter()
     device = env.device
     agent = ActorCritic(obs_dim, action_dim, continuous, hidden_sizes=config.hidden_sizes).to(
         device
@@ -176,6 +184,9 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
         agent.evaluate(obs)
     synchronize(device)
     recorder = Recorder(device)
+    learner_setup_seconds = time.perf_counter() - learner_setup_start
+    collection_seconds = 0.0
+    update_seconds = 0.0
     updates = 0
     iterations = config.total_timesteps // size
     timesteps = 0
@@ -187,6 +198,8 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
         optimizer.param_groups[0]["lr"] = (
             rate * (1 - iteration / iterations) if config.anneal_learning_rate else rate
         )
+        collection_start = time.perf_counter()
+        initial_seconds = startup_seconds + learner_setup_seconds if iteration == 0 else 0.0
         for step in range(config.rollout_steps):
             observations[step] = obs
             with torch.no_grad():
@@ -216,6 +229,22 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
                 else raw_next_obs
             )
             recorder.add(transition)
+            if config.rollout_timeout_seconds is not None and (
+                time.perf_counter() - collection_start + initial_seconds
+                >= config.rollout_timeout_seconds
+            ):
+                raise TimeoutError(
+                    "environment setup and rollout collection exceeded the time limit"
+                )
+        if config.rollout_timeout_seconds is not None:
+            synchronize(device)
+            collected = time.perf_counter() - collection_start
+            if collected + initial_seconds >= config.rollout_timeout_seconds:
+                raise TimeoutError(
+                    "environment setup and rollout collection exceeded the time limit"
+                )
+            collection_seconds += collected
+        update_start = time.perf_counter()
         advantages = generalized_advantage(
             rewards, values, next_values, terminated, dones, config.gamma, config.gae_lambda
         )
@@ -269,6 +298,7 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
                 updates += 1
         timesteps = (iteration + 1) * size
         recorder.record(timesteps, loss)
+        update_seconds += time.perf_counter() - update_start
         if evaluator is not None:
             stop = evaluator.check(
                 agent, timesteps, config.algorithm, force=timesteps == config.total_timesteps
@@ -280,10 +310,27 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
     delta = float(
         (nn.utils.parameters_to_vector(agent.parameters()).detach() - initial).norm().cpu()
     )
-    return elapsed, recorder.checkpoints, updates, delta, timesteps, int(valid_transitions.cpu())
+    phases = {
+        "collection_seconds": collection_seconds
+        if config.rollout_timeout_seconds is not None
+        else None,
+        "update_seconds": update_seconds if config.rollout_timeout_seconds is not None else None,
+        "learner_setup_seconds": learner_setup_seconds,
+    }
+    return (
+        elapsed,
+        recorder.checkpoints,
+        updates,
+        delta,
+        timesteps,
+        int(valid_transitions.cpu()),
+        phases,
+    )
 
 
-def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None):
+def _off_policy(
+    config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None, *, startup_seconds=0
+):
     device = env.device
     learner = OffPolicyLearner(config.algorithm, obs_dim, action_dim, device, rate, config.gamma)
     initial = nn.utils.parameters_to_vector(learner.actor.parameters()).detach().clone()
@@ -353,7 +400,7 @@ def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate, evaluat
     delta = float(
         (nn.utils.parameters_to_vector(learner.actor.parameters()).detach() - initial).norm().cpu()
     )
-    return elapsed, recorder.checkpoints, learner.updates, delta, timesteps, timesteps
+    return elapsed, recorder.checkpoints, learner.updates, delta, timesteps, timesteps, {}
 
 
 def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
@@ -398,8 +445,16 @@ def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
         obs = encode(env.reset(config.seed), env.observation_space)
         rate = config.learning_rate or (2.5e-4 if config.algorithm in ("ppo", "dqn") else 3e-4)
         loop = _ppo if config.algorithm == "ppo" else _off_policy
-        elapsed, checkpoints, updates, delta, timesteps, valid_transitions = loop(
-            config, env, obs, obs.shape[-1], action_dim, continuous, rate, evaluator
+        elapsed, checkpoints, updates, delta, timesteps, valid_transitions, phases = loop(
+            config,
+            env,
+            obs,
+            obs.shape[-1],
+            action_dim,
+            continuous,
+            rate,
+            evaluator,
+            startup_seconds=time.perf_counter() - setup_start,
         )
         completed_episodes = sum(point["episodes"] for point in checkpoints)
         episode_return_sum = sum(
@@ -422,6 +477,7 @@ def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
             "parameter_delta": delta,
             "checkpoints": checkpoints,
             "physics_equivalent": "LunarLander" not in config.env_id,
+            "phase_seconds": phases,
             "metadata": {
                 "platform": platform.platform(),
                 "machine": platform.machine(),

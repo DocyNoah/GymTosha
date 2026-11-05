@@ -39,6 +39,7 @@ def reference_config(num_envs, *, previous=None):
         num_minibatches=16,
         update_epochs=4,
         learning_rate=0.0003,
+        rollout_timeout_seconds=60.0,
     )
     if num_envs < 32 or num_envs & (num_envs - 1):
         raise ValueError("study environment counts must be powers of two starting at 32")

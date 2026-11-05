@@ -137,3 +137,7 @@ uv run --extra benchmark python -m gymtosha.benchmarks.study compare \
 가장 높은 크기를 표시하되, 안정적 도달을 확인한 설정과 구분합니다.
 `best-backends.json`에 선택 기준과 환경 수, 평균·표준편차를 함께 기록합니다.
 `index.html`에서 파라미터별 후보, 환경 수별 히트맵, 선택값 변화와 최종 비교를 확인합니다.
+
+탐색 학습에도 초기화와 각 rollout 수집에 60초 제한을 적용합니다. 제한 초과는 해당
+후보의 실패로 보존합니다. 고정 길이 학습 전체의 경과 시간은 60초로 자르지 않습니다.
+수집 시간, 업데이트 시간과 학습기 초기화 시간은 `phase_seconds`에 별도로 기록합니다.

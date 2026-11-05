@@ -235,3 +235,12 @@ def test_ppo_uses_configured_adam_epsilon_and_constant_learning_rate(monkeypatch
     )
     assert epsilons == [1e-8]
     assert len(rates) == 8 and all(rate == 0.001 for rate in rates)
+
+
+def test_ppo_rejects_rollout_that_exceeds_collection_budget():
+    with pytest.raises(TimeoutError, match="collection"):
+        train(
+            TrainConfig(
+                num_envs=4, rollout_steps=16, total_timesteps=64, rollout_timeout_seconds=1e-12
+            )
+        )
