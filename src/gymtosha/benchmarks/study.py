@@ -512,6 +512,10 @@ def tune(args):
     selected = json.loads(path.read_text()) if path.exists() else {}
     previous = None
     for count in sorted(int(value) for value in selected if int(value) < args.min_envs):
+        if selected[str(count)].get("seeds") != list(SEEDS):
+            raise ValueError(
+                f"earlier selected seed protocol changed; restart tuning from N={count}"
+            )
         previous = TrainConfig(**selected[str(count)]["config"])
     count = args.min_envs
     while count <= args.max_envs:

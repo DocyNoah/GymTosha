@@ -396,3 +396,25 @@ def test_search_recomputes_phase_when_seed_protocol_changes(tmp_path, monkeypatc
     tune_count(config, tmp_path)
     assert calls == [True]
     assert json.loads(path.read_text())["seeds"] == list(range(1, 11))
+
+
+def test_tuning_rejects_earlier_selection_with_old_seed_protocol(tmp_path):
+    import json
+    from argparse import Namespace
+
+    from gymtosha.benchmarks.study import source_fingerprint, tune
+
+    config = reference_config(32)
+    (tmp_path / "selected.json").write_text(
+        json.dumps(
+            {
+                "32": {
+                    "source": source_fingerprint(),
+                    "config": asdict(config),
+                    "seeds": list(range(1, 21)),
+                },
+            }
+        )
+    )
+    with pytest.raises(ValueError, match="earlier selected seed protocol"):
+        tune(Namespace(min_envs=64, max_envs=64, device="cuda", output=tmp_path))

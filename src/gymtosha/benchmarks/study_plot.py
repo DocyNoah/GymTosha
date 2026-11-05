@@ -131,7 +131,15 @@ def plot_heatmaps(phases, output):
         ax.set_yticks(range(len(values)), [str(value) for value in values])
         ax.set_xlabel("Environments")
         ax.set_ylabel(parameter + (" / num_envs" if parameter == "ppo_minibatch_size" else ""))
-        ax.set_title("Mean training episode return · 10 seeds per measured cell")
+        seed_counts = sorted(
+            {
+                candidate["summary"].get("expected_seeds", candidate["summary"]["attempted_seeds"])
+                for phase in records
+                for candidate in phase["candidates"]
+            }
+        )
+        counts_label = "/".join(map(str, seed_counts))
+        ax.set_title(f"Mean training episode return · {counts_label} seeds per measured cell")
         fig.colorbar(plotted, ax=ax)
         fig.tight_layout()
         fig.savefig(Path(output) / f"heatmap-{parameter}.png", dpi=150)
