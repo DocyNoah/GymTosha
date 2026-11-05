@@ -1,0 +1,10 @@
+{
+  "num_envs": 262144,
+  "status": "failed",
+  "error_type": "host_memory_pressure",
+  "exit_code": -15,
+  "wall_seconds": 20.758174041751772,
+  "observed_seconds": 20.758174041751772,
+  "limit_seconds": 60,
+  "source_record": "outputs/cartpole-study/capacity/gymtosha-mps-0-262144.json"
+}

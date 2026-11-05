@@ -1,0 +1,50 @@
+{
+  "task": "CartPole-v1",
+  "algorithm": "PPO",
+  "actor_hidden_sizes": [
+    256,
+    256,
+    256
+  ],
+  "critic_hidden_sizes": [
+    256,
+    256,
+    256
+  ],
+  "rollout_steps": 128,
+  "update_epochs": 1,
+  "minibatches": 4,
+  "timeout_seconds": 60,
+  "async_cap": 32,
+  "capacity_source_commit": "8c15a88",
+  "new_cuda_probe_commit": "6d32208",
+  "python": "3.12",
+  "cuda_host": {
+    "cpu": "AMD Ryzen 5 5600X",
+    "ram_gib": 32,
+    "gpu": "RTX 3090",
+    "vram_gib": 24,
+    "torch": "2.15.0+cu132"
+  },
+  "mps_host": {
+    "chip": "Apple M3 Max",
+    "unified_memory_gib": 64,
+    "torch": "2.15.0"
+  },
+  "method": "Prior completed functional probes reclassified with measured elapsed time, plus new CUDA probes under a sixty-second supervisor deadline",
+  "statistics": "One functional trial per size. No across-seed mean or standard deviation claimed.",
+  "verification": {
+    "source_commit": "6d32208",
+    "cuda_tests": {
+      "passed": 111,
+      "skipped": 10
+    },
+    "mps_tests": {
+      "passed": 112,
+      "skipped": 9
+    },
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "wheel_sdist_build": "passed"
+  }
+}

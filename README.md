@@ -110,6 +110,15 @@ episode_lengths = info["episode_length"][done]
 
 [전체 API 명세](docs/API.md)에서 입력 검증, 공간 메타데이터, 등록, 난수와 컴파일 계약을 확인할 수 있습니다.
 
+## CartPole PPO 정밀 실험
+
+정책망과 가치망을 256–256–256으로 고정한 새 실험을 진행하고 있습니다.
+Async는 최대 32개, 나머지는 4,096개에서 두 배씩 늘려 60초 내 PPO 수집·업데이트가
+가능한 크기를 확인했습니다. 아래 기존 성능 실험과 설정·시드를 구분해 보관합니다.
+
+[진행 상태와 용량 검증](benchmarks/results/cartpole-study/README.md) ·
+[20개 시드 탐색 명세](docs/CARTPOLE_STUDY.md)
+
 ## 성능 검증
 
 CleanRL에서 이식한 학습기를 GymTosha와 Gymnasium에 동일하게 적용합니다.
