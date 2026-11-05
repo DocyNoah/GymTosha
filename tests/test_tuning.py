@@ -100,3 +100,15 @@ def test_resume_keeps_finalists_and_other_environment_selections(tmp_path, monke
     selected = json.loads((tmp_path / "selected.json").read_text())
     assert selected["MountainCar-v0"] == {"preserved": True}
     assert selected["CartPole-v1"]["candidate"] == 1
+
+
+def test_native_candidates_run_at_least_4096_environments():
+    for env in MODULE["ENVIRONMENTS"]:
+        configs = MODULE["candidates"](env, "cuda", backend="gymtosha")
+        assert len(configs) == 4
+        for config in configs:
+            assert config.num_envs >= 4096
+            assert config.backend == "gymtosha"
+            assert config.compile_env
+            config.validate()
+            MODULE["evaluation_config"](config).validate(config)

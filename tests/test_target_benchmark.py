@@ -294,3 +294,75 @@ def test_target_plot_preserves_flat_csv_and_does_not_create_empty_results(tmp_pa
     assert (output / "target_summary.json").exists()
     assert not (output / "training.json").exists()
     assert not (output / "throughput.json").exists()
+
+
+def test_independent_tuning_allows_backend_configs_but_preserves_evaluation():
+    first, second = record("gymtosha", True), record("gymnasium-sync", True)
+    first["config"]["num_envs"] = 4096
+    first["evaluation"]["config"]["interval"] = 262144
+    for row in (first, second):
+        row["comparison_mode"] = "independently-tuned"
+    assert target_summary([first, second])[0]["speedup"] == 1
+    second["evaluation"]["config"]["episodes"] = 7
+    with pytest.raises(ValueError, match="incompatible"):
+        target_summary([first, second])
+
+
+def test_independent_tuning_rejects_changed_settings_within_backend():
+    first, second = record("gymtosha", True, 1), record("gymtosha", True, 2)
+    for row in (first, second):
+        row["comparison_mode"] = "independently-tuned"
+    second["config"]["num_envs"] = 8192
+    with pytest.raises(ValueError, match="incompatible"):
+        validate_target_comparisons([first, second])
+
+
+def test_target_cli_loads_backend_specific_presets(tmp_path):
+    import json
+    from dataclasses import replace
+
+    configs = {
+        backend: {
+            "config": asdict(
+                replace(
+                    target_preset("CartPole-v1", backend=backend),
+                    num_envs=count,
+                    total_timesteps=128,
+                    rollout_steps=8,
+                    update_epochs=1,
+                )
+            ),
+            "evaluation_interval": count * 8,
+        }
+        for backend, count in (("gymnasium-sync", 4), ("gymtosha", 8))
+    }
+    presets = tmp_path / "selected.json"
+    presets.write_text(json.dumps({"CartPole-v1": {"backends": configs}}))
+    main(
+        [
+            "time-to-target",
+            "--env-ids",
+            "CartPole-v1",
+            "--device",
+            "cpu",
+            "--seeds",
+            "11",
+            "--presets",
+            str(presets),
+            "--comparison-mode",
+            "independently-tuned",
+            "--target",
+            "-1",
+            "--eval-episodes",
+            "4",
+            "--output",
+            str(tmp_path / "run"),
+        ]
+    )
+    rows = json.loads((tmp_path / "run/time_to_target.json").read_text())
+    assert [(r["config"]["backend"], r["config"]["num_envs"]) for r in rows] == [
+        ("gymnasium-sync", 4),
+        ("gymtosha", 8),
+    ]
+    assert [r["evaluation"]["config"]["interval"] for r in rows] == [32, 64]
+    assert all(r["comparison_mode"] == "independently-tuned" for r in rows)

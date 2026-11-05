@@ -62,18 +62,33 @@ def validate_target_comparisons(records):
     settings = {}
     seen = set()
     compilation = {}
+    evaluations = {}
+    modes = {}
     for row in records:
         config = row["config"]
         key = (config["env_id"], config["algorithm"], config["device"])
+        mode = row.get("comparison_mode", "matched")
+        if mode not in ("matched", "independently-tuned"):
+            raise ValueError(f"unknown comparison mode {mode!r}")
+        if key in modes and modes[key] != mode:
+            raise ValueError(f"incompatible comparison modes for {key}")
+        modes[key] = mode
         identity = (*key, config["backend"], config["seed"])
         if identity in seen:
             raise ValueError(f"duplicate target trial {identity}")
         seen.add(identity)
         protocol = {k: v for k, v in config.items() if k not in ("backend", "compile_env", "seed")}
         protocol["evaluation"] = row["evaluation"]["config"]
-        if key in settings and settings[key] != protocol:
+        settings_key = (*key, config["backend"]) if mode == "independently-tuned" else key
+        if settings_key in settings and settings[settings_key] != protocol:
             raise ValueError(f"incompatible target comparison for {key}")
-        settings[key] = protocol
+        settings[settings_key] = protocol
+        evaluation = dict(row["evaluation"]["config"])
+        if mode == "independently-tuned":
+            evaluation.pop("interval", None)
+        if key in evaluations and evaluations[key] != evaluation:
+            raise ValueError(f"incompatible evaluation for {key}")
+        evaluations[key] = evaluation
         backend_key = (*key, config["backend"])
         compiled = config["compile_env"]
         if backend_key in compilation and compilation[backend_key] != compiled:

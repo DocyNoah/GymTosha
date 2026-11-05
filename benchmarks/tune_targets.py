@@ -12,7 +12,9 @@ from gymtosha.benchmarks.target import target_preset
 from gymtosha.benchmarks.train import train
 
 
-def candidates(env_id, device):
+def candidates(env_id, device, backend="gymnasium-sync"):
+    if backend == "gymtosha":
+        return native_candidates(env_id, device)
     base = target_preset(env_id, backend="gymnasium-sync", device=device, seed=101)
     variants = {
         "CartPole-v1": [
@@ -56,6 +58,83 @@ def candidates(env_id, device):
     return [replace(base, **variant) for variant in variants[env_id]]
 
 
+def native_candidates(env_id, device):
+    base = replace(
+        target_preset(env_id, device=device, seed=101),
+        num_envs=4096,
+        total_timesteps=8388608,
+        rollout_steps=64,
+        update_epochs=4,
+        num_minibatches=16,
+        learning_rate=3e-4,
+        buffer_size=1048576,
+        batch_size=1024,
+        learning_starts=65536,
+        train_every=4096,
+        gradient_steps=8,
+        log_every=262144,
+    )
+    variants = {
+        "CartPole-v1": [{}, {"learning_rate": 1e-3}, {"update_epochs": 8}, {"num_minibatches": 32}],
+        "MountainCar-v0": [
+            {},
+            {"learning_rate": 1e-3},
+            {"gradient_steps": 16},
+            {"exploration_hold_steps": 32, "learning_rate": 1e-3},
+        ],
+        "MountainCarContinuous-v0": [
+            {},
+            {"learning_rate": 1e-3},
+            {"update_epochs": 8},
+            {"rollout_steps": 32, "learning_rate": 1e-3},
+        ],
+        "LunarLander-v3": [
+            {},
+            {"learning_rate": 1e-3},
+            {"update_epochs": 8},
+            {"rollout_steps": 64, "learning_rate": 1e-3},
+        ],
+        "FrozenLake-v1": [
+            {},
+            {"learning_rate": 1e-3},
+            {"gradient_steps": 16},
+            {"batch_size": 2048, "learning_rate": 1e-3},
+        ],
+    }
+    if env_id == "CartPole-v1":
+        base = replace(base, total_timesteps=4194304, rollout_steps=16, num_minibatches=8)
+    if env_id == "MountainCar-v0":
+        base = replace(base, total_timesteps=16777216, gamma=0.995)
+    if env_id == "LunarLander-v3":
+        base = replace(
+            base,
+            total_timesteps=16777216,
+            rollout_steps=128,
+            normalize_observations=True,
+            normalize_rewards=True,
+        )
+    if env_id == "FrozenLake-v1":
+        base = replace(base, total_timesteps=4194304)
+    return [replace(base, **variant) for variant in variants[env_id]]
+
+
+def evaluation_config(config):
+    interval = 65536
+    if config.backend == "gymtosha":
+        interval = {
+            "CartPole-v1": 65536,
+            "MountainCar-v0": 262144,
+            "MountainCarContinuous-v0": 262144,
+            "LunarLander-v3": 524288,
+            "FrozenLake-v1": 65536,
+        }[config.env_id]
+    return EvaluationConfig(
+        seed=900000,
+        interval=interval,
+        episodes=1000 if config.env_id.startswith("FrozenLake") else 100,
+    )
+
+
 def rank(trials):
     hits = [
         t["result"]["evaluation"]["time_to_target_seconds"]
@@ -69,6 +148,9 @@ def rank(trials):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument(
+        "--backend", choices=["gymnasium-sync", "gymtosha"], default="gymnasium-sync"
+    )
     parser.add_argument("--env-ids", nargs="+", default=ENVIRONMENTS)
     parser.add_argument("--output", type=Path, default=Path("outputs/tuning"))
     parser.add_argument("--resume", action="store_true")
@@ -80,10 +162,8 @@ def main():
         json.loads(selected_path.read_text()) if args.resume and selected_path.exists() else {}
     )
     for env_id in args.env_ids:
-        evaluation = EvaluationConfig(
-            seed=900000, episodes=1000 if env_id.startswith("FrozenLake") else 100
-        )
-        configs = candidates(env_id, args.device)
+        configs = candidates(env_id, args.device, args.backend)
+        evaluation = evaluation_config(configs[0])
         for seed in (101, 202):
             ids = list(range(len(configs)))
             if seed == 202:
@@ -144,6 +224,7 @@ def main():
         selected[env_id] = {
             "candidate": winner,
             "config": asdict(configs[winner]),
+            "evaluation_interval": evaluation.interval,
             "confirmed_target": all(
                 t["result"]["evaluation"]["status"] == "reached" for t in winner_trials
             ),

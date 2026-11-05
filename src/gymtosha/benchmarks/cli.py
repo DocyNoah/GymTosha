@@ -135,16 +135,16 @@ def _time_to_target(args):
     path = args.output / "time_to_target.json"
     records = json.loads(path.read_text()) if args.resume and path.exists() else []
     selected = json.loads(args.presets.read_text()) if args.presets else {}
-    evaluation = EvaluationConfig(
+    base_evaluation = EvaluationConfig(
         target=args.target,
-        interval=args.eval_interval,
+        interval=args.eval_interval or 65536,
         episodes=args.eval_episodes if args.eval_episodes is not None else 100,
         confirmations=args.confirmations,
         seed=args.eval_seed,
     )
     for env_id in args.env_ids:
         evaluation = replace(
-            evaluation,
+            base_evaluation,
             episodes=(
                 args.eval_episodes
                 if args.eval_episodes is not None
@@ -153,9 +153,10 @@ def _time_to_target(args):
         )
         if args.presets and env_id not in selected:
             raise ValueError(f"no selected hyperparameters for {env_id}")
-        preset = (
-            TrainConfig(**selected[env_id]["config"]) if args.presets else target_preset(env_id)
-        )
+        selection = selected.get(env_id, {})
+        backend_presets = selection.get("backends", {})
+        first_selection = next(iter(backend_presets.values())) if backend_presets else selection
+        preset = TrainConfig(**first_selection["config"]) if args.presets else target_preset(env_id)
         algorithms = args.algorithms or [preset.algorithm]
         for algorithm in algorithms:
             if not _compatible(algorithm, env_id):
@@ -167,6 +168,10 @@ def _time_to_target(args):
                             "selected preset uses a different representative algorithm"
                         )
                     if args.presets:
+                        backend_selection = backend_presets.get(backend, selection)
+                        if "config" not in backend_selection:
+                            raise ValueError(f"no selected hyperparameters for {env_id}/{backend}")
+                        preset = TrainConfig(**backend_selection["config"])
                         config = replace(
                             preset,
                             env_id=env_id,
@@ -174,6 +179,13 @@ def _time_to_target(args):
                             device=args.device,
                             seed=seed,
                             compile_env=backend == "gymtosha",
+                        )
+                        evaluation = replace(
+                            evaluation,
+                            interval=(
+                                args.eval_interval
+                                or backend_selection.get("evaluation_interval", 65536)
+                            ),
                         )
                     else:
                         config = target_preset(
@@ -200,9 +212,11 @@ def _time_to_target(args):
                         )
                     ]
                     if saved:
-                        if saved[0]["config"] != asdict(config) or saved[0]["evaluation"][
-                            "config"
-                        ] != asdict(evaluation):
+                        if (
+                            saved[0]["config"] != asdict(config)
+                            or saved[0]["evaluation"]["config"] != asdict(evaluation)
+                            or saved[0].get("comparison_mode", "matched") != args.comparison_mode
+                        ):
                             raise ValueError("resume settings differ from the existing trial")
                         continue
                     validate_target_comparisons(
@@ -211,6 +225,7 @@ def _time_to_target(args):
                             {
                                 "config": asdict(config),
                                 "evaluation": {"config": asdict(evaluation)},
+                                "comparison_mode": args.comparison_mode,
                             },
                         ]
                     )
@@ -233,6 +248,7 @@ def _time_to_target(args):
                         )
 
                     result = train(config, evaluation=evaluation, on_progress=progress)
+                    result["comparison_mode"] = args.comparison_mode
                     records.append(result)
                     _write(records, path)
                     summary = target_summary(records)
@@ -284,13 +300,16 @@ def main(argv=None):
     target.add_argument("--total-timesteps", type=int)
     target.add_argument("--num-envs", type=int)
     target.add_argument("--rollout-steps", type=int)
-    target.add_argument("--eval-interval", type=int, default=65536)
+    target.add_argument("--eval-interval", type=int)
     target.add_argument("--eval-episodes", type=int)
     target.add_argument("--eval-seed", type=int, default=100000)
     target.add_argument("--confirmations", type=int, default=2)
     target.add_argument("--target", type=float)
     target.add_argument("--resume", action="store_true")
     target.add_argument("--presets", type=Path)
+    target.add_argument(
+        "--comparison-mode", choices=["matched", "independently-tuned"], default="matched"
+    )
     plots = commands.add_parser("plot")
     plots.add_argument("--inputs", type=Path, nargs="+", required=True)
     plots.add_argument("--output", type=Path, required=True)
