@@ -142,6 +142,7 @@ def _time_to_target(args):
         confirmations=args.confirmations,
         seed=args.eval_seed,
         stop_on_target=not args.fixed_length,
+        min_episode_success_rate=args.min_episode_success_rate,
     )
     for env_id in args.env_ids:
         evaluation = replace(
@@ -311,6 +312,7 @@ def main(argv=None):
     target.add_argument("--resume", action="store_true")
     target.add_argument("--presets", type=Path)
     target.add_argument("--fixed-length", action="store_true")
+    target.add_argument("--min-episode-success-rate", type=float, default=0.0)
     target.add_argument(
         "--comparison-mode", choices=["matched", "independently-tuned"], default="matched"
     )

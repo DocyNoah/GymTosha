@@ -100,3 +100,26 @@ def test_target_measurement_can_run_full_training_budget():
     )
     assert result["timesteps"] == 128
     assert result["evaluation"]["transitions_to_target"] == 64
+
+
+def test_stable_target_requires_five_mean_and_episode_rate_confirmations():
+    config = EvaluationConfig(
+        target=475, confirmations=5, stop_on_target=False, min_episode_success_rate=0.95
+    )
+    evaluator = TargetEvaluator("CartPole-v1", config)
+    passing = [500] * 95 + [0] * 5
+    unreliable = [500] * 94 + [474] * 6
+    for step in range(1, 5):
+        assert not evaluator.record(step, passing, elapsed=step)
+    assert evaluator.summary()["status"] == "budget_exhausted"
+    evaluator.record(5, unreliable, elapsed=5)
+    assert evaluator.streak == 0
+    for step in range(6, 11):
+        evaluator.record(step, passing, elapsed=step)
+    summary = evaluator.summary()
+    assert summary["status"] == "reached"
+    assert summary["transitions_to_target"] == 10
+    assert summary["time_to_target_seconds"] == 10
+    assert summary["checkpoints"][-1]["episode_success_rate"] == 0.95
+    evaluator.record(11, unreliable, elapsed=11)
+    assert evaluator.summary()["transitions_to_target"] == 10

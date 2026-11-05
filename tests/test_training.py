@@ -192,5 +192,13 @@ def test_native_ppo_excludes_autoreset_slots_from_updates(monkeypatch):
         )
     )
     assert result["gradient_updates"] == 8
+    assert result["valid_transitions"] == 32
+    assert result["completed_episodes"] == 32
+    assert result["mean_training_episode_return"] == 1.0
     assert result["parameter_delta"] > 0
     assert all(torch.isfinite(torch.tensor(row["loss"])) for row in result["checkpoints"])
+
+
+def test_native_vector_rejects_unmasked_off_policy_learning():
+    with pytest.raises(ValueError, match="PPO only"):
+        train(TrainConfig(backend="gymnasium-native", algorithm="dqn"))

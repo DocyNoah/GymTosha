@@ -175,6 +175,7 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
     updates = 0
     iterations = config.total_timesteps // size
     timesteps = 0
+    valid_transitions = torch.zeros((), dtype=torch.long, device=device)
     stop = evaluator is not None and evaluator.check(agent, 0, config.algorithm)
     for iteration in range(iterations):
         if stop:
@@ -218,6 +219,7 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
         flat_log_probs, flat_values = log_probs.reshape(size), values.reshape(size)
         flat_advantages, flat_returns = advantages.reshape(size), returns.reshape(size)
         eligible = valid.flatten().nonzero().flatten() if masked_resets else None
+        valid_transitions += valid.sum()
         loss = torch.zeros((), device=device)
         for _ in range(config.update_epochs):
             indices = (
@@ -272,7 +274,7 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
     delta = float(
         (nn.utils.parameters_to_vector(agent.parameters()).detach() - initial).norm().cpu()
     )
-    return elapsed, recorder.checkpoints, updates, delta, timesteps
+    return elapsed, recorder.checkpoints, updates, delta, timesteps, int(valid_transitions.cpu())
 
 
 def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None):
@@ -345,13 +347,15 @@ def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate, evaluat
     delta = float(
         (nn.utils.parameters_to_vector(learner.actor.parameters()).detach() - initial).norm().cpu()
     )
-    return elapsed, recorder.checkpoints, learner.updates, delta, timesteps
+    return elapsed, recorder.checkpoints, learner.updates, delta, timesteps, timesteps
 
 
 def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
     from gymtosha.benchmarks.evaluation import TargetEvaluator
 
     config.validate()
+    if config.backend == "gymnasium-native" and config.algorithm != "ppo":
+        raise ValueError("the native vector backend currently supports PPO only")
     if evaluation is not None:
         evaluation.validate(config)
     torch.set_num_threads(config.num_threads)
@@ -388,14 +392,24 @@ def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
         obs = encode(env.reset(config.seed), env.observation_space)
         rate = config.learning_rate or (2.5e-4 if config.algorithm in ("ppo", "dqn") else 3e-4)
         loop = _ppo if config.algorithm == "ppo" else _off_policy
-        elapsed, checkpoints, updates, delta, timesteps = loop(
+        elapsed, checkpoints, updates, delta, timesteps, valid_transitions = loop(
             config, env, obs, obs.shape[-1], action_dim, continuous, rate, evaluator
+        )
+        completed_episodes = sum(point["episodes"] for point in checkpoints)
+        episode_return_sum = sum(
+            point["mean_return"] * point["episodes"] for point in checkpoints if point["episodes"]
         )
         result = {
             "config": asdict(config),
             "timesteps": timesteps,
             "seconds": elapsed,
             "steps_per_second": timesteps / elapsed,
+            "valid_transitions": valid_transitions,
+            "valid_transitions_per_second": valid_transitions / elapsed,
+            "completed_episodes": completed_episodes,
+            "mean_training_episode_return": episode_return_sum / completed_episodes
+            if completed_episodes
+            else None,
             "setup_seconds": setup_seconds,
             "warmup_seconds": warmup_seconds,
             "gradient_updates": updates,

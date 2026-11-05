@@ -138,14 +138,12 @@ def _isolated_probe(args, count):
                 time.sleep(1)
         finally:
             if process.poll() is None:
-                os.killpg(process.pid, signal.SIGTERM)
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(process.pid, signal.SIGKILL)
-                    process.wait()
-    if path.exists() and reason is None:
+                terminate_probe(process)
+    if path.exists():
         result = json.loads(path.read_text())
+        if reason is not None:
+            result["supervisor_stop_reason"] = reason
+            _write(result, path)
     else:
         result = {
             "num_envs": count,
@@ -159,6 +157,44 @@ def _isolated_probe(args, count):
         json.dumps({k: v for k, v in result.items() if k not in ("training", "config")}), flush=True
     )
     return result
+
+
+def terminate_probe(process):
+    try:
+        rows = subprocess.check_output(["ps", "-axo", "pid=,ppid="], text=True).splitlines()
+        parents = {int(pid): int(parent) for pid, parent in (row.split() for row in rows)}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        parents = {}
+    descendants = set()
+    pending = {process.pid}
+    while pending:
+        children = {pid for pid, parent in parents.items() if parent in pending}
+        descendants.update(children)
+        pending = children
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except (PermissionError, ProcessLookupError):
+        for pid in descendants:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        if process.poll() is None:
+            process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (PermissionError, ProcessLookupError):
+            if process.poll() is None:
+                process.kill()
+        process.wait()
+    for pid in descendants:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 
 
 def main():

@@ -23,6 +23,7 @@ class EvaluationConfig:
     confirmations: int = 2
     seed: int = 100000
     stop_on_target: bool = True
+    min_episode_success_rate: float = 0.0
 
     def resolved_target(self, env_id):
         if self.target is not None:
@@ -38,6 +39,11 @@ class EvaluationConfig:
     def validate(self, training):
         if min(self.interval, self.episodes, self.confirmations) < 1 or self.seed < 0:
             raise ValueError("evaluation counts must be positive and seed nonnegative")
+        if (
+            not np.isfinite(self.min_episode_success_rate)
+            or not 0 <= self.min_episode_success_rate <= 1
+        ):
+            raise ValueError("minimum episode success rate must be between zero and one")
         boundary = training.num_envs
         if training.algorithm == "ppo":
             boundary *= training.rollout_steps
@@ -87,7 +93,9 @@ class TargetEvaluator:
 
     def record(self, timesteps, scores, *, elapsed):
         score = float(np.mean(scores))
-        self.streak = self.streak + 1 if score >= self.target else 0
+        success_rate = float(np.mean(np.asarray(scores) >= self.target))
+        passed = score >= self.target and success_rate >= self.config.min_episode_success_rate
+        self.streak = self.streak + 1 if passed else 0
         confirmed = self.streak >= self.config.confirmations
         self.checkpoints.append(
             {
@@ -95,6 +103,7 @@ class TargetEvaluator:
                 "wall_seconds": elapsed,
                 "mean_return": score,
                 "std_return": float(np.std(scores)),
+                "episode_success_rate": success_rate,
                 "episode_returns": [float(value) for value in scores],
                 "consecutive_passes": self.streak,
             }
