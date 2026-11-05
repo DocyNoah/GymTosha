@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager
 from dataclasses import asdict, replace
+from math import isfinite
 from statistics import mean, stdev
 from threading import Event, Lock
 
@@ -11,6 +12,8 @@ from gymtosha.benchmarks.train import TrainConfig
 SEEDS = tuple(range(1, 11))
 COMPARISON_SEEDS = tuple(range(1001, 1021))
 ROLLOUT_UPDATES = 64
+FINAL_EVAL_CHECKPOINTS = 5
+SCORE_METRIC = "final_five_evaluation_checkpoints"
 _ACTIVE_WORKERS = {}
 _WORKERS_LOCK = Lock()
 _CANCELLED = Event()
@@ -102,6 +105,14 @@ def study_evaluation(config, *, comparison=False):
     )
 
 
+def final_evaluation_score(result):
+    points = result.get("evaluation", {}).get("checkpoints", [])[-FINAL_EVAL_CHECKPOINTS:]
+    scores = [point["mean_return"] for point in points]
+    if len(scores) == FINAL_EVAL_CHECKPOINTS and all(isfinite(score) for score in scores):
+        return mean(scores)
+    return None
+
+
 def summarize_trials(records, *, seeds=SEEDS, timing_comparable=True):
     actual = [record["seed"] for record in records]
     if len(set(actual)) != len(actual):
@@ -114,7 +125,10 @@ def summarize_trials(records, *, seeds=SEEDS, timing_comparable=True):
     if configs and any(config != configs[0] for config in configs[1:]):
         raise ValueError("mixed study training configurations")
     returns = [row["mean_training_episode_return"] for row in good]
-    usable = complete and len(good) == len(seeds) and all(value is not None for value in returns)
+    usable = complete and len(good) == len(seeds)
+    training_usable = usable and all(value is not None for value in returns)
+    final_scores = [final_evaluation_score(row) for row in good]
+    evaluation_usable = usable and all(score is not None for score in final_scores)
     times = [row["wall_seconds"] for row in good]
     target_times = [row["evaluation"]["time_to_target_seconds"] for row in good]
     reached = sum(value is not None for value in target_times)
@@ -123,8 +137,10 @@ def summarize_trials(records, *, seeds=SEEDS, timing_comparable=True):
         "attempted_seeds": len(actual),
         "expected_seeds": len(seeds),
         "successful_trials": len(good),
-        "mean_training_return": mean(returns) if usable else None,
-        "std_training_return": stdev(returns) if usable else None,
+        "mean_training_return": mean(returns) if training_usable else None,
+        "std_training_return": stdev(returns) if training_usable else None,
+        "mean_final_eval_return": mean(final_scores) if evaluation_usable else None,
+        "std_final_eval_return": stdev(final_scores) if evaluation_usable else None,
         "timing_comparable": timing_comparable,
         "mean_wall_seconds": mean(times) if usable and timing_comparable else None,
         "std_wall_seconds": stdev(times) if usable and timing_comparable else None,
@@ -139,12 +155,12 @@ def summarize_trials(records, *, seeds=SEEDS, timing_comparable=True):
 
 
 def selection_key(summary):
-    if summary["mean_training_return"] is None:
+    if summary["mean_final_eval_return"] is None:
         return (1, 0, 0)
     return (
         0,
-        -summary["mean_training_return"],
-        summary["std_training_return"],
+        -summary["mean_final_eval_return"],
+        summary["std_final_eval_return"],
     )
 
 
@@ -429,8 +445,8 @@ def collect_candidates(config, parameter, values, output, *, parallelism=16, mem
             "value": value,
             "summary": summarize_trials(records[str(value)], timing_comparable=False),
             "trial_ids": [record["trial_id"] for record in records[str(value)]],
-            "seed_rewards": [
-                record["result"]["mean_training_episode_return"]
+            "seed_scores": [
+                final_evaluation_score(record["result"])
                 if record["status"] == "completed"
                 else None
                 for record in records[str(value)]
@@ -451,7 +467,11 @@ def tune_count(config, output, *, parallelism=16):
     for parameter in PARAMETERS:
         phase_path = directory / f"{parameter}.json"
         phase = json.loads(phase_path.read_text()) if phase_path.exists() else None
-        if phase is not None and phase.get("seeds") == list(SEEDS):
+        if (
+            phase is not None
+            and phase.get("seeds") == list(SEEDS)
+            and phase.get("score_metric") == SCORE_METRIC
+        ):
             if (
                 phase["starting_config"] != asdict(config)
                 or phase["source"] != source_fingerprint()
@@ -468,7 +488,7 @@ def tune_count(config, output, *, parallelism=16):
                 config, parameter, values, output, parallelism=parallelism
             )
             winner = min(candidates, key=lambda candidate: selection_key(candidate["summary"]))
-            if winner["summary"]["mean_training_return"] is None:
+            if winner["summary"]["mean_final_eval_return"] is None:
                 raise RuntimeError(
                     f"no valid {len(SEEDS)}-seed candidate for {parameter}, N={config.num_envs}"
                 )
@@ -489,6 +509,7 @@ def tune_count(config, output, *, parallelism=16):
             "num_envs": config.num_envs,
             "parameter": parameter,
             "seeds": list(SEEDS),
+            "score_metric": SCORE_METRIC,
             "starting_config": starting_config,
             "candidates": candidates,
             "selected_value": winner["value"],
@@ -512,11 +533,12 @@ def tune(args):
     selected = json.loads(path.read_text()) if path.exists() else {}
     previous = None
     for count in sorted(int(value) for value in selected if int(value) < args.min_envs):
-        if selected[str(count)].get("seeds") != list(SEEDS):
+        saved = selected[str(count)]
+        if saved.get("seeds") != list(SEEDS) or saved.get("score_metric") != SCORE_METRIC:
             raise ValueError(
-                f"earlier selected seed protocol changed; restart tuning from N={count}"
+                f"earlier selected study protocol changed; restart tuning from N={count}"
             )
-        previous = TrainConfig(**selected[str(count)]["config"])
+        previous = TrainConfig(**saved["config"])
     count = args.min_envs
     while count <= args.max_envs:
         base = reference_config(count, previous=previous)
@@ -530,7 +552,11 @@ def tune(args):
                 or saved.get("runtime") != runtime_fingerprint()
             ):
                 raise ValueError("selected device or runtime changed")
-        if saved is not None and saved.get("seeds") == list(SEEDS):
+        if (
+            saved is not None
+            and saved.get("seeds") == list(SEEDS)
+            and saved.get("score_metric") == SCORE_METRIC
+        ):
             previous = TrainConfig(**saved["config"])
         else:
             previous = tune_count(
@@ -541,6 +567,7 @@ def tune(args):
                 "runtime": runtime_fingerprint(),
                 "config": asdict(previous),
                 "seeds": list(SEEDS),
+                "score_metric": SCORE_METRIC,
             }
             _write(selected, path)
         render_dashboard(args.output)
@@ -556,6 +583,7 @@ def comparison_seed_details(record):
         "status": record["status"],
         "error": record.get("error"),
         "mean_training_episode_return": result.get("mean_training_episode_return"),
+        "final_eval_return": final_evaluation_score(result),
         "wall_seconds": result.get("wall_seconds"),
         "time_to_target_seconds": evaluation.get("time_to_target_seconds"),
         "transitions_to_target": evaluation.get("transitions_to_target"),
@@ -592,7 +620,10 @@ def compare(args):
                 maximum = min(maximum, 32)
             if count > maximum:
                 continue
-            config = TrainConfig(**selected[str(count)]["config"])
+            preset = selected[str(count)]
+            if preset.get("score_metric") != SCORE_METRIC or preset.get("seeds") != list(SEEDS):
+                raise ValueError(f"tune N={count} with the current study protocol before comparing")
+            config = TrainConfig(**preset["config"])
             config = replace(
                 config,
                 backend=condition["backend"],
@@ -624,6 +655,7 @@ def compare(args):
                     "config": asdict(config),
                     "summary": summarize_trials(records, seeds=COMPARISON_SEEDS),
                     "seeds": list(COMPARISON_SEEDS),
+                    "score_metric": SCORE_METRIC,
                     "trial_ids": [record["trial_id"] for record in records],
                     "seed_results": [comparison_seed_details(record) for record in records],
                 },

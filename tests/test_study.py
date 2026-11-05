@@ -66,7 +66,11 @@ def trials(count=None):
                 "mean_training_episode_return": float(seed),
                 "seconds": 2.0,
                 "wall_seconds": 3.0,
-                "evaluation": {"status": "budget_exhausted", "time_to_target_seconds": None},
+                "evaluation": {
+                    "status": "budget_exhausted",
+                    "time_to_target_seconds": None,
+                    "checkpoints": [{"mean_return": float(seed)} for _ in range(5)],
+                },
             },
         }
         for seed in SEEDS[:count]
@@ -89,6 +93,26 @@ def test_summary_does_not_drop_a_failed_trial():
     assert result["complete"]
     assert result["successful_trials"] == 9
     assert result["mean_training_return"] is None
+
+
+def test_selection_uses_last_five_evaluation_checkpoints():
+    from gymtosha.benchmarks.study import selection_key
+
+    first = trials()
+    second = trials()
+    for lower, higher in zip(first, second, strict=True):
+        lower["result"]["mean_training_episode_return"] = 490
+        lower["result"]["evaluation"]["checkpoints"] = [
+            {"mean_return": score} for score in [500, 500, 425, 425, 425, 425, 425]
+        ]
+        higher["result"]["mean_training_episode_return"] = 300
+        higher["result"]["evaluation"]["checkpoints"] = [
+            {"mean_return": score} for score in [5, 5, 480, 490, 500, 490, 490]
+        ]
+    first, second = summarize_trials(first), summarize_trials(second)
+    assert first["mean_final_eval_return"] == 425
+    assert second["mean_final_eval_return"] == 490
+    assert selection_key(second) < selection_key(first)
 
 
 def test_summary_rejects_duplicate_seeds():
@@ -149,7 +173,7 @@ def test_parameter_dashboard_contains_real_ten_seed_statistics(tmp_path):
                 "value": 0.001,
                 "summary": summarize_trials(trials()),
                 "trial_ids": [str(seed) for seed in SEEDS],
-                "seed_rewards": list(SEEDS),
+                "seed_scores": list(SEEDS),
             }
         ],
     }
@@ -272,8 +296,8 @@ def test_best_backend_uses_fastest_stably_solved_size():
             "summary": {
                 "complete": True,
                 "successful_trials": 20,
-                "mean_training_return": score,
-                "std_training_return": 1.0,
+                "mean_final_eval_return": score,
+                "std_final_eval_return": 1.0,
                 "mean_wall_seconds": 100.0,
                 "mean_target_seconds": target_time,
                 "std_target_seconds": 1.0 if target_time else None,
@@ -371,7 +395,13 @@ def test_search_uses_ten_seeds_and_final_comparison_uses_twenty():
     assert COMPARISON_SEEDS == tuple(range(1001, 1021))
 
 
-def test_search_recomputes_phase_when_seed_protocol_changes(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "prior_seeds,prior_metric",
+    [(range(1, 21), "final_five_evaluation_checkpoints"), (SEEDS, "whole_training_mean")],
+)
+def test_search_recomputes_phase_when_protocol_changes(
+    tmp_path, monkeypatch, prior_seeds, prior_metric
+):
     import json
 
     from gymtosha.benchmarks.study import runtime_fingerprint, source_fingerprint, tune_count
@@ -386,7 +416,8 @@ def test_search_recomputes_phase_when_seed_protocol_changes(tmp_path, monkeypatc
                 "source": source_fingerprint(),
                 "runtime": runtime_fingerprint(),
                 "selected_config": asdict(config),
-                "seeds": list(range(1, 21)),
+                "seeds": list(prior_seeds),
+                "score_metric": prior_metric,
             }
         )
     )
@@ -399,7 +430,7 @@ def test_search_recomputes_phase_when_seed_protocol_changes(tmp_path, monkeypatc
                 "value": 0.001,
                 "summary": summarize_trials(trials()),
                 "trial_ids": [],
-                "seed_rewards": list(SEEDS),
+                "seed_scores": list(SEEDS),
             }
         ]
 
@@ -409,7 +440,9 @@ def test_search_recomputes_phase_when_seed_protocol_changes(tmp_path, monkeypatc
     monkeypatch.setattr("gymtosha.benchmarks.study_plot.render_dashboard", lambda *args: None)
     tune_count(config, tmp_path)
     assert calls == [True]
-    assert json.loads(path.read_text())["seeds"] == list(range(1, 11))
+    result = json.loads(path.read_text())
+    assert result["seeds"] == list(SEEDS)
+    assert result["score_metric"] == "final_five_evaluation_checkpoints"
 
 
 def test_tuning_rejects_earlier_selection_with_old_seed_protocol(tmp_path):
@@ -430,7 +463,7 @@ def test_tuning_rejects_earlier_selection_with_old_seed_protocol(tmp_path):
             }
         )
     )
-    with pytest.raises(ValueError, match="earlier selected seed protocol"):
+    with pytest.raises(ValueError, match="earlier selected study protocol"):
         tune(Namespace(min_envs=64, max_envs=64, device="cuda", output=tmp_path))
 
 
@@ -439,10 +472,20 @@ def test_comparison_exports_seed_metrics_and_evaluation_curves(tmp_path, monkeyp
     import json
     from argparse import Namespace
 
-    from gymtosha.benchmarks.study import COMPARISON_SEEDS, compare
+    from gymtosha.benchmarks.study import COMPARISON_SEEDS, SCORE_METRIC, compare
 
     presets = tmp_path / "selected.json"
-    presets.write_text(json.dumps({"32": {"config": asdict(reference_config(32))}}))
+    presets.write_text(
+        json.dumps(
+            {
+                "32": {
+                    "config": asdict(reference_config(32)),
+                    "score_metric": SCORE_METRIC,
+                    "seeds": list(SEEDS),
+                }
+            }
+        )
+    )
     capacity = tmp_path / "capacity.json"
     capacity.write_text(
         json.dumps(
@@ -471,6 +514,9 @@ def test_comparison_exports_seed_metrics_and_evaluation_curves(tmp_path, monkeyp
                     "transitions_to_target": 81920,
                     "checkpoints": [
                         {"timesteps": 0, "wall_seconds": 1, "mean_return": 20},
+                        {"timesteps": 20480, "wall_seconds": 13, "mean_return": 250},
+                        {"timesteps": 40960, "wall_seconds": 25, "mean_return": 350},
+                        {"timesteps": 61440, "wall_seconds": 38, "mean_return": 450},
                         {"timesteps": 81920, "wall_seconds": 50, "mean_return": 490},
                     ],
                 },

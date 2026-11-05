@@ -24,7 +24,7 @@
 </head>
 <body>
   <h1>CartPole PPO · 탐색 10개 시드 / 최종 비교 20개 시드</h1>
-  <p>평균 학습 에피소드 보상으로 후보를 선택합니다. 오차 막대는 시드 간 표본 표준편차입니다.</p>
+  <p>별도 Gymnasium 평가의 마지막 5개 체크포인트 평균으로 후보를 선택합니다. 오차 막대는 시드 간 표본 표준편차입니다.</p>
   <p>탐색은 여러 실험이 GPU를 공유합니다. 탐색 시간은 비교 통계에서 제외하고, 최종 속도 비교는 단독 실행으로 측정합니다.</p>
   <p id="progress" aria-live="polite"></p>
   <label>환경 수 <select id="count"></select></label>
@@ -33,7 +33,7 @@
   <div id="table" class="table-container"></div>
   <img id="plot" alt="후보별 보상 평균과 표준편차 및 안정적 도달 수">
   <img id="learning" alt="후보별 학습 보상과 평가 보상 곡선" hidden>
-  <img id="heatmap" alt="환경 수와 파라미터 후보별 평균 학습 보상">
+  <img id="heatmap" alt="환경 수와 파라미터 후보별 마지막 5회 평가 평균">
   <div id="comparison"></div>
   <div id="best"></div>
   <div id="curves"></div>
@@ -85,7 +85,7 @@
       }
       const table = document.createElement('table');
       const header = table.insertRow();
-      const titles = ['후보', '완료 시드', '학습 보상 평균 ± SD', '안정적 도달'];
+      const titles = ['후보', '완료 시드', '마지막 5회 평가 평균 ± SD', '안정적 도달'];
       for (const title of titles) {
         const cell = document.createElement('th');
         cell.textContent = title;
@@ -97,7 +97,7 @@
         const values = [
           String(candidate.value),
           summary.successful_trials + '/' + (summary.expected_seeds || summary.attempted_seeds),
-          number(summary.mean_training_return) + ' ± ' + number(summary.std_training_return),
+          number(summary.mean_final_eval_return) + ' ± ' + number(summary.std_final_eval_return),
           summary.target_reached + '/' + (summary.expected_seeds || summary.attempted_seeds)
         ];
         for (const value of values) {

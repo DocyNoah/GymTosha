@@ -18,10 +18,15 @@ def plot_parameter(phase, path):
     positions = np.arange(len(candidates))
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.2))
     for index, candidate in enumerate(candidates):
-        values = [value for value in candidate.get("seed_rewards", []) if value is not None]
+        values = [value for value in candidate.get("seed_scores", []) if value is not None]
         axes[0].scatter(np.full(len(values), index), values, s=13, alpha=0.35, color="#327d63")
     for axis, metric, deviation, title in (
-        (axes[0], "mean_training_return", "std_training_return", "Mean training episode return"),
+        (
+            axes[0],
+            "mean_final_eval_return",
+            "std_final_eval_return",
+            "Mean final-five evaluation return",
+        ),
     ):
         values = [candidate["summary"][metric] for candidate in candidates]
         errors = [candidate["summary"][deviation] for candidate in candidates]
@@ -66,7 +71,7 @@ def plot_comparisons(comparisons, path):
         groups[label].append(record)
     fig, axes = plt.subplots(1, 3, figsize=(16, 4.5))
     metrics = [
-        ("mean_training_return", "std_training_return", "Training episode return"),
+        ("mean_final_eval_return", "std_final_eval_return", "Final-five evaluation return"),
         ("mean_wall_seconds", "std_wall_seconds", "Fixed-length wall time (s)"),
         ("mean_target_seconds", "std_target_seconds", "Stable target time (s), 20/20 reached"),
     ]
@@ -120,7 +125,7 @@ def plot_heatmaps(phases, output):
                     if parameter == "ppo_minibatch_size"
                     else candidate["value"]
                 )
-                result = candidate["summary"]["mean_training_return"]
+                result = candidate["summary"]["mean_final_eval_return"]
                 if result is not None:
                     grid[values.index(value), counts.index(phase["num_envs"])] = result
         fig, ax = plt.subplots(figsize=(max(6, 0.6 * len(counts)), max(3, 0.45 * len(values))))
@@ -139,7 +144,7 @@ def plot_heatmaps(phases, output):
             }
         )
         counts_label = "/".join(map(str, seed_counts))
-        ax.set_title(f"Mean training episode return · {counts_label} seeds per measured cell")
+        ax.set_title(f"Mean final-five evaluation return · {counts_label} seeds per measured cell")
         fig.colorbar(plotted, ax=ax)
         fig.tight_layout()
         fig.savefig(Path(output) / f"heatmap-{parameter}.png", dpi=150)
@@ -152,7 +157,7 @@ def plot_search_learning_curves(phase, trial_dir, path):
         summary = candidate["summary"]
         paths = [trial_dir / f"{trial_id}.json" for trial_id in candidate.get("trial_ids", [])]
         if (
-            summary["mean_training_return"] is not None
+            summary["mean_final_eval_return"] is not None
             and len(paths) == summary["attempted_seeds"]
             and all(trial.exists() for trial in paths)
         ):
@@ -288,7 +293,7 @@ def best_backend_conditions(comparisons):
     groups = defaultdict(list)
     for record in comparisons:
         summary = record["summary"]
-        if not summary["complete"] or summary["mean_training_return"] is None:
+        if not summary["complete"] or summary["mean_final_eval_return"] is None:
             continue
         config = record["config"]
         groups[(config["backend"], config["device"], config["compile_env"])].append(record)
@@ -310,12 +315,12 @@ def best_backend_conditions(comparisons):
             best = min(
                 records,
                 key=lambda record: (
-                    -record["summary"]["mean_training_return"],
-                    record["summary"]["std_training_return"],
+                    -record["summary"]["mean_final_eval_return"],
+                    record["summary"]["std_final_eval_return"],
                     record["summary"]["mean_wall_seconds"],
                 ),
             )
-            basis = "training_reward_only_no_fully_stable_size"
+            basis = "final_evaluation_no_fully_stable_size"
         selected.append({**best, "selection_basis": basis})
     return selected
 
@@ -333,7 +338,12 @@ def plot_best(best, output):
             f"{config['backend']}\n{config['device']}{compiled}\nN={config['num_envs']:,}"
         )
     for axis, metric, deviation, title in (
-        (axes[0], "mean_training_return", "std_training_return", "Training episode return"),
+        (
+            axes[0],
+            "mean_final_eval_return",
+            "std_final_eval_return",
+            "Final-five evaluation return",
+        ),
         (axes[1], "mean_wall_seconds", "std_wall_seconds", "Full fixed-length wall time (s)"),
         (
             axes[2],
@@ -436,14 +446,14 @@ def export_tables(phases, comparisons, root):
             "value": candidate["value"],
             "seed": seed,
             "trial_id": trial_id,
-            "mean_training_episode_return": reward,
+            "final_eval_return": reward,
         }
         for phase in phases
         for candidate in phase["candidates"]
         for seed, trial_id, reward in zip(
             phase.get("seeds", range(1, candidate["summary"]["attempted_seeds"] + 1)),
             candidate.get("trial_ids", []),
-            candidate.get("seed_rewards", []),
+            candidate.get("seed_scores", []),
             strict="trial_ids" in candidate,
         )
     ]
