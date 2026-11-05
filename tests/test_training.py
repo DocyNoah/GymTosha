@@ -108,3 +108,16 @@ def test_ppo_sends_bounded_actions_to_environment(monkeypatch):
             num_minibatches=2,
         )
     )
+
+
+def test_dqn_can_use_temporally_held_random_actions():
+    from gymtosha.benchmarks.algorithms import OffPolicyLearner
+
+    learner = OffPolicyLearner("dqn", 2, 3, "cpu", 0.00025, 0.99)
+    observation = torch.zeros(8, 2)
+    random_actions = torch.full((8,), 2, dtype=torch.long)
+    assert torch.equal(learner.act(observation, 1.0, random_actions=random_actions), random_actions)
+    torch.testing.assert_close(
+        learner.act(observation, 0.0, random_actions=random_actions),
+        learner.actor(observation).argmax(-1),
+    )

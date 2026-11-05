@@ -12,6 +12,10 @@ license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/*.txt"]
 dependencies = ["torch>=2.15", "gymnasium>=1.1,<2"]
 
+[project.urls]
+Repository = "https://github.com/DocyNoah/GymTosha"
+Documentation = "https://github.com/DocyNoah/GymTosha/blob/codex/initial-batched-envs/docs/API.md"
+
 [project.optional-dependencies]
 benchmark = ["gymnasium[box2d]>=1.1,<2", "matplotlib>=3.9"]
 

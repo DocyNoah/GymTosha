@@ -25,9 +25,8 @@ training and evaluation. Also retain training-only timing for diagnosis.
 | LunarLander-v3 | 200 | PPO |
 | FrozenLake-v1 | 0.70 | DQN |
 
-The classic-control and Lunar targets follow Gymnasium's published task/registry
-thresholds. FrozenLake 0.70 is an explicitly chosen success-rate target for the
-slippery 4x4 map. Three training seeds per backend are used in the final suite.
+The targets follow Gymnasium's published registry thresholds, including
+FrozenLake 0.70 for the slippery 4x4 map. Three training seeds per backend are used in the final suite.
 Both backends use identical presets per environment. The original eleven
 algorithm/task throughput comparisons remain available. The target runner also
 accepts all supported DQN/PPO/SAC/TD3 task combinations.

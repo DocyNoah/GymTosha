@@ -48,6 +48,7 @@ class TrainConfig:
     gradient_steps: int = 1
     log_every: int = 4096
     exploration_fraction: float = 0.5
+    exploration_hold_steps: int = 1
 
     def validate(self):
         if not 0 < self.exploration_fraction <= 1:
@@ -66,6 +67,7 @@ class TrainConfig:
             "train_every",
             "gradient_steps",
             "log_every",
+            "exploration_hold_steps",
         )
         if any(getattr(self, key) < 1 for key in positive):
             raise ValueError("counts and frequencies must be positive")
@@ -233,6 +235,7 @@ def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate, evaluat
     recorder = Recorder(device)
     loss = torch.zeros((), device=device)
     timesteps = 0
+    held_random_actions = None
     stop = evaluator is not None and evaluator.check(learner.actor, 0, config.algorithm)
     for next_timesteps in range(config.num_envs, config.total_timesteps + 1, config.num_envs):
         if stop:
@@ -246,7 +249,14 @@ def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate, evaluat
                 0.05,
                 1 - 0.95 * before_step / (config.exploration_fraction * config.total_timesteps),
             )
-            action = learner.act(obs, epsilon)
+            if config.algorithm == "dqn":
+                if before_step % (config.num_envs * config.exploration_hold_steps) == 0:
+                    held_random_actions = torch.randint(
+                        action_dim, (config.num_envs,), device=device
+                    )
+                action = learner.act(obs, epsilon, random_actions=held_random_actions)
+            else:
+                action = learner.act(obs, epsilon)
         transition = env.step(action)
         buffer.add(
             obs,

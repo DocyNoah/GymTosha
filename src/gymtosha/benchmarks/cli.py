@@ -125,7 +125,11 @@ def _common(parser):
 
 def _time_to_target(args):
     from gymtosha.benchmarks.evaluation import EvaluationConfig
-    from gymtosha.benchmarks.target import target_preset, target_summary
+    from gymtosha.benchmarks.target import (
+        target_preset,
+        target_summary,
+        validate_target_comparisons,
+    )
 
     path = args.output / "time_to_target.json"
     records = json.loads(path.read_text()) if args.resume and path.exists() else []
@@ -157,11 +161,26 @@ def _time_to_target(args):
                     saved = [
                         r
                         for r in records
-                        if r["config"] == asdict(config)
-                        and r["evaluation"]["config"] == asdict(evaluation)
+                        if all(
+                            r["config"][field] == getattr(config, field)
+                            for field in ("env_id", "algorithm", "backend", "device", "seed")
+                        )
                     ]
                     if saved:
+                        if saved[0]["config"] != asdict(config) or saved[0]["evaluation"][
+                            "config"
+                        ] != asdict(evaluation):
+                            raise ValueError("resume settings differ from the existing trial")
                         continue
+                    validate_target_comparisons(
+                        [
+                            *records,
+                            {
+                                "config": asdict(config),
+                                "evaluation": {"config": asdict(evaluation)},
+                            },
+                        ]
+                    )
                     progress_path = (
                         args.output / f"{env_id}__{algorithm}__{backend}__{seed}.progress.json"
                     )
@@ -240,7 +259,7 @@ def main(argv=None):
     target = commands.add_parser("time-to-target")
     _common(target)
     target.add_argument("--algorithms", nargs="+", choices=["ppo", "dqn", "sac", "td3"])
-    target.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3])
+    target.add_argument("--seeds", nargs="+", type=int, default=[11, 22, 33])
     target.add_argument("--total-timesteps", type=int)
     target.add_argument("--num-envs", type=int)
     target.add_argument("--rollout-steps", type=int)

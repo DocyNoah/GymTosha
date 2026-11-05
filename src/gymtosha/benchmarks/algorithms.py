@@ -166,11 +166,16 @@ class OffPolicyLearner:
                 self.target_entropy = -action_dim
 
     @torch.no_grad()
-    def act(self, obs, epsilon=0.0):
+    def act(self, obs, epsilon=0.0, *, random_actions=None):
         if self.algorithm == "dqn":
             greedy = self.actor(obs).argmax(-1)
-            random = torch.randint(self.actor[-1].out_features, (len(obs),), device=self.device)
-            return torch.where(torch.rand(len(obs), device=self.device) < epsilon, random, greedy)
+            if random_actions is None:
+                random_actions = torch.randint(
+                    self.actor[-1].out_features, (len(obs),), device=self.device
+                )
+            return torch.where(
+                torch.rand(len(obs), device=self.device) < epsilon, random_actions, greedy
+            )
         if self.algorithm == "sac":
             return self.actor.sample(obs)[0]
         return (

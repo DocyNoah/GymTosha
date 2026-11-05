@@ -39,6 +39,8 @@ def target_preset(env_id, *, backend="gymtosha", device="cuda", seed=1, algorith
         config = replace(
             config, num_envs=16, rollout_steps=128, total_timesteps=1048576, train_every=16
         )
+    if env_id == "MountainCar-v0":
+        config = replace(config, exploration_hold_steps=16, exploration_fraction=0.5)
     if env_id == "MountainCarContinuous-v0":
         config = replace(config, entropy_coef=0.0)
     if env_id == "LunarLander-v3":
@@ -53,6 +55,7 @@ def target_preset(env_id, *, backend="gymtosha", device="cuda", seed=1, algorith
 def validate_target_comparisons(records):
     settings = {}
     seen = set()
+    compilation = {}
     for row in records:
         config = row["config"]
         key = (config["env_id"], config["algorithm"], config["device"])
@@ -65,6 +68,11 @@ def validate_target_comparisons(records):
         if key in settings and settings[key] != protocol:
             raise ValueError(f"incompatible target comparison for {key}")
         settings[key] = protocol
+        backend_key = (*key, config["backend"])
+        compiled = config["compile_env"]
+        if backend_key in compilation and compilation[backend_key] != compiled:
+            raise ValueError(f"incompatible compilation settings for {backend_key}")
+        compilation[backend_key] = compiled
 
 
 def target_summary(records):

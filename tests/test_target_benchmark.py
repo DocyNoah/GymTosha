@@ -74,3 +74,81 @@ def test_target_cli_creates_real_evaluation_results(tmp_path):
     assert (tmp_path / "time_to_target.png").exists()
     assert (tmp_path / "evaluation_curves.png").exists()
     assert (tmp_path / "time_to_target.csv").exists()
+
+
+def test_resume_rejects_changed_protocol_without_overwriting(tmp_path):
+    import json
+
+    args = [
+        "time-to-target",
+        "--env-ids",
+        "CartPole-v1",
+        "--seeds",
+        "1",
+        "--device",
+        "cpu",
+        "--num-envs",
+        "4",
+        "--total-timesteps",
+        "128",
+        "--rollout-steps",
+        "16",
+        "--eval-interval",
+        "64",
+        "--eval-episodes",
+        "4",
+        "--target",
+        "-1",
+        "--output",
+        str(tmp_path),
+    ]
+    main(args)
+    before = json.loads((tmp_path / "time_to_target.json").read_text())
+    changed = args.copy()
+    changed[changed.index("--target") + 1] = "-2"
+    with pytest.raises(ValueError, match="resume"):
+        main([*changed, "--resume"])
+    assert json.loads((tmp_path / "time_to_target.json").read_text()) == before
+
+
+def test_same_backend_cannot_mix_compilation_modes():
+    first, second = record("gymtosha", True, 1), record("gymtosha", True, 2)
+    second["config"]["compile_env"] = False
+    with pytest.raises(ValueError, match="compilation"):
+        validate_target_comparisons([first, second])
+
+
+def test_new_seed_resume_validates_protocol_before_writing(tmp_path):
+    import json
+
+    args = [
+        "time-to-target",
+        "--env-ids",
+        "CartPole-v1",
+        "--seeds",
+        "1",
+        "--device",
+        "cpu",
+        "--num-envs",
+        "4",
+        "--total-timesteps",
+        "128",
+        "--rollout-steps",
+        "16",
+        "--eval-interval",
+        "64",
+        "--eval-episodes",
+        "4",
+        "--target",
+        "-1",
+        "--output",
+        str(tmp_path),
+    ]
+    main(args)
+    before = json.loads((tmp_path / "time_to_target.json").read_text())
+    changed = args.copy()
+    changed[changed.index("--target") + 1] = "-2"
+    changed[changed.index("--seeds") + 1] = "2"
+    with pytest.raises(ValueError, match="incompatible"):
+        main([*changed, "--resume"])
+    assert json.loads((tmp_path / "time_to_target.json").read_text()) == before
