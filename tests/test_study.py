@@ -148,6 +148,7 @@ def test_parameter_dashboard_contains_real_ten_seed_statistics(tmp_path):
             {
                 "value": 0.001,
                 "summary": summarize_trials(trials()),
+                "trial_ids": [str(seed) for seed in SEEDS],
                 "seed_rewards": list(SEEDS),
             }
         ],
@@ -155,9 +156,22 @@ def test_parameter_dashboard_contains_real_ten_seed_statistics(tmp_path):
     directory = tmp_path / "search" / "32"
     directory.mkdir(parents=True)
     (directory / "learning_rate.json").write_text(json.dumps(phase))
+    trial_directory = tmp_path / "trials"
+    trial_directory.mkdir()
+    for record in trials():
+        record["result"]["checkpoints"] = [
+            {"timesteps": step, "episodes": 4, "mean_return": 100 + step} for step in range(1, 9)
+        ]
+        record["result"]["evaluation"]["checkpoints"] = [
+            {"timesteps": 0, "mean_return": 20},
+            {"timesteps": 4, "mean_return": 150},
+            {"timesteps": 8, "mean_return": 400},
+        ]
+        (trial_directory / f"{record['seed']}.json").write_text(json.dumps(record))
     plot_parameter(phase, directory / "learning_rate.png")
     render_dashboard(tmp_path)
     assert (directory / "learning_rate.png").stat().st_size > 1000
+    assert (directory / "learning_rate-learning.png").stat().st_size > 1000
     text = (tmp_path / "index.html").read_text()
     assert "__DATA__" not in text
     assert "5.5" in text

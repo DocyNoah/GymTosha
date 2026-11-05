@@ -32,6 +32,7 @@
   <div id="status" aria-live="polite"></div>
   <div id="table" class="table-container"></div>
   <img id="plot" alt="후보별 보상 평균과 표준편차 및 안정적 도달 수">
+  <img id="learning" alt="후보별 학습 보상과 평가 보상 곡선" hidden>
   <img id="heatmap" alt="환경 수와 파라미터 후보별 평균 학습 보상">
   <div id="comparison"></div>
   <div id="best"></div>
@@ -74,7 +75,9 @@
         ? '선택값 ' + phase.selected_value
         : '후보별 10개 시드가 완료되면 통계가 표시됩니다.';
       const image = document.getElementById('plot');
+      const learning = document.getElementById('learning');
       image.hidden = !phase;
+      learning.hidden = !phase?.learning_curve;
       document.getElementById('heatmap').hidden = true;
       if (!phase) {
         document.getElementById('table').replaceChildren();
@@ -103,6 +106,9 @@
       }
       document.getElementById('table').replaceChildren(table);
       image.src = 'search/' + phase.num_envs + '/' + phase.parameter + '.png';
+      if (phase.learning_curve) {
+        learning.src = phase.learning_curve;
+      }
       const sizes = new Set(data.phases.filter(p => p.parameter === phase.parameter).map(p => p.num_envs));
       if (sizes.size > 1) {
         const heatmap = document.getElementById('heatmap');

@@ -146,9 +146,85 @@ def plot_heatmaps(phases, output):
         plt.close(fig)
 
 
+def plot_search_learning_curves(phase, trial_dir, path):
+    series = []
+    for candidate in phase["candidates"]:
+        summary = candidate["summary"]
+        paths = [trial_dir / f"{trial_id}.json" for trial_id in candidate.get("trial_ids", [])]
+        if (
+            summary["mean_training_return"] is not None
+            and len(paths) == summary["attempted_seeds"]
+            and all(trial.exists() for trial in paths)
+        ):
+            series.append((candidate["value"], paths))
+    if not series:
+        return
+
+    plt = _pyplot()
+    fig, (training, evaluation) = plt.subplots(2, 1, sharex=True, figsize=(10, 7.2))
+    for value, paths in series:
+        windows, assessments = [], []
+        for trial in paths:
+            result = json.loads(trial.read_text())["result"]
+            checkpoints = result["checkpoints"]
+            points = []
+            for start in range(0, len(checkpoints), 4):
+                group = checkpoints[start : start + 4]
+                episodes = sum(point["episodes"] for point in group)
+                reward = sum(
+                    point["episodes"] * point["mean_return"] for point in group if point["episodes"]
+                )
+                points.append((group[-1]["timesteps"], reward / episodes if episodes else np.nan))
+            windows.append(points)
+            assessments.append(
+                [
+                    (point["timesteps"], point["mean_return"])
+                    for point in result["evaluation"]["checkpoints"]
+                ]
+            )
+        selected = value == phase["selected_value"]
+        label = f"{value} · selected" if selected else str(value)
+        color = None
+        for axis, points in ((training, windows), (evaluation, assessments)):
+            points = np.array(points)
+            x, scores = points[0, :, 0], points[:, :, 1]
+            mean, deviation = scores.mean(axis=0), scores.std(axis=0, ddof=1)
+            line = axis.plot(
+                x,
+                mean,
+                label=label,
+                color=color,
+                marker="o",
+                markersize=2.5,
+                linewidth=2.5 if selected else 1.3,
+            )[0]
+            color = line.get_color()
+            axis.fill_between(
+                x, mean - deviation, mean + deviation, color=color, alpha=0.13 if selected else 0.06
+            )
+    training.set_title("Training return · completed episodes per four updates", loc="left")
+    evaluation.set_title("Evaluation return · 100 Gymnasium episodes per checkpoint", loc="left")
+    evaluation.axhline(475, linestyle="--", linewidth=1, color="#777")
+    for axis in (training, evaluation):
+        axis.set_ylabel("Episode return")
+        axis.set_ylim(0, 535)
+        axis.set_xscale("symlog", linthresh=8192)
+        axis.set_xlim(left=0)
+    training.legend(title=phase["parameter"], ncols=3, loc="upper left", fontsize=8)
+    evaluation.set_xlabel("Sampling slots (symlog scale)")
+    fig.suptitle(
+        f"CartPole PPO · {phase['num_envs']:,} environments\n"
+        f"Mean ± sample SD across {len(series[0][1])} training seeds per candidate"
+    )
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
 def render_dashboard(output, *, figures=True):
     root = Path(output)
-    phases = [json.loads(path.read_text()) for path in sorted(root.glob("search/*/*.json"))]
+    phase_paths = sorted(root.glob("search/*/*.json"))
+    phases = [json.loads(path.read_text()) for path in phase_paths]
     comparisons = [json.loads(path.read_text()) for path in sorted(root.glob("comparison/*.json"))]
     best = best_backend_conditions(comparisons)
     if figures:
@@ -161,11 +237,23 @@ def render_dashboard(output, *, figures=True):
     if figures and selected_path.exists():
         plot_selected_trends(json.loads(selected_path.read_text()), root)
     export_tables(phases, comparisons, root)
+    learning_curves = {}
+    for phase, phase_path in zip(phases, phase_paths, strict=True):
+        curve = phase_path.with_name(f"{phase_path.stem}-learning.png")
+        current = curve.exists() and curve.stat().st_mtime_ns >= phase_path.stat().st_mtime_ns
+        if figures and not current:
+            plot_search_learning_curves(phase, root / "trials", curve)
+            current = curve.exists() and curve.stat().st_mtime_ns >= phase_path.stat().st_mtime_ns
+        if current:
+            learning_curves[(phase["num_envs"], phase["parameter"])] = curve.relative_to(
+                root
+            ).as_posix()
     view_phases = [
         {
             "num_envs": phase["num_envs"],
             "parameter": phase["parameter"],
             "selected_value": phase["selected_value"],
+            "learning_curve": learning_curves.get((phase["num_envs"], phase["parameter"])),
             "candidates": [
                 {"value": candidate["value"], "summary": candidate["summary"]}
                 for candidate in phase["candidates"]
