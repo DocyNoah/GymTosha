@@ -232,12 +232,21 @@ def plot_time_to_target(records, output):
         )
     ]
     ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(1, 1), fontsize=8)
-    ax.set_xticks(
-        range(len(groups)),
-        [f"{env}\n{algo.upper()}" for env, algo in groups],
-        rotation=20,
-        ha="right",
-    )
+    tick_labels = []
+    for env, algorithm in groups:
+        tick = f"{env}\n{algorithm.upper()}"
+        if records[0].get("comparison_mode") == "independently-tuned":
+            counts = dict.fromkeys(
+                (row["config"]["backend"], row["config"]["num_envs"])
+                for row in records
+                if row["config"]["env_id"] == env
+            )
+            count_labels = [
+                f"{'GT' if backend == 'gymtosha' else 'Gym'}={count:,}" for backend, count in counts
+            ]
+            tick += "\n" + ", ".join(count_labels)
+        tick_labels.append(tick)
+    ax.set_xticks(range(len(groups)), tick_labels, rotation=20, ha="right")
     ax.set_yscale("log")
     ax.set_ylabel("Wall time including setup, compilation and evaluation (s)")
     ax.set_title("Time to confirmed target · common Gymnasium evaluation")

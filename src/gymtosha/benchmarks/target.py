@@ -152,6 +152,8 @@ def target_rows(records):
     return [
         {
             **r["config"],
+            "comparison_mode": r.get("comparison_mode", "matched"),
+            "evaluation_interval": r["evaluation"]["config"]["interval"],
             "status": r["evaluation"]["status"],
             "target": r["evaluation"]["target"],
             "wall_seconds": r["wall_seconds"],

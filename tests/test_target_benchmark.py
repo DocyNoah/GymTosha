@@ -366,3 +366,38 @@ def test_target_cli_loads_backend_specific_presets(tmp_path):
     ]
     assert [r["evaluation"]["config"]["interval"] for r in rows] == [32, 64]
     assert all(r["comparison_mode"] == "independently-tuned" for r in rows)
+
+
+def test_zero_evaluation_interval_is_rejected(tmp_path):
+    with pytest.raises(ValueError, match="counts"):
+        main(
+            [
+                "time-to-target",
+                "--env-ids",
+                "CartPole-v1",
+                "--backends",
+                "gymtosha",
+                "--device",
+                "cpu",
+                "--num-envs",
+                "4",
+                "--rollout-steps",
+                "16",
+                "--total-timesteps",
+                "128",
+                "--eval-interval",
+                "0",
+                "--output",
+                str(tmp_path),
+            ]
+        )
+
+
+def test_flat_target_rows_preserve_comparison_protocol():
+    from gymtosha.benchmarks.target import target_rows
+
+    row = record("gymtosha", True)
+    row["comparison_mode"] = "independently-tuned"
+    result = target_rows([row])[0]
+    assert result["comparison_mode"] == "independently-tuned"
+    assert result["evaluation_interval"] == 65536

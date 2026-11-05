@@ -35,10 +35,17 @@ MountainCar DQN preset은 탐험 행동 후보를 16개 vector step 동안 유�
 환경의 전이·보상·평가 정책은 바꾸지 않으며 두 백엔드에 똑같이 적용합니다.
 일반 학습의 기본값은 1스텝이고 모든 설정은 원시 JSON에 기록합니다.
 
-## 동일 조건과 실패 처리
+## 비교 설정과 실패 처리
 
-같은 환경·학습기는 두 백엔드에서 네트워크, 학습률, 배치 크기, 탐험 일정, 최대 transition 예산,
-평가 간격과 평가 seed가 같습니다. 설정이 다른 실행을 하나의 비교로 집계하면 오류를 반환합니다.
+기본 `matched` 모드는 두 백엔드의 네트워크, 학습률, 배치 크기, 탐험 일정,
+최대 transition 예산과 평가 간격이 같아야 합니다.
+
+`--comparison-mode independently-tuned`는 백엔드별로 튜닝한 설정을 비교합니다.
+GymTosha는 4,096개 환경을 사용하고 Gymnasium은 별도로 선택한 환경 수를 사용합니다.
+배치 크기에 따라 rollout, 미니배치, 업데이트 빈도, 예산과 평가 간격이 달라질 수 있습니다.
+두 백엔드의 목표·평가 에피소드 수·평가 seed·연속 확인 횟수는 같습니다.
+같은 백엔드의 최종 학습 시드 사이에는 모든 설정이 같아야 하며, 두 모드를 섞어 집계하면
+오류를 반환합니다. 이 비교의 시간비는 전체 학습 시스템의 결과를 나타냅니다.
 본 실험의 학습 seed는 11·22·33입니다. 사전 실행의 학습 seed 1과 평가 seed 900000은 본 실험에서 사용하지 않습니다. 사전 실행에서 설정을 바꾸면 본 실험 전체를 같은 설정으로 다시 실행합니다.
 
 예산 안에 목표를 달성하지 못하면 `budget_exhausted`로 기록하고 도달 시간은 `null`입니다.
@@ -78,7 +85,7 @@ TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark gymtosha-benchmark time-to-t
 환경별 후보 4개가 고정되어 있습니다. 학습률, 병렬 환경 수, rollout 길이, epoch 수,
 탐험 행동 유지 길이와 할인율을 비교합니다.
 
-1. Gymnasium 백엔드, 학습 seed 101, 평가 seed 900000에서 네 후보를 실행합니다.
+1. 선택한 학습 백엔드에서 학습 seed 101, 평가 seed 900000으로 네 후보를 실행합니다.
 2. 목표 달성 여부와 도달 시간을 우선하여 상위 두 후보를 선택합니다.
 3. 학습 seed 202에서 두 후보를 재검증합니다.
 4. 두 시드에서의 달성률을 먼저 비교하고, 모두 달성했다면 도달 시간 중앙값이 가장 짧은 후보를 선택합니다.
@@ -101,3 +108,20 @@ TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark gymtosha-benchmark time-to-t
 평가 점수는 정규화 이전의 실제 환경 리턴입니다. 이전 처리량 모드는 정규화를 기본으로 켜지 않습니다.
 
 FrozenLake는 100회 평가의 이항 표본 변동이 후보 선택에 미치는 영향을 줄이기 위해 탐색과 본 실험 모두 1,000개 에피소드로 평가합니다.
+
+## 4,096개 환경 실험
+
+```bash
+TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark python benchmarks/tune_targets.py \
+  --backend gymtosha --device cuda --output outputs/tuning-4096
+TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark gymtosha-benchmark time-to-target \
+  --device cuda --comparison-mode independently-tuned \
+  --presets benchmarks/results/target-4096/selected_hyperparameters.json \
+  --seeds 11 22 33 --output outputs/target-4096
+```
+
+백엔드별 preset은 환경 아래 `backends` 객체에 `gymtosha`와 `gymnasium-sync` 키를
+둡니다. 각 값에는 `config`와 `evaluation_interval`을 저장합니다. 기존의 단일 `config`
+형식도 그대로 읽습니다. `--eval-interval`을 명시하면 preset의 간격보다 우선합니다.
+원시 JSON의 `comparison_mode`와 CSV의 `num_envs`, `evaluation_interval`로 조건을
+확인할 수 있습니다. 최종 결과에는 작은 배치의 과거 측정과 새 측정을 구분합니다.

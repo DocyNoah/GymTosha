@@ -137,7 +137,7 @@ def _time_to_target(args):
     selected = json.loads(args.presets.read_text()) if args.presets else {}
     base_evaluation = EvaluationConfig(
         target=args.target,
-        interval=args.eval_interval or 65536,
+        interval=args.eval_interval if args.eval_interval is not None else 65536,
         episodes=args.eval_episodes if args.eval_episodes is not None else 100,
         confirmations=args.confirmations,
         seed=args.eval_seed,
@@ -163,15 +163,15 @@ def _time_to_target(args):
                 continue
             for seed in args.seeds:
                 for backend in args.backends:
-                    if args.presets and algorithm != preset.algorithm:
-                        raise ValueError(
-                            "selected preset uses a different representative algorithm"
-                        )
                     if args.presets:
                         backend_selection = backend_presets.get(backend, selection)
                         if "config" not in backend_selection:
                             raise ValueError(f"no selected hyperparameters for {env_id}/{backend}")
                         preset = TrainConfig(**backend_selection["config"])
+                        if algorithm != preset.algorithm:
+                            raise ValueError(
+                                "selected preset uses a different representative algorithm"
+                            )
                         config = replace(
                             preset,
                             env_id=env_id,
@@ -184,7 +184,8 @@ def _time_to_target(args):
                             evaluation,
                             interval=(
                                 args.eval_interval
-                                or backend_selection.get("evaluation_interval", 65536)
+                                if args.eval_interval is not None
+                                else backend_selection.get("evaluation_interval", 65536)
                             ),
                         )
                     else:
