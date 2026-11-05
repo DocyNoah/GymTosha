@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gymtosha"
+version = "0.1.0"
+description = "Batched, GPU-native PyTorch reinforcement learning environments"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = ["torch>=2.5", "gymnasium>=1.1,<2"]
+
+[project.optional-dependencies]
+benchmark = ["gymnasium[box2d]>=1.1,<2", "matplotlib>=3.9"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.9", "build>=1.2", "swig>=4"]
+
+[project.scripts]
+gymtosha-benchmark = "gymtosha.benchmarks.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gymtosha"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["accelerator: requires a GPU", "compile: compiles tensor kernels"]
