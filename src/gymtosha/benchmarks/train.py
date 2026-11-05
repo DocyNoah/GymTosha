@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import platform
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 import gymnasium as gym
 import torch
@@ -51,8 +51,15 @@ class TrainConfig:
     exploration_hold_steps: int = 1
     normalize_observations: bool = False
     normalize_rewards: bool = False
+    hidden_sizes: list[int] = field(default_factory=lambda: [64, 64])
+    ppo_minibatch_size: int | None = None
 
     def validate(self):
+        if not self.hidden_sizes or any(
+            isinstance(size, bool) or not isinstance(size, int) or size < 1
+            for size in self.hidden_sizes
+        ):
+            raise ValueError("hidden_sizes must contain positive integers")
         if self.algorithm != "ppo" and (self.normalize_observations or self.normalize_rewards):
             raise ValueError("running normalization is supported for PPO")
         if not 0 < self.exploration_fraction <= 1:
@@ -79,9 +86,15 @@ class TrainConfig:
             raise ValueError("total_timesteps must be divisible by num_envs")
         if self.algorithm == "ppo":
             rollout_size = self.num_envs * self.rollout_steps
-            if self.total_timesteps % rollout_size or rollout_size % self.num_minibatches:
+            divisor = self.num_minibatches
+            if self.ppo_minibatch_size is not None:
+                divisor = self.ppo_minibatch_size
+                if isinstance(divisor, bool) or not isinstance(divisor, int) or divisor < 2:
+                    raise ValueError("PPO minibatch size must be an integer of at least two")
+            if self.total_timesteps % rollout_size or rollout_size % divisor:
                 raise ValueError("PPO budget and minibatches must divide whole rollouts")
-            if rollout_size // self.num_minibatches < 2:
+            minibatch_size = self.ppo_minibatch_size or rollout_size // self.num_minibatches
+            if minibatch_size < 2:
                 raise ValueError("PPO minibatches require at least two samples")
         elif self.buffer_size < self.num_envs or self.train_every % self.num_envs:
             raise ValueError("replay must fit num_envs and train_every must divide vector steps")
@@ -124,7 +137,9 @@ class Recorder:
 
 def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None):
     device = env.device
-    agent = ActorCritic(obs_dim, action_dim, continuous).to(device)
+    agent = ActorCritic(obs_dim, action_dim, continuous, hidden_sizes=config.hidden_sizes).to(
+        device
+    )
     from gymtosha.benchmarks.normalization import RewardNormalizer, RunningMoments
 
     observation_normalizer = (
@@ -142,6 +157,7 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
     optimizer = torch.optim.Adam(agent.parameters(), lr=rate, eps=1e-5)
     initial = nn.utils.parameters_to_vector(agent.parameters()).detach().clone()
     size = config.num_envs * config.rollout_steps
+    minibatch_size = config.ppo_minibatch_size or size // config.num_minibatches
     shape = (config.rollout_steps, config.num_envs)
     observations = torch.empty((*shape, obs_dim), device=device)
     action_shape = (*shape, action_dim) if continuous else shape
@@ -150,6 +166,8 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
     )
     log_probs, values, rewards, next_values = [torch.empty(shape, device=device) for _ in range(4)]
     terminated, dones = [torch.empty(shape, dtype=torch.bool, device=device) for _ in range(2)]
+    valid = torch.empty(shape, dtype=torch.bool, device=device)
+    masked_resets = getattr(env, "next_step_autoreset", False)
     with torch.no_grad():
         agent.evaluate(obs)
     synchronize(device)
@@ -184,6 +202,7 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
             )
             next_values[step] = next_value.squeeze(-1)
             terminated[step], dones[step] = transition.terminated, transition.done
+            valid[step] = True if transition.valid is None else transition.valid
             obs = (
                 observation_normalizer.normalize(raw_next_obs)
                 if observation_normalizer is not None
@@ -198,9 +217,17 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
         flat_actions = actions.reshape(size, action_dim) if continuous else actions.reshape(size)
         flat_log_probs, flat_values = log_probs.reshape(size), values.reshape(size)
         flat_advantages, flat_returns = advantages.reshape(size), returns.reshape(size)
+        eligible = valid.flatten().nonzero().flatten() if masked_resets else None
+        loss = torch.zeros((), device=device)
         for _ in range(config.update_epochs):
-            indices = torch.randperm(size, device=device)
-            for index in indices.split(size // config.num_minibatches):
+            indices = (
+                eligible[torch.randperm(eligible.numel(), device=device)]
+                if masked_resets
+                else torch.randperm(size, device=device)
+            )
+            for index in indices.split(minibatch_size):
+                if index.numel() < 2:
+                    continue
                 _, new_log_prob, entropy, new_value = agent.evaluate(
                     flat_obs[index], flat_actions[index]
                 )

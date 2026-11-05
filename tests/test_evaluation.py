@@ -78,3 +78,25 @@ def test_gymnasium_thresholds():
     for name in ["CartPole-v1", "MountainCar-v0", "MountainCarContinuous-v0", "LunarLander-v3"]:
         assert EvaluationConfig().resolved_target(name) == gym.spec(name).reward_threshold
     assert EvaluationConfig().resolved_target("FrozenLake-v1") == 0.7
+
+
+def test_fixed_length_evaluation_latches_first_target_without_stopping():
+    config = EvaluationConfig(target=10, confirmations=2, stop_on_target=False)
+    evaluator = TargetEvaluator("CartPole-v1", config)
+    assert not evaluator.record(64, [12, 12], elapsed=1)
+    assert not evaluator.record(128, [12, 12], elapsed=2)
+    assert not evaluator.record(192, [0, 0], elapsed=3)
+    summary = evaluator.summary()
+    assert summary["status"] == "reached"
+    assert summary["time_to_target_seconds"] == 2
+    assert summary["transitions_to_target"] == 128
+    assert len(summary["checkpoints"]) == 3
+
+
+def test_target_measurement_can_run_full_training_budget():
+    result = train(
+        TrainConfig(num_envs=4, total_timesteps=128, rollout_steps=16, update_epochs=1),
+        evaluation=EvaluationConfig(target=-1, interval=64, episodes=4, stop_on_target=False),
+    )
+    assert result["timesteps"] == 128
+    assert result["evaluation"]["transitions_to_target"] == 64

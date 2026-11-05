@@ -9,7 +9,7 @@ from statistics import median
 from gymtosha.benchmarks.cli import ENVIRONMENTS, _write
 from gymtosha.benchmarks.evaluation import EvaluationConfig
 from gymtosha.benchmarks.target import target_preset
-from gymtosha.benchmarks.train import train
+from gymtosha.benchmarks.train import TrainConfig, train
 
 
 def candidates(env_id, device, backend="gymnasium-sync"):
@@ -185,9 +185,11 @@ def main():
                     if t["env_id"] == env_id and t["candidate"] == index and t["seed"] == seed
                 ]
                 if old:
-                    if old[0]["result"]["config"] != asdict(config) or old[0]["result"][
-                        "evaluation"
-                    ]["config"] != asdict(evaluation):
+                    if asdict(TrainConfig(**old[0]["result"]["config"])) != asdict(
+                        config
+                    ) or asdict(
+                        EvaluationConfig(**old[0]["result"]["evaluation"]["config"])
+                    ) != asdict(evaluation):
                         raise ValueError("resume tuning configuration changed")
                     continue
 

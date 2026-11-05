@@ -20,6 +20,7 @@ class Transition:
     truncated: Tensor
     episode_returns: Tensor
     episode_lengths: Tensor
+    valid: Tensor | None = None
 
     @property
     def done(self):
@@ -56,14 +57,20 @@ class TensorBackend:
 
 
 class GymnasiumBackend:
-    def __init__(self, env_id, num_envs, device, *, asynchronous=False, **kwargs):
+    def __init__(self, env_id, num_envs, device, *, asynchronous=False, native=False, **kwargs):
         if env_id == "LunarLanderContinuous-v3":
             env_id = "LunarLander-v3"
             kwargs["continuous"] = True
         vector_type = gym.vector.AsyncVectorEnv if asynchronous else gym.vector.SyncVectorEnv
-        self.env = vector_type(
-            [partial(gym.make, env_id, **kwargs) for _ in range(num_envs)],
-            autoreset_mode=gym.vector.AutoresetMode.SAME_STEP,
+        self.env = (
+            gym.make_vec(
+                env_id, num_envs=num_envs, vectorization_mode="vector_entry_point", **kwargs
+            )
+            if native
+            else vector_type(
+                [partial(gym.make, env_id, **kwargs) for _ in range(num_envs)],
+                autoreset_mode=gym.vector.AutoresetMode.SAME_STEP,
+            )
         )
         self.observation_space = self.env.single_observation_space
         self.action_space = self.env.single_action_space
@@ -71,10 +78,13 @@ class GymnasiumBackend:
         self.num_envs = num_envs
         self.returns = torch.zeros(num_envs, device=self.device)
         self.lengths = torch.zeros(num_envs, device=self.device, dtype=torch.long)
+        self.next_step_autoreset = native
+        self.pending_reset = torch.zeros(num_envs, device=self.device, dtype=torch.bool)
 
     def reset(self, seed):
         self.returns.zero_()
         self.lengths.zero_()
+        self.pending_reset.zero_()
         obs, _ = self.env.reset(seed=seed)
         return torch.as_tensor(obs, device=self.device).clone()
 
@@ -88,8 +98,12 @@ class GymnasiumBackend:
         reward = torch.as_tensor(reward, device=self.device, dtype=torch.float32)
         terminated = torch.as_tensor(terminated, device=self.device)
         truncated = torch.as_tensor(truncated, device=self.device)
-        returns, lengths = self.returns + reward, self.lengths + 1
+        valid = ~self.pending_reset if self.next_step_autoreset else None
+        returns = self.returns + reward
+        lengths = self.lengths + (valid.long() if valid is not None else 1)
         done = terminated | truncated
+        if self.next_step_autoreset:
+            self.pending_reset = done
         self.returns = torch.where(done, 0.0, returns)
         self.lengths = torch.where(done, 0, lengths)
         return Transition(
@@ -100,6 +114,7 @@ class GymnasiumBackend:
             truncated,
             returns,
             lengths,
+            valid,
         )
 
     def close(self):
@@ -109,11 +124,16 @@ class GymnasiumBackend:
 def make_backend(env_id, backend, num_envs, device, compile_env=False, **kwargs):
     if backend == "gymtosha":
         return TensorBackend(env_id, num_envs, device, compile_env, **kwargs)
-    if backend in ("gymnasium-sync", "gymnasium-async"):
+    if backend in ("gymnasium-sync", "gymnasium-async", "gymnasium-native"):
         if compile_env:
             raise ValueError("compile_env applies only to gymtosha")
         return GymnasiumBackend(
-            env_id, num_envs, device, asynchronous=backend == "gymnasium-async", **kwargs
+            env_id,
+            num_envs,
+            device,
+            asynchronous=backend == "gymnasium-async",
+            native=backend == "gymnasium-native",
+            **kwargs,
         )
     raise ValueError(f"unknown backend {backend!r}")
 

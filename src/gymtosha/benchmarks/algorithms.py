@@ -28,11 +28,11 @@ def mlp(sizes, activation=nn.ReLU, orthogonal=False, output_gain=1.0):
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, obs_dim, action_dim, continuous):
+    def __init__(self, obs_dim, action_dim, continuous, *, hidden_sizes=(64, 64)):
         super().__init__()
         self.continuous = continuous
-        self.actor = mlp([obs_dim, 64, 64, action_dim], nn.Tanh, True, 0.01)
-        self.critic = mlp([obs_dim, 64, 64, 1], nn.Tanh, True)
+        self.actor = mlp([obs_dim, *hidden_sizes, action_dim], nn.Tanh, True, 0.01)
+        self.critic = mlp([obs_dim, *hidden_sizes, 1], nn.Tanh, True)
         if continuous:
             self.log_std = nn.Parameter(torch.zeros(1, action_dim))
 

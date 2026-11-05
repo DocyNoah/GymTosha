@@ -121,3 +121,76 @@ def test_dqn_can_use_temporally_held_random_actions():
         learner.act(observation, 0.0, random_actions=random_actions),
         learner.actor(observation).argmax(-1),
     )
+
+
+def test_configurable_ppo_hidden_layers_and_minibatches():
+    from gymtosha.benchmarks.algorithms import ActorCritic
+
+    agent = ActorCritic(4, 2, False, hidden_sizes=[256, 256, 256])
+    layers = [module for module in agent.actor if isinstance(module, torch.nn.Linear)]
+    assert [(layer.in_features, layer.out_features) for layer in layers] == [
+        (4, 256),
+        (256, 256),
+        (256, 256),
+        (256, 2),
+    ]
+    result = train(
+        TrainConfig(
+            num_envs=4,
+            total_timesteps=64,
+            rollout_steps=16,
+            update_epochs=1,
+            hidden_sizes=[256, 256, 256],
+            ppo_minibatch_size=16,
+        )
+    )
+    assert result["gradient_updates"] == 4
+    assert result["parameter_delta"] > 0
+    assert result["config"]["hidden_sizes"] == [256, 256, 256]
+
+
+@pytest.mark.parametrize("size", [0, 1, True, 2.5, 16.0, 65])
+def test_invalid_ppo_minibatch_size(size):
+    with pytest.raises(ValueError, match="minibatch"):
+        TrainConfig(
+            num_envs=4, rollout_steps=16, total_timesteps=64, ppo_minibatch_size=size
+        ).validate()
+
+
+def test_native_gymnasium_marks_next_step_resets_as_invalid_samples():
+    env = make_backend("CartPole-v1", "gymnasium-native", 4, "cpu", max_episode_steps=1)
+    env.reset(11)
+    first = env.step(torch.zeros(4, dtype=torch.long))
+    assert first.valid.all() and first.truncated.all()
+    second = env.step(torch.zeros(4, dtype=torch.long))
+    assert not second.valid.any()
+    assert not second.done.any()
+    assert (second.episode_lengths == 0).all()
+    env.reset(11)
+    assert env.step(torch.zeros(4, dtype=torch.long)).valid.all()
+    env.close()
+
+
+def test_native_ppo_excludes_autoreset_slots_from_updates(monkeypatch):
+    import importlib
+
+    module = importlib.import_module("gymtosha.benchmarks.train")
+    original = module.make_backend
+
+    def make_short_env(*args, **kwargs):
+        return original(*args, **kwargs, max_episode_steps=1)
+
+    monkeypatch.setattr(module, "make_backend", make_short_env)
+    result = train(
+        TrainConfig(
+            backend="gymnasium-native",
+            num_envs=4,
+            total_timesteps=64,
+            rollout_steps=4,
+            update_epochs=1,
+            ppo_minibatch_size=4,
+        )
+    )
+    assert result["gradient_updates"] == 8
+    assert result["parameter_delta"] > 0
+    assert all(torch.isfinite(torch.tensor(row["loss"])) for row in result["checkpoints"])

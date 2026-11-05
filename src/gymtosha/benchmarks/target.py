@@ -1,9 +1,10 @@
 """Prespecified target benchmarks and matched-seed summaries."""
 
 from collections import defaultdict
-from dataclasses import replace
+from dataclasses import asdict, replace
 from statistics import median
 
+from gymtosha.benchmarks.evaluation import EvaluationConfig
 from gymtosha.benchmarks.train import TrainConfig
 
 REPRESENTATIVE_ALGORITHMS = {
@@ -65,7 +66,7 @@ def validate_target_comparisons(records):
     evaluations = {}
     modes = {}
     for row in records:
-        config = row["config"]
+        config = asdict(TrainConfig(**row["config"]))
         key = (config["env_id"], config["algorithm"], config["device"])
         mode = row.get("comparison_mode", "matched")
         if mode not in ("matched", "independently-tuned"):
@@ -78,12 +79,12 @@ def validate_target_comparisons(records):
             raise ValueError(f"duplicate target trial {identity}")
         seen.add(identity)
         protocol = {k: v for k, v in config.items() if k not in ("backend", "compile_env", "seed")}
-        protocol["evaluation"] = row["evaluation"]["config"]
+        protocol["evaluation"] = asdict(EvaluationConfig(**row["evaluation"]["config"]))
         settings_key = (*key, config["backend"]) if mode == "independently-tuned" else key
         if settings_key in settings and settings[settings_key] != protocol:
             raise ValueError(f"incompatible target comparison for {key}")
         settings[settings_key] = protocol
-        evaluation = dict(row["evaluation"]["config"])
+        evaluation = dict(protocol["evaluation"])
         if mode == "independently-tuned":
             evaluation.pop("interval", None)
         if key in evaluations and evaluations[key] != evaluation:

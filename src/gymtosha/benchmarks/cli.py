@@ -115,7 +115,7 @@ def _common(parser):
         "--backends",
         nargs="+",
         default=["gymnasium-sync", "gymtosha"],
-        choices=["gymtosha", "gymnasium-sync", "gymnasium-async"],
+        choices=["gymtosha", "gymnasium-sync", "gymnasium-async", "gymnasium-native"],
     )
     parser.add_argument("--device", default="cpu", choices=["cpu", "cuda", "mps"])
     parser.add_argument("--compile", action="store_true", dest="compile_env")
@@ -141,6 +141,7 @@ def _time_to_target(args):
         episodes=args.eval_episodes if args.eval_episodes is not None else 100,
         confirmations=args.confirmations,
         seed=args.eval_seed,
+        stop_on_target=not args.fixed_length,
     )
     for env_id in args.env_ids:
         evaluation = replace(
@@ -214,8 +215,9 @@ def _time_to_target(args):
                     ]
                     if saved:
                         if (
-                            saved[0]["config"] != asdict(config)
-                            or saved[0]["evaluation"]["config"] != asdict(evaluation)
+                            asdict(TrainConfig(**saved[0]["config"])) != asdict(config)
+                            or asdict(EvaluationConfig(**saved[0]["evaluation"]["config"]))
+                            != asdict(evaluation)
                             or saved[0].get("comparison_mode", "matched") != args.comparison_mode
                         ):
                             raise ValueError("resume settings differ from the existing trial")
@@ -308,6 +310,7 @@ def main(argv=None):
     target.add_argument("--target", type=float)
     target.add_argument("--resume", action="store_true")
     target.add_argument("--presets", type=Path)
+    target.add_argument("--fixed-length", action="store_true")
     target.add_argument(
         "--comparison-mode", choices=["matched", "independently-tuned"], default="matched"
     )

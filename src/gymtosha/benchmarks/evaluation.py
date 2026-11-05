@@ -22,6 +22,7 @@ class EvaluationConfig:
     episodes: int = 100
     confirmations: int = 2
     seed: int = 100000
+    stop_on_target: bool = True
 
     def resolved_target(self, env_id):
         if self.target is not None:
@@ -80,13 +81,14 @@ class TargetEvaluator:
         self.checkpoints = []
         self.streak = 0
         self.reached = False
+        self.first_target = None
         self.next_checkpoint = 0
         self.evaluation_seconds = 0.0
 
     def record(self, timesteps, scores, *, elapsed):
         score = float(np.mean(scores))
         self.streak = self.streak + 1 if score >= self.target else 0
-        self.reached = self.streak >= self.config.confirmations
+        confirmed = self.streak >= self.config.confirmations
         self.checkpoints.append(
             {
                 "timesteps": timesteps,
@@ -97,10 +99,13 @@ class TargetEvaluator:
                 "consecutive_passes": self.streak,
             }
         )
+        if confirmed and not self.reached:
+            self.first_target = self.checkpoints[-1]
+            self.reached = True
         self.next_checkpoint = timesteps + self.config.interval
         if self.on_progress is not None:
             self.on_progress(self.summary())
-        return self.reached
+        return self.reached and self.config.stop_on_target
 
     def check(self, model, timesteps, algorithm, *, force=False):
         if timesteps < self.next_checkpoint and not force:
@@ -137,8 +142,8 @@ class TargetEvaluator:
             "config": asdict(self.config),
             "target": self.target,
             "status": "reached" if self.reached else "budget_exhausted",
-            "time_to_target_seconds": final["wall_seconds"] if self.reached else None,
-            "transitions_to_target": final["timesteps"] if self.reached else None,
+            "time_to_target_seconds": self.first_target["wall_seconds"] if self.reached else None,
+            "transitions_to_target": self.first_target["timesteps"] if self.reached else None,
             "observed_wall_seconds": final["wall_seconds"] if final else 0.0,
             "checkpoints": list(self.checkpoints),
         }

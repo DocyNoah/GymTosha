@@ -401,3 +401,10 @@ def test_flat_target_rows_preserve_comparison_protocol():
     result = target_rows([row])[0]
     assert result["comparison_mode"] == "independently-tuned"
     assert result["evaluation_interval"] == 65536
+
+
+def test_comparisons_accept_legacy_default_network_settings():
+    first, second = record("gymtosha", True), record("gymnasium-sync", True)
+    first["config"].pop("hidden_sizes")
+    first["config"].pop("ppo_minibatch_size")
+    validate_target_comparisons([first, second])
