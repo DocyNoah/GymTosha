@@ -624,6 +624,7 @@ def compare(args):
     selected = json.loads(Path(args.presets).read_text())
     capacity = json.loads(Path(args.capacity).read_text())
     directory = Path(args.output)
+    conditions = []
     for condition in capacity:
         if condition["device"] not in args.devices:
             continue
@@ -636,10 +637,12 @@ def compare(args):
             continue
         if condition["backend"].startswith("gymnasium-") and condition["device"] != "cpu":
             raise ValueError("CartPole Gymnasium comparisons require CPU environments and learners")
-        for count in sorted(map(int, selected)):
-            maximum = condition["maximum_verified"]
-            if condition["backend"] == "gymnasium-async":
-                maximum = min(maximum, 32)
+        maximum = condition["maximum_verified"]
+        if condition["backend"] == "gymnasium-async":
+            maximum = min(maximum, 32)
+        conditions.append((condition, maximum))
+    for count in sorted(map(int, selected)):
+        for condition, maximum in conditions:
             if count > maximum:
                 continue
             preset = selected[str(count)]
@@ -653,7 +656,7 @@ def compare(args):
                 compile_env=condition["compile_env"],
             )
             records = []
-            for seed in COMPARISON_SEEDS:
+            for index, seed in enumerate(COMPARISON_SEEDS, start=1):
                 records.append(
                     run_trial(
                         replace(config, seed=seed),
@@ -662,7 +665,13 @@ def compare(args):
                     )
                 )
                 _write(
-                    {"condition": condition, "num_envs": count, "seed": seed},
+                    {
+                        "condition": condition,
+                        "num_envs": count,
+                        "seed": seed,
+                        "completed_seeds": index,
+                        "expected_seeds": len(COMPARISON_SEEDS),
+                    },
                     directory / "progress.json",
                 )
                 print(

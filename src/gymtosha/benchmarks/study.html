@@ -44,10 +44,13 @@
     if (data.progress) {
       const p = data.progress;
       document.getElementById('progress').textContent =
-        '최근 완료 · 환경 ' + p.num_envs + ' · ' + (p.parameter || '비교') +
+        '최근 완료 · 환경 ' + p.num_envs + ' · ' + (p.parameter ||
+          (p.condition ? p.condition.backend + ' / ' + p.condition.device +
+            (p.condition.compile_env ? ' compiled' : '') : '비교')) +
         ' · seed ' + p.seed + (p.value === undefined ? '' : ' · 후보 ' + p.value) +
         (p.total_jobs ? ' · 완료 ' + p.completed_jobs + '/' + p.total_jobs +
-          ' · 실행 중 ' + p.running_trials + '/' + p.parallelism_limit : '');
+          ' · 실행 중 ' + p.running_trials + '/' + p.parallelism_limit : '') +
+        (p.expected_seeds ? ' · 완료 ' + p.completed_seeds + '/' + p.expected_seeds : '');
     }
     const count = document.getElementById('count');
     const parameter = document.getElementById('parameter');
