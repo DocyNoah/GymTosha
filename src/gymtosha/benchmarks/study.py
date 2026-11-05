@@ -343,12 +343,17 @@ def collect_candidates(config, parameter, values, output, *, parallelism=16, mem
     from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
     from pathlib import Path
 
+    from gymtosha.benchmarks.capacity import _available_memory
     from gymtosha.benchmarks.cli import _write
 
     if parallelism < 1:
         raise ValueError("parallelism must be positive")
     _CANCELLED.clear()
     budget = search_memory_budget(config.device) if memory_budget is None else memory_budget
+    host_available = _available_memory()
+    # A compiled worker and its compiler process measured about 2.2 GiB on the server.
+    host_limit = max(1, int(host_available * 0.7) // (2560 * 1024**2)) if host_available else 1
+    worker_limit = min(parallelism, host_limit)
     pending = []
     for seed in SEEDS:
         order = list(values)
@@ -361,10 +366,10 @@ def collect_candidates(config, parameter, values, output, *, parallelism=16, mem
     reserved = 0
     completed = 0
     total = len(pending)
-    executor = ThreadPoolExecutor(max_workers=parallelism)
+    executor = ThreadPoolExecutor(max_workers=worker_limit)
     try:
         while pending or running:
-            while pending and len(running) < parallelism:
+            while pending and len(running) < worker_limit:
                 available_index = next(
                     (i for i, job in enumerate(pending) if job[3] + reserved <= budget), None
                 )
@@ -399,7 +404,10 @@ def collect_candidates(config, parameter, values, output, *, parallelism=16, mem
                         "completed_jobs": completed,
                         "total_jobs": total,
                         "running_trials": len(running),
-                        "parallelism_limit": parallelism,
+                        "parallelism_limit": worker_limit,
+                        "requested_parallelism": parallelism,
+                        "host_available_bytes": host_available,
+                        "device_budget_bytes": budget,
                     },
                     Path(output) / "progress.json",
                 )

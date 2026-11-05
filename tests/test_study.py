@@ -301,7 +301,10 @@ def test_shared_search_reports_rewards_but_does_not_compare_wall_times():
     assert not result["timing_comparable"]
 
 
-def test_parallel_search_respects_memory_budget_and_twenty_seeds(tmp_path, monkeypatch):
+@pytest.mark.parametrize("host_gib,expected_peak", [(100, 2), (5, 1)])
+def test_parallel_search_respects_memory_budget_and_twenty_seeds(
+    tmp_path, monkeypatch, host_gib, expected_peak
+):
     import threading
     import time
 
@@ -329,6 +332,9 @@ def test_parallel_search_respects_memory_budget_and_twenty_seeds(tmp_path, monke
             },
         }
 
+    monkeypatch.setattr(
+        "gymtosha.benchmarks.capacity._available_memory", lambda: host_gib * 1024**3
+    )
     monkeypatch.setattr("gymtosha.benchmarks.study.run_trial", fake_trial)
     monkeypatch.setattr("gymtosha.benchmarks.study.estimate_trial_bytes", lambda config: 1)
     results = collect_candidates(
@@ -339,6 +345,6 @@ def test_parallel_search_respects_memory_budget_and_twenty_seeds(tmp_path, monke
         parallelism=4,
         memory_budget=2,
     )
-    assert state["peak"] == 2
+    assert state["peak"] == expected_peak
     assert all(row["summary"]["attempted_seeds"] == 20 for row in results)
     assert all(row["summary"]["mean_training_return"] == 10.5 for row in results)
