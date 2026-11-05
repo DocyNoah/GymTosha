@@ -18,6 +18,13 @@
 
 대표 점수는 시드별로 계산한 별도 Gymnasium 평가의 마지막 5개 체크포인트 평균입니다.
 
-환경 32개의 단독 장치 검증에서는 CPU compiled 166.77초, CUDA compiled 127.70초로
-CUDA compiled를 선택했습니다. 검증은 당시 PPO 설정과 시드 9001의 단일 실행입니다.
-[장치별 실측 기록](device-probes/32.json)
+## 기준점별 장치 검증
+
+Ryzen 5 5600X와 RTX 3090에서 같은 환경 수와 PPO 설정을 CPU와 CUDA로 각각 실행했습니다.
+시드 9001로 eager와 compiled를 한 번씩 측정하고, 각 환경 수에서 가장 짧은 시간을 낸
+CUDA compiled를 선택했습니다. 32개는 rollout 업데이트 64회, 나머지 크기는 8회입니다.
+
+![환경 수별 CPU와 CUDA 단독 실측](device-probes/speed.png)
+
+[32개](device-probes/32.json) · [256개](device-probes/256.json) ·
+[1,024개](device-probes/1024.json) · [4,096개](device-probes/4096.json)

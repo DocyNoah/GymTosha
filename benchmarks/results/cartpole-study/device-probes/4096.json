@@ -1,0 +1,107 @@
+{
+  "source": "5b984a4a16f5d40dfc60d9e6358ff439d6192bbc1e9095594e9654be06c92e59",
+  "runtime": {
+    "node": "link-3090v2-x",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "torch": "2.15.0+cu132",
+    "gymnasium": "1.4.0"
+  },
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "score_metric": "final_five_evaluation_checkpoints",
+  "scaling_design": "joint_rollout_optimizer_v1",
+  "accelerator": "cuda",
+  "config": {
+    "env_id": "CartPole-v1",
+    "algorithm": "ppo",
+    "backend": "gymtosha",
+    "device": "cuda",
+    "num_envs": 4096,
+    "total_timesteps": 8388608,
+    "seed": 1,
+    "compile_env": true,
+    "num_threads": 1,
+    "learning_rate": 0.003,
+    "gamma": 0.99,
+    "rollout_steps": 256,
+    "update_epochs": 2,
+    "num_minibatches": 16,
+    "gae_lambda": 0.99,
+    "clip_coef": 0.2,
+    "entropy_coef": 0.03,
+    "value_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "buffer_size": 100000,
+    "batch_size": 256,
+    "learning_starts": 1024,
+    "train_every": 256,
+    "gradient_steps": 1,
+    "log_every": 4096,
+    "exploration_fraction": 0.5,
+    "exploration_hold_steps": 1,
+    "normalize_observations": false,
+    "normalize_rewards": false,
+    "hidden_sizes": [
+      256,
+      256,
+      256
+    ],
+    "ppo_minibatch_size": 8192,
+    "adam_eps": 1e-05,
+    "anneal_learning_rate": true,
+    "rollout_timeout_seconds": 60.0
+  },
+  "seed": 9001,
+  "trials": [
+    {
+      "device": "cpu",
+      "compile_env": false,
+      "status": "completed",
+      "trial_id": "3c91e97afef2585adc54d6a7",
+      "wall_seconds": 433.8709333180159,
+      "error": null
+    },
+    {
+      "device": "cpu",
+      "compile_env": true,
+      "status": "completed",
+      "trial_id": "d75efba1729ed03d2b450d52",
+      "wall_seconds": 432.4626786609879,
+      "error": null
+    },
+    {
+      "device": "cuda",
+      "compile_env": false,
+      "status": "completed",
+      "trial_id": "a1963816445339d47a062023",
+      "wall_seconds": 12.100462142989272,
+      "error": null
+    },
+    {
+      "device": "cuda",
+      "compile_env": true,
+      "status": "completed",
+      "trial_id": "cee79705d71aa3caeb0d8f01",
+      "wall_seconds": 11.684044335008366,
+      "error": null
+    }
+  ],
+  "selected": {
+    "device": "cuda",
+    "compile_env": true,
+    "status": "completed",
+    "trial_id": "cee79705d71aa3caeb0d8f01",
+    "wall_seconds": 11.684044335008366,
+    "error": null
+  }
+}
