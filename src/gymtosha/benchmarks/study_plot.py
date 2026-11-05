@@ -136,17 +136,18 @@ def plot_heatmaps(phases, output):
         plt.close(fig)
 
 
-def render_dashboard(output):
+def render_dashboard(output, *, figures=True):
     root = Path(output)
     phases = [json.loads(path.read_text()) for path in sorted(root.glob("search/*/*.json"))]
     comparisons = [json.loads(path.read_text()) for path in sorted(root.glob("comparison/*.json"))]
-    plot_heatmaps(phases, root)
-    plot_comparisons(comparisons, root / "comparison.png")
     best = best_backend_conditions(comparisons)
-    plot_best(best, root)
+    if figures:
+        plot_heatmaps(phases, root)
+        plot_comparisons(comparisons, root / "comparison.png")
+        plot_best(best, root)
     (root / "best-backends.json").write_text(json.dumps(best, indent=2) + "\n")
     selected_path = root / "selected.json"
-    if selected_path.exists():
+    if figures and selected_path.exists():
         plot_selected_trends(json.loads(selected_path.read_text()), root)
     export_tables(phases, comparisons, root)
     view_phases = [
