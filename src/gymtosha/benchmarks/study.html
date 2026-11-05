@@ -72,7 +72,8 @@
       const phase = data.phases.find(item =>
         item.num_envs === Number(count.value) && item.parameter === parameter.value);
       document.getElementById('status').textContent = phase
-        ? '선택값 ' + phase.selected_value + (phase.reused_original_search
+        ? '선택값 ' + phase.selected_value + (phase.device ? ' · 실험 장치 ' + phase.device : '') +
+          (phase.selection_override ? ' · 사용자 지정' : '') + (phase.reused_original_search
           ? ' · 완료된 후보 재집계. 다른 파라미터는 원래 실험 설정을 따릅니다.' : '')
         : '후보별 10개 시드가 완료되면 통계가 표시됩니다.';
       const image = document.getElementById('plot');
@@ -86,7 +87,9 @@
       }
       const table = document.createElement('table');
       const header = table.insertRow();
-      const titles = ['후보', '완료 시드', '마지막 5회 평가 평균 ± SD', '안정적 도달'];
+      const joint = phase.parameter === 'joint_scaling';
+      const titles = ['후보', ...(joint ? ['Rollout', '미니배치', '배치/epoch', 'Epoch', '학습률'] : []),
+        '완료 시드', '마지막 5회 평가 평균 ± SD', '안정적 도달'];
       for (const title of titles) {
         const cell = document.createElement('th');
         cell.textContent = title;
@@ -95,8 +98,12 @@
       for (const candidate of phase.candidates) {
         const row = table.insertRow();
         const summary = candidate.summary;
+        const scaling = candidate.scaling_config;
         const values = [
           String(candidate.value),
+          ...(joint ? [scaling.rollout_steps, scaling.ppo_minibatch_size,
+            scaling.minibatches_per_epoch, scaling.update_epochs,
+            scaling.learning_rate.toPrecision(4)] : []),
           summary.successful_trials + '/' + (summary.expected_seeds || summary.attempted_seeds),
           number(summary.mean_final_eval_return) + ' ± ' + number(summary.std_final_eval_return),
           summary.target_reached + '/' + (summary.expected_seeds || summary.attempted_seeds)

@@ -259,9 +259,15 @@ def render_dashboard(output, *, figures=True):
             "parameter": phase["parameter"],
             "selected_value": phase["selected_value"],
             "reused_original_search": "resume_from_config" in phase,
+            "selection_override": phase.get("selection_override"),
+            "device": phase.get("starting_config", {}).get("device"),
             "learning_curve": learning_curves.get((phase["num_envs"], phase["parameter"])),
             "candidates": [
-                {"value": candidate["value"], "summary": candidate["summary"]}
+                {
+                    "value": candidate["value"],
+                    "summary": candidate["summary"],
+                    "scaling_config": candidate.get("scaling_config"),
+                }
                 for candidate in phase["candidates"]
             ],
         }
@@ -377,16 +383,30 @@ def plot_selected_trends(selected, output):
 
     plt = _pyplot()
     counts = sorted(map(int, selected))
+    searched = [
+        selected[str(count)].get("selection_basis", "anchor_search") == "anchor_search"
+        for count in counts
+    ]
     fig, axes = plt.subplots(4, 3, figsize=(14, 12))
     for axis, parameter in zip(axes.flat, PARAMETERS, strict=True):
         values = [selected[str(count)]["config"][parameter] for count in counts]
-        axis.plot(counts, values, marker="o")
+        axis.plot(counts, values, color="#7a8b85", linewidth=1)
+        for measured, label, marker in ((True, "Searched", "o"), (False, "Scaled", "x")):
+            points = [
+                (count, value)
+                for count, value, anchor in zip(counts, values, searched, strict=True)
+                if anchor == measured
+            ]
+            if points:
+                x, y = zip(*points, strict=True)
+                axis.scatter(x, y, label=label, marker=marker, s=21)
         axis.set_xscale("log", base=2)
         axis.set_xlabel("Environments")
         axis.set_title(parameter)
         if min(values) > 0 and max(values) / min(values) > 10:
             axis.set_yscale("log")
     fig.suptitle("Selected hyperparameters across environment counts")
+    axes.flat[0].legend(fontsize=7)
     fig.tight_layout()
     fig.savefig(Path(output) / "selected-trends.png", dpi=150)
     plt.close(fig)
@@ -469,6 +489,7 @@ def export_tables(phases, comparisons, root, *, include_checkpoints=False):
             "parameter": phase["parameter"],
             "value": candidate["value"],
             "selected": candidate["value"] == phase["selected_value"],
+            **candidate.get("scaling_config", {}),
             **candidate["summary"],
         }
         for phase in phases
@@ -507,6 +528,36 @@ def export_tables(phases, comparisons, root, *, include_checkpoints=False):
         ("comparison-summary.csv", results),
         ("comparison-seeds.csv", comparison_seeds),
     ]
+    device_rows = []
+    for path in sorted((root / "device-probes").glob("*.json")):
+        if path.stem.isdigit():
+            probe = json.loads(path.read_text())
+            device_rows.extend(
+                {
+                    "num_envs": int(path.stem),
+                    **row,
+                    "selected": row["trial_id"] == probe["selected"]["trial_id"],
+                }
+                for row in probe["trials"]
+            )
+    tables.append(("device-probes.csv", device_rows))
+    presets = root / "selected.json"
+    if presets.exists():
+        tables.append(
+            (
+                "selected-presets.csv",
+                [
+                    {
+                        **row["config"],
+                        "selection_basis": row.get("selection_basis", "searched"),
+                        "anchor_counts": row.get("anchor_counts", [int(count)]),
+                    }
+                    for count, row in sorted(
+                        json.loads(presets.read_text()).items(), key=lambda item: int(item[0])
+                    )
+                ],
+            )
+        )
     if include_checkpoints:
         rows = list(final_checkpoint_rows(root, search_seeds + comparison_seeds))
         tables.append(("final-evaluation-checkpoints.csv", rows))

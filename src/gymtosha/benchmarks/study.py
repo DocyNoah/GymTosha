@@ -356,6 +356,13 @@ def cancel_active_trials():
 
 
 def collect_candidates(config, parameter, values, output, *, parallelism=16, memory_budget=None):
+    configs = {value: change_parameter(config, parameter, value) for value in values}
+    return collect_configurations(
+        configs, parameter, output, parallelism=parallelism, memory_budget=memory_budget
+    )
+
+
+def collect_configurations(configs, parameter, output, *, parallelism=16, memory_budget=None):
     import random
     from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
     from pathlib import Path
@@ -365,6 +372,9 @@ def collect_candidates(config, parameter, values, output, *, parallelism=16, mem
 
     if parallelism < 1:
         raise ValueError("parallelism must be positive")
+    if not configs:
+        raise ValueError("at least one study candidate is required")
+    config = next(iter(configs.values()))
     _CANCELLED.clear()
     budget = search_memory_budget(config.device) if memory_budget is None else memory_budget
     host_available = _available_memory()
@@ -373,12 +383,12 @@ def collect_candidates(config, parameter, values, output, *, parallelism=16, mem
     worker_limit = min(parallelism, host_limit)
     pending = []
     for seed in SEEDS:
-        order = list(values)
+        order = list(configs)
         random.Random(f"{config.num_envs}:{parameter}:{seed}").shuffle(order)
         for value in order:
-            candidate = replace(change_parameter(config, parameter, value), seed=seed)
+            candidate = replace(configs[value], seed=seed)
             pending.append((seed, value, candidate, estimate_trial_bytes(candidate)))
-    records = {str(value): [] for value in values}
+    records = {str(value): [] for value in configs}
     running = {}
     reserved = 0
     completed = 0
@@ -452,11 +462,11 @@ def collect_candidates(config, parameter, values, output, *, parallelism=16, mem
                 for record in records[str(value)]
             ],
         }
-        for value in values
+        for value in configs
     ]
 
 
-def tune_count(config, output, *, parallelism=16):
+def tune_count(config, output, *, parallelism=16, reuse_other_devices=False, fixed_parameters=None):
     import json
     from pathlib import Path
 
@@ -464,7 +474,11 @@ def tune_count(config, output, *, parallelism=16):
     from gymtosha.benchmarks.study_plot import plot_parameter, render_dashboard
 
     directory = Path(output) / "search" / str(config.num_envs)
+    fixed_parameters = fixed_parameters or {}
     for parameter in PARAMETERS:
+        if parameter in fixed_parameters:
+            config = change_parameter(config, parameter, fixed_parameters[parameter])
+            continue
         phase_path = directory / f"{parameter}.json"
         phase = json.loads(phase_path.read_text()) if phase_path.exists() else None
         if (
@@ -472,13 +486,19 @@ def tune_count(config, output, *, parallelism=16):
             and phase.get("seeds") == list(SEEDS)
             and phase.get("score_metric") == SCORE_METRIC
         ):
+            resume = TrainConfig(**phase.get("resume_from_config", phase["starting_config"]))
+            device_fields = {"device": config.device, "compile_env": config.compile_env}
+            if reuse_other_devices:
+                resume = replace(resume, **device_fields)
             if (
-                phase.get("resume_from_config", phase["starting_config"]) != asdict(config)
+                resume != config
                 or phase["source"] != source_fingerprint()
                 or phase.get("runtime") != runtime_fingerprint()
             ):
                 raise ValueError("saved parameter search starts from a different configuration")
             config = TrainConfig(**phase["selected_config"])
+            if reuse_other_devices:
+                config = replace(config, **device_fields)
             continue
         starting_config = asdict(config)
         full_grid = candidate_values(parameter, config, local=False)
@@ -614,6 +634,8 @@ def compare(args):
                 directory / "unsupported" / f"{name}.json",
             )
             continue
+        if condition["backend"].startswith("gymnasium-") and condition["device"] != "cpu":
+            raise ValueError("CartPole Gymnasium comparisons require CPU environments and learners")
         for count in sorted(map(int, selected)):
             maximum = condition["maximum_verified"]
             if condition["backend"] == "gymnasium-async":
@@ -677,6 +699,7 @@ def main():
     search.add_argument("--device", choices=["cuda", "mps"], default="cuda")
     search.add_argument("--output", type=Path, required=True)
     search.add_argument("--parallel-trials", type=int, choices=range(1, 33), default=16)
+    search.add_argument("--scaling-anchors", action="store_true")
     comparison = commands.add_parser("compare")
     comparison.add_argument("--presets", type=Path, required=True)
     comparison.add_argument("--capacity", type=Path, required=True)
@@ -694,7 +717,12 @@ def main():
     else:
         with study_lock(args.output):
             if args.command == "tune":
-                tune(args)
+                if args.scaling_anchors:
+                    from gymtosha.benchmarks.study_scaling import tune_anchors
+
+                    tune_anchors(args)
+                else:
+                    tune(args)
             else:
                 compare(args)
 

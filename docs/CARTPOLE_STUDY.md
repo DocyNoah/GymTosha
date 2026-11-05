@@ -12,10 +12,10 @@
 ## 순서
 
 1. 백엔드별 실행 가능한 환경 수를 확인합니다.
-2. GymTosha CUDA compiled, 환경 32개에서 한 파라미터씩 탐색합니다.
+2. GymTosha 환경 32개에서 완료한 탐색을 이어받아 남은 파라미터를 탐색합니다.
 3. 각 후보를 동일한 10개 학습 시드로 측정하고 평균·표준편차와 실패 여부를 저장합니다.
 4. 선택한 값을 고정한 뒤 다음 파라미터를 탐색합니다.
-5. 환경 수를 64, 128, 256 등 두 배로 늘리며 이전 선택값을 초기값으로 사용합니다.
+5. 환경 수 256, 1,024, 4,096에서는 이전 기준점에서 출발해 rollout과 PPO 최적화 설정을 함께 탐색합니다.
 6. 백엔드별 가능한 환경 수에서 같은 설정을 적용해 독립된 20개 시드로 비교합니다.
 7. 각 백엔드의 가장 효율적인 환경 수를 선택해 최종 비교합니다.
 
@@ -29,6 +29,11 @@
 | GymTosha eager / compiled | CPU | PyTorch 배치 |
 | GymTosha eager / compiled | CUDA | PyTorch 배치 |
 | GymTosha eager / compiled | MPS | PyTorch 배치 |
+
+환경과 PPO 학습기는 같은 장치에 둡니다. Gymnasium은 환경과 학습기 모두 CPU에서
+실행합니다. GymTosha 탐색은 기준점마다 Ryzen CPU와 RTX 3090에서 동일한 PPO
+설정을 각각 단독 실행해 가장 빠른 장치를 선택합니다. eager와 compile도 비교합니다.
+이 장치 검증은 시드 9001의 한 실행으로, 후보의 10시드 학습 통계와 분리합니다.
 
 ## 파라미터 후보안
 
@@ -126,18 +131,28 @@ CartPole의 새 실험은 학습과 별개의 평가 환경 100개를 사용합�
 총 262,144 sampling slot이며, 환경 수가 두 배가 되면 총 slot 수도 두 배입니다.
 Gymnasium NEXT_STEP 초기화 slot은 손실에서 제외하고 유효 transition 수도 따로 기록합니다.
 
-32개 환경에서는 후보 전체를 탐색합니다. 더 큰 환경 수에서는 이전 선택값과 인접 후보로
-시작하고, 경계 후보가 가장 좋으면 범위를 넓혀 다시 확인합니다. 한 번에 한 파라미터만
-바꾸며, 동일 설정의 10개 시드 결과는 재사용합니다.
+32개 환경에서는 완료한 탐색을 재사용합니다. GAE λ는 사용자 지정에 따라 0.99로
+고정합니다. 256, 1,024, 4,096개 환경에서는 직전 기준점 설정을 바탕으로 rollout 길이,
+미니배치 크기, 업데이트 epoch, 학습률을 함께 탐색합니다. 나머지 PPO 값은 유지합니다.
+기준점마다 환경 수 비율의 제곱근에 반비례하는 rollout 길이를 중심으로 절반·기준·두 배
+길이를 시험합니다. 각 길이에서는 미니배치 개수와 epoch·학습률을 조합한 세 가지 설정을
+비교하고, 이전 설정을 그대로 스케일한 후보도 포함합니다. 중복 후보는 합칩니다.
+
+다른 환경 수는 탐색 대상에서 제외합니다. 기준점 사이는 log₂ 환경 수에 따라 rollout,
+epoch당 미니배치 개수, 학습률을 로그 보간하고 epoch를 선형 보간합니다. rollout과
+미니배치 개수는 2의 거듭제곱으로, epoch는 정수로 반올림합니다. 4,096개를 넘으면
+마지막 기준점의 값을 사용하고, 미니배치 크기는 `환경 수 × rollout / 미니배치 개수`로
+계산합니다. 각 설정에서 rollout 업데이트 64회를 실행하므로 총 수집량에는 rollout
+길이의 변화도 반영됩니다. `selected.json`에 직접 탐색한 설정과 추정 설정을 구분합니다.
 탐색 시드는 1–10, 최종 비교 시드는 1001–1020입니다. 평가는 4 rollout 업데이트마다 수행합니다.
 
 ```bash
 uv run --extra benchmark python -m gymtosha.benchmarks.study tune \
-  --device cuda --min-envs 32 --max-envs 65536 --parallel-trials 16 \
+  --scaling-anchors --device cuda --min-envs 32 --max-envs 131072 --parallel-trials 16 \
   --output outputs/cartpole-study-full
 uv run --extra benchmark python -m gymtosha.benchmarks.study compare \
   --presets outputs/cartpole-study-full/selected.json \
-  --capacity benchmarks/results/cartpole-study/capacity/summary.json \
+  --capacity outputs/cartpole-study-full/capacity/summary.json \
   --devices cpu cuda --output outputs/cartpole-study-full
 ```
 
