@@ -8,7 +8,7 @@ from threading import Event, Lock
 from gymtosha.benchmarks.evaluation import EvaluationConfig
 from gymtosha.benchmarks.train import TrainConfig
 
-SEEDS = tuple(range(1, 11))
+SEEDS = tuple(range(1, 21))
 COMPARISON_SEEDS = tuple(range(1001, 1021))
 ROLLOUT_UPDATES = 64
 _ACTIVE_WORKERS = {}
