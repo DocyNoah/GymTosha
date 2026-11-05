@@ -35,7 +35,9 @@
   <img id="heatmap" alt="환경 수와 파라미터 후보별 평균 학습 보상">
   <div id="comparison"></div>
   <div id="best"></div>
+  <div id="curves"></div>
   <div id="trends"></div>
+  <ul id="tables"></ul>
   <script>
     const data = __DATA__;
     if (data.progress) {
@@ -113,6 +115,7 @@
     update();
     for (const [enabled, id, filename, description] of [
       [data.has_best, 'best', 'best-backends.png', '백엔드별 최적 환경 수의 비교'],
+      [data.has_curves, 'curves', 'best-learning-curves.png', '최적 환경 수의 20시드 평가 보상 곡선'],
       [data.has_trends, 'trends', 'selected-trends.png', '환경 수에 따른 선택 파라미터 변화']
     ]) {
       if (enabled) {
@@ -122,11 +125,19 @@
         document.getElementById(id).append(image);
       }
     }
-    if (data.comparisons.length) {
+    if (data.has_comparisons) {
       const image = document.createElement('img');
       image.src = 'comparison.png';
       image.alt = '백엔드별 환경 수에 따른 20시드 결과';
       document.getElementById('comparison').append(image);
+    }
+    for (const filename of data.tables || []) {
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = filename;
+      link.textContent = filename;
+      item.append(link);
+      document.getElementById('tables').append(item);
     }
   </script>
 </body>

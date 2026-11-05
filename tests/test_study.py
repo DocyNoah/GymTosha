@@ -418,3 +418,57 @@ def test_tuning_rejects_earlier_selection_with_old_seed_protocol(tmp_path):
     )
     with pytest.raises(ValueError, match="earlier selected seed protocol"):
         tune(Namespace(min_envs=64, max_envs=64, device="cuda", output=tmp_path))
+
+
+def test_comparison_exports_seed_metrics_and_evaluation_curves(tmp_path, monkeypatch):
+    import csv
+    import json
+    from argparse import Namespace
+
+    from gymtosha.benchmarks.study import COMPARISON_SEEDS, compare
+
+    presets = tmp_path / "selected.json"
+    presets.write_text(json.dumps({"32": {"config": asdict(reference_config(32))}}))
+    capacity = tmp_path / "capacity.json"
+    capacity.write_text(
+        json.dumps(
+            [
+                {
+                    "backend": "gymtosha",
+                    "device": "cuda",
+                    "compile_env": False,
+                    "maximum_verified": 32,
+                }
+            ]
+        )
+    )
+
+    def fake_trial(config, evaluation, output):
+        return {
+            "status": "completed",
+            "seed": config.seed,
+            "trial_id": str(config.seed),
+            "result": {
+                "config": asdict(config),
+                "mean_training_episode_return": 400,
+                "wall_seconds": 60,
+                "evaluation": {
+                    "time_to_target_seconds": 50,
+                    "transitions_to_target": 81920,
+                    "checkpoints": [
+                        {"timesteps": 0, "wall_seconds": 1, "mean_return": 20},
+                        {"timesteps": 81920, "wall_seconds": 50, "mean_return": 490},
+                    ],
+                },
+            },
+        }
+
+    monkeypatch.setattr("gymtosha.benchmarks.study.run_trial", fake_trial)
+    output = tmp_path / "run"
+    compare(Namespace(presets=presets, capacity=capacity, devices=["cuda"], output=output))
+    with (output / "comparison-seeds.csv").open() as stream:
+        rows = list(csv.DictReader(stream))
+    assert [int(row["seed"]) for row in rows] == list(COMPARISON_SEEDS)
+    assert {int(row["transitions_to_target"]) for row in rows} == {81920}
+    assert {float(row["time_to_target_seconds"]) for row in rows} == {50.0}
+    assert (output / "best-learning-curves.png").stat().st_size > 1000

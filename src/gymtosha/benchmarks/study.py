@@ -547,6 +547,25 @@ def tune(args):
         count *= 2
 
 
+def comparison_seed_details(record):
+    result = record.get("result", {})
+    evaluation = result.get("evaluation", {})
+    return {
+        "seed": record["seed"],
+        "trial_id": record["trial_id"],
+        "status": record["status"],
+        "error": record.get("error"),
+        "mean_training_episode_return": result.get("mean_training_episode_return"),
+        "wall_seconds": result.get("wall_seconds"),
+        "time_to_target_seconds": evaluation.get("time_to_target_seconds"),
+        "transitions_to_target": evaluation.get("transitions_to_target"),
+        "evaluation_curve": [
+            {key: point[key] for key in ("timesteps", "wall_seconds", "mean_return")}
+            for point in evaluation.get("checkpoints", [])
+        ],
+    }
+
+
 def compare(args):
     import json
     from pathlib import Path
@@ -606,6 +625,7 @@ def compare(args):
                     "summary": summarize_trials(records, seeds=COMPARISON_SEEDS),
                     "seeds": list(COMPARISON_SEEDS),
                     "trial_ids": [record["trial_id"] for record in records],
+                    "seed_results": [comparison_seed_details(record) for record in records],
                 },
                 directory / "comparison" / f"{name}.json",
             )

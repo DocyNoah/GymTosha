@@ -155,6 +155,7 @@ def render_dashboard(output, *, figures=True):
         plot_heatmaps(phases, root)
         plot_comparisons(comparisons, root / "comparison.png")
         plot_best(best, root)
+        plot_best_learning_curves(best, root / "best-learning-curves.png")
     (root / "best-backends.json").write_text(json.dumps(best, indent=2) + "\n")
     selected_path = root / "selected.json"
     if figures and selected_path.exists():
@@ -177,10 +178,12 @@ def render_dashboard(output, *, figures=True):
     data = json.dumps(
         {
             "phases": view_phases,
-            "comparisons": comparisons,
+            "has_comparisons": bool(comparisons),
             "progress": progress,
             "has_trends": selected_path.exists(),
             "has_best": bool(best),
+            "has_curves": (root / "best-learning-curves.png").exists(),
+            "tables": sorted(path.name for path in root.glob("*.csv")),
         }
     ).replace("</", "<\\/")
     page = Path(__file__).with_name("study.html").read_text().replace("__DATA__", data)
@@ -290,6 +293,39 @@ def plot_selected_trends(selected, output):
     plt.close(fig)
 
 
+def plot_best_learning_curves(best, path):
+    series = [row for row in best if row.get("seed_results")]
+    if not series:
+        return
+    plt = _pyplot()
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    for row in series:
+        curves = [seed["evaluation_curve"] for seed in row["seed_results"]]
+        returns = np.array([[point["mean_return"] for point in curve] for curve in curves])
+        elapsed = np.array([[point["wall_seconds"] for point in curve] for curve in curves])
+        timesteps = [point["timesteps"] for point in curves[0]]
+        mean = returns.mean(axis=0)
+        deviation = returns.std(axis=0, ddof=1)
+        config = row["config"]
+        compiled = " compiled" if config["compile_env"] else ""
+        label = f"{config['backend']} / {config['device']}{compiled} / N={config['num_envs']:,}"
+        for axis, x in zip(axes, (timesteps, elapsed.mean(axis=0)), strict=True):
+            line = axis.plot(x, mean, label=label)[0]
+            axis.fill_between(
+                x, mean - deviation, mean + deviation, alpha=0.12, color=line.get_color()
+            )
+    for axis in axes:
+        axis.axhline(475, color="#666", linestyle="--", linewidth=1)
+        axis.set_ylabel("Evaluation episode return")
+    axes[0].set_xlabel("Sampling slots")
+    axes[1].set_xlabel("Mean wall time at each checkpoint (s)")
+    axes[0].legend(fontsize=7)
+    fig.suptitle("Best environment count per backend · mean ± sample SD · 20 seeds")
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
 def export_tables(phases, comparisons, root):
     import csv
 
@@ -305,10 +341,42 @@ def export_tables(phases, comparisons, root):
         for candidate in phase["candidates"]
     ]
     results = [{**row["config"], **row["summary"]} for row in comparisons]
-    for name, rows in [("search-summary.csv", searches), ("comparison-summary.csv", results)]:
+    search_seeds = [
+        {
+            "num_envs": phase["num_envs"],
+            "parameter": phase["parameter"],
+            "value": candidate["value"],
+            "seed": seed,
+            "trial_id": trial_id,
+            "mean_training_episode_return": reward,
+        }
+        for phase in phases
+        for candidate in phase["candidates"]
+        for seed, trial_id, reward in zip(
+            phase.get("seeds", range(1, candidate["summary"]["attempted_seeds"] + 1)),
+            candidate.get("trial_ids", []),
+            candidate.get("seed_rewards", []),
+            strict="trial_ids" in candidate,
+        )
+    ]
+    comparison_seeds = [
+        {
+            "condition": row["name"],
+            **{key: value for key, value in seed.items() if key != "evaluation_curve"},
+        }
+        for row in comparisons
+        for seed in row.get("seed_results", [])
+    ]
+    for name, rows in [
+        ("search-summary.csv", searches),
+        ("search-seeds.csv", search_seeds),
+        ("comparison-summary.csv", results),
+        ("comparison-seeds.csv", comparison_seeds),
+    ]:
         if not rows:
             continue
         with (Path(root) / name).open("w", newline="") as stream:
-            writer = csv.DictWriter(stream, fieldnames=list(rows[0]), lineterminator="\n")
+            columns = list(dict.fromkeys(key for row in rows for key in row))
+            writer = csv.DictWriter(stream, fieldnames=columns, lineterminator="\n")
             writer.writeheader()
             writer.writerows(rows)

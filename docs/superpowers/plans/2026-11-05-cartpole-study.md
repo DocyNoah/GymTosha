@@ -7,8 +7,9 @@ Specification lives in `docs/CARTPOLE_STUDY.md`.
 - [x] Add the Gymnasium CartPole vector entry point to benchmark adapters with correct NEXT_STEP sample masking.
 - [x] Implement isolated capacity probes and a doubling/halving search. Async is capped at 32 and system limits remain unchanged.
 - [x] Save probe outcomes, failure bounds, memory and hardware metadata. Show the first-stage results before launching parameter sweeps.
-- [ ] Implement restartable single-parameter searches with exactly 20 training seeds per candidate and frozen selection history.
-- [ ] Separate selection seeds from final comparison seeds and preserve unsuccessful trials.
-- [ ] Carry selected parameters to doubled environment counts and record their scaling trends.
-- [ ] Add candidate plots, environment-count heatmaps and per-backend final comparisons.
-- [ ] Verify tests, lint, formatting and reproducible execution, and commit each completed stage.
+- [x] Implement restartable single-parameter searches with 10 training seeds per candidate and frozen selection history.
+- [x] Separate selection seeds from the 20 final comparison seeds and preserve unsuccessful trials.
+- [x] Carry selected parameters to doubled environment counts and record their scaling trends.
+- [x] Add candidate plots, environment-count heatmaps and per-backend comparison plots.
+- [ ] Complete parameter searches for every environment count and execute all backend comparisons.
+- [ ] Verify and publish the completed study tables and graphs.
