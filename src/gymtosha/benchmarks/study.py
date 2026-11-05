@@ -1,5 +1,6 @@
 """CartPole coordinate searches and fixed-length, twenty-seed comparisons."""
 
+from contextlib import contextmanager
 from dataclasses import asdict, replace
 from statistics import mean, stdev
 
@@ -183,6 +184,8 @@ def run_trial(config, evaluation, output):
     from gymtosha.benchmarks.capacity import terminate_probe
     from gymtosha.benchmarks.cli import _write
 
+    if source_fingerprint() != _LOADED_SOURCE:
+        raise RuntimeError("training source changed; restart the study controller")
     request = {
         "config": asdict(config),
         "evaluation": asdict(evaluation),
@@ -480,6 +483,7 @@ def compare(args):
 
 def main():
     import argparse
+    import signal
     from pathlib import Path
 
     parser = argparse.ArgumentParser(description=__doc__)
@@ -498,12 +502,39 @@ def main():
     worker.add_argument("--request", type=Path, required=True)
     worker.add_argument("--result", type=Path, required=True)
     args = parser.parse_args()
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
     if args.command == "worker":
         run_worker(args.request, args.result)
-    elif args.command == "tune":
-        tune(args)
     else:
-        compare(args)
+        with study_lock(args.output):
+            if args.command == "tune":
+                tune(args)
+            else:
+                compare(args)
+
+
+@contextmanager
+def study_lock(output):
+    import fcntl
+    from pathlib import Path
+
+    root = Path(output)
+    root.mkdir(parents=True, exist_ok=True)
+    with (root / ".study.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError(
+                "a study controller is already running in this output directory"
+            ) from error
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+_LOADED_SOURCE = source_fingerprint()
 
 
 if __name__ == "__main__":

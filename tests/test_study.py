@@ -270,3 +270,23 @@ def test_best_backend_uses_fastest_stably_solved_size():
     )
     assert result[0]["config"]["num_envs"] == 64
     assert result[0]["selection_basis"] == "stable_target_time"
+
+
+def test_study_lock_rejects_another_controller_and_releases(tmp_path):
+    from gymtosha.benchmarks.study import study_lock
+
+    with study_lock(tmp_path):
+        with pytest.raises(RuntimeError, match="already running"):
+            with study_lock(tmp_path):
+                pass
+    with study_lock(tmp_path):
+        pass
+
+
+def test_controller_refuses_hot_changed_training_source(tmp_path, monkeypatch):
+    from gymtosha.benchmarks.study import run_trial
+
+    monkeypatch.setattr("gymtosha.benchmarks.study.source_fingerprint", lambda: "changed")
+    config = reference_config(32)
+    with pytest.raises(RuntimeError, match="restart"):
+        run_trial(config, study_evaluation(config), tmp_path)
