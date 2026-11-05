@@ -123,3 +123,15 @@ def test_probe_is_terminated_even_when_process_inventory_fails(monkeypatch):
         if child.poll() is None:
             child.kill()
             child.wait()
+
+
+def test_completed_probe_over_deadline_is_not_counted_as_passed():
+    from gymtosha.benchmarks.capacity import apply_time_limit
+
+    original = {"num_envs": 16384, "status": "passed", "wall_seconds": 61}
+    classified = apply_time_limit(original, observed_seconds=61, limit=60)
+    assert classified["status"] == "failed"
+    assert classified["error_type"] == "elapsed_limit"
+    assert classified["original_status"] == "passed"
+    assert original["status"] == "passed"
+    assert apply_time_limit(original, observed_seconds=59, limit=60)["status"] == "passed"

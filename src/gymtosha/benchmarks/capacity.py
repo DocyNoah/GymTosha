@@ -47,6 +47,13 @@ def _write(value, path):
     temporary.replace(path)
 
 
+def apply_time_limit(result, *, observed_seconds, limit=60):
+    classified = dict(result, observed_seconds=observed_seconds, limit_seconds=limit)
+    if result["status"] == "passed" and observed_seconds >= limit:
+        classified.update(status="failed", original_status="passed", error_type="elapsed_limit")
+    return classified
+
+
 def _probe(args):
     from dataclasses import asdict
 
@@ -128,7 +135,7 @@ def _isolated_probe(args, count):
         process = subprocess.Popen(command, stdout=log, stderr=log, start_new_session=True)
         try:
             while process.poll() is None:
-                if time.perf_counter() - started > args.timeout:
+                if time.perf_counter() - started >= args.timeout:
                     reason = "timeout"
                     break
                 available = _available_memory()
@@ -141,11 +148,8 @@ def _isolated_probe(args, count):
                 terminate_probe(process)
     if path.exists():
         result = json.loads(path.read_text())
-        result["observed_seconds"] = time.perf_counter() - started
-        _write(result, path)
         if reason is not None:
             result["supervisor_stop_reason"] = reason
-            _write(result, path)
     else:
         result = {
             "num_envs": count,
@@ -154,7 +158,10 @@ def _isolated_probe(args, count):
             "exit_code": process.returncode,
             "wall_seconds": time.perf_counter() - started,
         }
-        _write(result, path)
+    result = apply_time_limit(
+        result, observed_seconds=time.perf_counter() - started, limit=args.timeout
+    )
+    _write(result, path)
     print(
         json.dumps({k: v for k, v in result.items() if k not in ("training", "config")}), flush=True
     )
