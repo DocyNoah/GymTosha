@@ -36,7 +36,7 @@ class BatchedEnv(ABC):
         if not isinstance(max_episode_steps, int) or max_episode_steps < 1:
             raise ValueError("max_episode_steps must be a positive integer")
         self.num_envs = num_envs
-        self.device = torch.device(device)
+        self.device = torch.empty(0, device=device).device
         self.max_episode_steps = max_episode_steps
         self.autoreset = autoreset
         self.metadata = dict(self.metadata)
@@ -57,7 +57,7 @@ class BatchedEnv(ABC):
         samples = []
         for _ in range(count):
             state = (state * 48271) % 2147483647
-            samples.append(state.to(torch.float32) / 2147483647)
+            samples.append((state.to(torch.float32) / 2147483647).clamp_max(1 - 2**-24))
         self._rng = state if mask is None else torch.where(mask, state, self._rng)
         return torch.stack(samples, dim=-1)
 

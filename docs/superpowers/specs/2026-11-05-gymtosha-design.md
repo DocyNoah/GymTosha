@@ -21,8 +21,8 @@ the per-environment Python/IPC overhead the user wants to remove.
 Classic-control equations and FrozenLake transition probabilities will follow
 Gymnasium and be tested against it. LunarLander requires a separate contact
 solver. A simplified tensor solver must be explicitly labeled experimental,
-with its physics difference carried into benchmark figures. Full Box2D parity
-is an open user clarification and must not be claimed.
+with its physics difference carried into benchmark figures. The user confirmed that approximate dynamics are acceptable. Full Box2D parity
+must not be claimed.
 
 Reset is explicit, with optional same-step autoreset. Terminal observations,
 termination versus truncation, episode returns and episode lengths are tensors.

@@ -5,9 +5,12 @@ from collections.abc import Callable
 from gymtosha.base import BatchedEnv
 from gymtosha.envs.cartpole import CartPole
 from gymtosha.envs.frozen_lake import FrozenLake
+from gymtosha.envs.lunar_lander import LunarLander
 from gymtosha.envs.mountain_car import MountainCar
 
 _REGISTRY: dict[str, tuple[Callable[..., BatchedEnv], dict]] = {
+    "LunarLander-v3": (LunarLander, {}),
+    "LunarLanderContinuous-v3": (LunarLander, {"continuous": True}),
     "CartPole-v1": (CartPole, {}),
     "MountainCar-v0": (MountainCar, {}),
     "MountainCarContinuous-v0": (MountainCar, {"continuous": True}),
