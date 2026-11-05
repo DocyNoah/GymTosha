@@ -1,0 +1,9 @@
+{
+  "num_envs": 16384,
+  "status": "failed",
+  "error_type": "timeout",
+  "exit_code": -15,
+  "wall_seconds": 60.19049463397823,
+  "observed_seconds": 60.19049656399875,
+  "limit_seconds": 60
+}
