@@ -9,6 +9,7 @@ description = "Batched, GPU-native PyTorch reinforcement learning environments"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/*.txt"]
 dependencies = ["torch>=2.5", "gymnasium>=1.1,<2"]
 
 [project.optional-dependencies]

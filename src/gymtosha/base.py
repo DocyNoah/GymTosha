@@ -92,6 +92,7 @@ class BatchedEnv(ABC):
         if self.continuous:
             if not actions.is_floating_point():
                 raise TypeError("continuous actions must be floating-point tensors")
+            actions = actions.to(dtype=torch.float32)
         elif actions.dtype not in (torch.int32, torch.int64):
             raise TypeError("discrete actions must have integer dtype")
         with torch.no_grad():
@@ -123,6 +124,15 @@ class BatchedEnv(ABC):
 
     def compile(self, **kwargs: Any) -> BatchedEnv:
         """Compile simulation and masked autoreset together, with graph breaks forbidden."""
+        # Metal has a small per-kernel buffer-binding limit. Bound fusion to
+        # keep larger simulators within it while retaining a single FX graph.
+        if self.device.type == "mps" and kwargs.get("backend", "inductor") == "inductor":
+            mode = kwargs.pop("mode", None)
+            options = kwargs.pop("options", None)
+            if mode is not None and options is not None:
+                raise ValueError("specify either compile mode or options")
+            mode_options = torch._inductor.list_mode_options(mode) if mode else {}
+            kwargs["options"] = {"max_fusion_size": 8, **mode_options, **(options or {})}
         kwargs.setdefault("fullgraph", True)
         self._step_fn = torch.compile(self._step, **kwargs)
         return self

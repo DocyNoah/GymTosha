@@ -1,0 +1,231 @@
+"""Reproducible benchmark command line with raw, resumable measurement files."""
+
+import argparse
+import csv
+import json
+import platform
+import time
+from dataclasses import asdict
+from pathlib import Path
+
+import gymnasium as gym
+import torch
+
+from gymtosha.benchmarks.adapters import make_backend, synchronize
+from gymtosha.benchmarks.plot import plot_throughput, plot_training
+from gymtosha.benchmarks.train import TrainConfig, train
+
+ENVIRONMENTS = [
+    "CartPole-v1",
+    "MountainCar-v0",
+    "MountainCarContinuous-v0",
+    "LunarLander-v3",
+    "FrozenLake-v1",
+]
+
+
+def _write(records, path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(records, indent=2, allow_nan=False) + "\n")
+    temporary.replace(path)
+
+
+def _csv(records, path):
+    rows = []
+    for record in records:
+        row = dict(record.get("config", {}))
+        row.update(
+            {
+                key: value
+                for key, value in record.items()
+                if key not in ("config", "checkpoints", "metadata")
+            }
+        )
+        rows.append(row)
+    if rows:
+        fields = list(dict.fromkeys(key for row in rows for key in row))
+        with path.open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, fields)
+            writer.writeheader()
+            writer.writerows(rows)
+
+
+def measure_throughput(env_id, backend, device, num_envs, steps, repeat, compile_env=False):
+    torch.set_num_threads(1)
+    setup_start = time.perf_counter()
+    env = make_backend(env_id, backend, num_envs, device, compile_env)
+    try:
+        env.reset(repeat + 1)
+        continuous = isinstance(env.action_space, gym.spaces.Box)
+        action = torch.zeros(
+            (num_envs, *env.action_space.shape),
+            device=env.device,
+            dtype=torch.float32 if continuous else torch.long,
+        )
+        setup_seconds = time.perf_counter() - setup_start
+        warmup_start = time.perf_counter()
+        for _ in range(10):
+            env.step(action)
+        synchronize(device)
+        warmup_seconds = time.perf_counter() - warmup_start
+        env.reset(repeat + 1)
+        synchronize(device)
+        start = time.perf_counter()
+        for _ in range(steps):
+            env.step(action)
+        synchronize(device)
+        elapsed = time.perf_counter() - start
+        return {
+            "env_id": env_id,
+            "backend": backend,
+            "device": device,
+            "compile_env": compile_env,
+            "num_envs": num_envs,
+            "vector_steps": steps,
+            "repeat": repeat,
+            "seconds": elapsed,
+            "steps_per_second": steps * num_envs / elapsed,
+            "setup_seconds": setup_seconds,
+            "warmup_seconds": warmup_seconds,
+            "physics_equivalent": "LunarLander" not in env_id,
+            "metadata": {
+                "platform": platform.platform(),
+                "torch": torch.__version__,
+                "gymnasium": gym.__version__,
+                "num_threads": torch.get_num_threads(),
+            },
+        }
+    finally:
+        env.close()
+
+
+def _compatible(algorithm, env_id):
+    continuous = "Continuous" in env_id
+    return (
+        algorithm == "ppo"
+        or (algorithm == "dqn" and not continuous)
+        or (algorithm in ("sac", "td3") and continuous)
+    )
+
+
+def _common(parser):
+    parser.add_argument("--env-ids", nargs="+", default=ENVIRONMENTS)
+    parser.add_argument(
+        "--backends",
+        nargs="+",
+        default=["gymnasium-sync", "gymtosha"],
+        choices=["gymtosha", "gymnasium-sync", "gymnasium-async"],
+    )
+    parser.add_argument("--device", default="cpu", choices=["cpu", "cuda", "mps"])
+    parser.add_argument("--compile", action="store_true", dest="compile_env")
+    parser.add_argument("--output", type=Path, default=Path("outputs/benchmark"))
+    parser.add_argument("--append", action="store_true")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    training = commands.add_parser("train")
+    _common(training)
+    training.add_argument(
+        "--algorithms",
+        nargs="+",
+        default=["ppo", "dqn", "sac", "td3"],
+        choices=["ppo", "dqn", "sac", "td3"],
+    )
+    defaults = asdict(TrainConfig())
+    for name in (
+        "num_envs",
+        "total_timesteps",
+        "rollout_steps",
+        "update_epochs",
+        "num_minibatches",
+        "batch_size",
+        "buffer_size",
+        "learning_starts",
+        "train_every",
+        "gradient_steps",
+        "log_every",
+        "num_threads",
+    ):
+        training.add_argument("--" + name.replace("_", "-"), type=int, default=defaults[name])
+    training.add_argument("--learning-rate", type=float, default=None)
+    training.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3])
+    throughput = commands.add_parser("throughput")
+    _common(throughput)
+    throughput.add_argument("--batch-sizes", nargs="+", type=int, default=[1, 64, 1024])
+    throughput.add_argument("--steps", type=int, default=200)
+    throughput.add_argument("--repeats", type=int, default=3)
+    plots = commands.add_parser("plot")
+    plots.add_argument("--inputs", type=Path, nargs="+", required=True)
+    plots.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args(argv)
+    if args.command == "plot":
+        for name, plotter in [("training", plot_training), ("throughput", plot_throughput)]:
+            records = []
+            for folder in args.inputs:
+                path = folder / f"{name}.json"
+                if path.exists():
+                    records.extend(json.loads(path.read_text()))
+            _write(records, args.output / f"{name}.json")
+            _csv(records, args.output / f"{name}.csv")
+            plotter(records, args.output)
+        return
+    name = "training" if args.command == "train" else "throughput"
+    path = args.output / f"{name}.json"
+    records = json.loads(path.read_text()) if args.append and path.exists() else []
+    if args.command == "train":
+        for env_id in args.env_ids:
+            for algorithm in args.algorithms:
+                if not _compatible(algorithm, env_id):
+                    continue
+                for seed in args.seeds:
+                    for backend in args.backends:
+                        fields = {key: getattr(args, key) for key in defaults if hasattr(args, key)}
+                        fields.update(
+                            env_id=env_id,
+                            algorithm=algorithm,
+                            backend=backend,
+                            seed=seed,
+                            compile_env=args.compile_env and backend == "gymtosha",
+                        )
+                        result = train(TrainConfig(**fields))
+                        records.append(result)
+                        _write(records, path)
+                        print(
+                            f"{env_id} {algorithm} {backend} {args.device} seed={seed} "
+                            f"{result['steps_per_second']:.0f} transitions/s",
+                            flush=True,
+                        )
+        _csv(records, args.output / "training.csv")
+        plot_training(records, args.output)
+    else:
+        if args.steps < 1 or args.repeats < 1:
+            parser.error("steps and repeats must be positive")
+        for env_id in args.env_ids:
+            for count in args.batch_sizes:
+                for repeat in range(args.repeats):
+                    for backend in args.backends:
+                        result = measure_throughput(
+                            env_id,
+                            backend,
+                            args.device,
+                            count,
+                            args.steps,
+                            repeat,
+                            args.compile_env and backend == "gymtosha",
+                        )
+                        records.append(result)
+                        _write(records, path)
+                        print(
+                            f"{env_id} n={count} {backend} {args.device} "
+                            f"{result['steps_per_second']:.0f} transitions/s",
+                            flush=True,
+                        )
+        _csv(records, args.output / "throughput.csv")
+        plot_throughput(records, args.output)
+
+
+if __name__ == "__main__":
+    main()

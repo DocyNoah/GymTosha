@@ -75,3 +75,9 @@ def test_validation_and_registry():
         env.step(torch.zeros(3, dtype=torch.long))
     with pytest.raises(TypeError):
         env.step(torch.zeros(2))
+
+
+def test_continuous_float64_action_preserves_observation_dtype():
+    env = gymtosha.make("MountainCarContinuous-v0", num_envs=2)
+    observation, reward, _, _, _ = env.step(torch.zeros(2, 1, dtype=torch.float64))
+    assert observation.dtype == reward.dtype == torch.float32

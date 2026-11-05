@@ -1,0 +1,309 @@
+"""Matched CleanRL-derived learning loops for speed and return comparisons."""
+
+from __future__ import annotations
+
+import math
+import platform
+import time
+from dataclasses import asdict, dataclass
+
+import gymnasium as gym
+import torch
+from torch import nn
+
+from gymtosha.benchmarks.adapters import encode, make_backend, synchronize
+from gymtosha.benchmarks.algorithms import (
+    ActorCritic,
+    OffPolicyLearner,
+    ReplayBuffer,
+    generalized_advantage,
+)
+
+
+@dataclass
+class TrainConfig:
+    env_id: str = "CartPole-v1"
+    algorithm: str = "ppo"
+    backend: str = "gymtosha"
+    device: str = "cpu"
+    num_envs: int = 64
+    total_timesteps: int = 65536
+    seed: int = 1
+    compile_env: bool = False
+    num_threads: int = 1
+    learning_rate: float | None = None
+    gamma: float = 0.99
+    rollout_steps: int = 128
+    update_epochs: int = 4
+    num_minibatches: int = 4
+    gae_lambda: float = 0.95
+    clip_coef: float = 0.2
+    entropy_coef: float = 0.01
+    value_coef: float = 0.5
+    max_grad_norm: float = 0.5
+    buffer_size: int = 100000
+    batch_size: int = 256
+    learning_starts: int = 1024
+    train_every: int = 256
+    gradient_steps: int = 1
+    log_every: int = 4096
+
+    def validate(self):
+        if self.algorithm not in ("ppo", "dqn", "sac", "td3"):
+            raise ValueError(f"unknown algorithm {self.algorithm!r}")
+        positive = (
+            "num_envs",
+            "total_timesteps",
+            "num_threads",
+            "rollout_steps",
+            "update_epochs",
+            "num_minibatches",
+            "buffer_size",
+            "batch_size",
+            "train_every",
+            "gradient_steps",
+            "log_every",
+        )
+        if any(getattr(self, key) < 1 for key in positive):
+            raise ValueError("counts and frequencies must be positive")
+        if self.total_timesteps % self.num_envs:
+            raise ValueError("total_timesteps must be divisible by num_envs")
+        if self.algorithm == "ppo":
+            rollout_size = self.num_envs * self.rollout_steps
+            if self.total_timesteps % rollout_size or rollout_size % self.num_minibatches:
+                raise ValueError("PPO budget and minibatches must divide whole rollouts")
+            if rollout_size // self.num_minibatches < 2:
+                raise ValueError("PPO minibatches require at least two samples")
+        elif self.buffer_size < self.num_envs or self.train_every % self.num_envs:
+            raise ValueError("replay must fit num_envs and train_every must divide vector steps")
+        if self.algorithm != "ppo" and not 0 <= self.learning_starts < self.total_timesteps:
+            raise ValueError("learning_starts must be inside the training budget")
+
+
+class Recorder:
+    def __init__(self, device):
+        self.stats = torch.zeros(3, device=device)
+        self.checkpoints = []
+        self.start = time.perf_counter()
+        self.device = device
+
+    def add(self, transition):
+        done = transition.done.float()
+        self.stats += torch.stack(
+            (
+                (transition.episode_returns * done).sum(),
+                (transition.episode_lengths * done).sum(),
+                done.sum(),
+            )
+        )
+
+    def record(self, timesteps, loss):
+        synchronize(self.device)
+        sums = self.stats.cpu().tolist()
+        self.checkpoints.append(
+            {
+                "timesteps": timesteps,
+                "seconds": time.perf_counter() - self.start,
+                "mean_return": sums[0] / sums[2] if sums[2] else None,
+                "mean_episode_length": sums[1] / sums[2] if sums[2] else None,
+                "episodes": int(sums[2]),
+                "loss": float(loss.detach().cpu()),
+            }
+        )
+        self.stats.zero_()
+
+
+def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate):
+    device = env.device
+    agent = ActorCritic(obs_dim, action_dim, continuous).to(device)
+    optimizer = torch.optim.Adam(agent.parameters(), lr=rate, eps=1e-5)
+    initial = nn.utils.parameters_to_vector(agent.parameters()).detach().clone()
+    size = config.num_envs * config.rollout_steps
+    shape = (config.rollout_steps, config.num_envs)
+    observations = torch.empty((*shape, obs_dim), device=device)
+    action_shape = (*shape, action_dim) if continuous else shape
+    actions = torch.empty(
+        action_shape, dtype=torch.float32 if continuous else torch.long, device=device
+    )
+    log_probs, values, rewards, next_values = [torch.empty(shape, device=device) for _ in range(4)]
+    terminated, dones = [torch.empty(shape, dtype=torch.bool, device=device) for _ in range(2)]
+    with torch.no_grad():
+        agent.evaluate(obs)
+    synchronize(device)
+    recorder = Recorder(device)
+    updates = 0
+    iterations = config.total_timesteps // size
+    for iteration in range(iterations):
+        optimizer.param_groups[0]["lr"] = rate * (1 - iteration / iterations)
+        for step in range(config.rollout_steps):
+            observations[step] = obs
+            with torch.no_grad():
+                action, log_prob, _, value = agent.evaluate(obs)
+                # CleanRL's continuous PPO uses ClipAction at the environment
+                # boundary, while the likelihood uses the original sample.
+                env_action = action.clamp(-1, 1) if continuous else action
+                transition = env.step(env_action)
+                next_value = agent.critic(
+                    encode(transition.final_observation, env.observation_space)
+                )
+            actions[step], log_probs[step], values[step] = action, log_prob, value
+            rewards[step], next_values[step] = transition.reward, next_value.squeeze(-1)
+            terminated[step], dones[step] = transition.terminated, transition.done
+            obs = encode(transition.observation, env.observation_space)
+            recorder.add(transition)
+        advantages = generalized_advantage(
+            rewards, values, next_values, terminated, dones, config.gamma, config.gae_lambda
+        )
+        returns = advantages + values
+        flat_obs = observations.reshape(size, obs_dim)
+        flat_actions = actions.reshape(size, action_dim) if continuous else actions.reshape(size)
+        flat_log_probs, flat_values = log_probs.reshape(size), values.reshape(size)
+        flat_advantages, flat_returns = advantages.reshape(size), returns.reshape(size)
+        for _ in range(config.update_epochs):
+            indices = torch.randperm(size, device=device)
+            for index in indices.split(size // config.num_minibatches):
+                _, new_log_prob, entropy, new_value = agent.evaluate(
+                    flat_obs[index], flat_actions[index]
+                )
+                ratio = (new_log_prob - flat_log_probs[index]).exp()
+                advantage = flat_advantages[index]
+                advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
+                raw_policy_loss = -advantage * ratio
+                clipped_policy_loss = -advantage * ratio.clamp(
+                    1 - config.clip_coef, 1 + config.clip_coef
+                )
+                policy_loss = torch.maximum(raw_policy_loss, clipped_policy_loss).mean()
+                clipped_value = flat_values[index] + (new_value - flat_values[index]).clamp(
+                    -config.clip_coef, config.clip_coef
+                )
+                value_loss = (
+                    0.5
+                    * torch.maximum(
+                        (new_value - flat_returns[index]).square(),
+                        (clipped_value - flat_returns[index]).square(),
+                    ).mean()
+                )
+                loss = (
+                    policy_loss
+                    + config.value_coef * value_loss
+                    - config.entropy_coef * entropy.mean()
+                )
+                optimizer.zero_grad(set_to_none=True)
+                loss.backward()
+                nn.utils.clip_grad_norm_(agent.parameters(), config.max_grad_norm)
+                optimizer.step()
+                updates += 1
+        recorder.record((iteration + 1) * size, loss)
+    synchronize(device)
+    elapsed = time.perf_counter() - recorder.start
+    delta = float(
+        (nn.utils.parameters_to_vector(agent.parameters()).detach() - initial).norm().cpu()
+    )
+    return elapsed, recorder.checkpoints, updates, delta
+
+
+def _off_policy(config, env, obs, obs_dim, action_dim, continuous, rate):
+    device = env.device
+    learner = OffPolicyLearner(config.algorithm, obs_dim, action_dim, device, rate, config.gamma)
+    initial = nn.utils.parameters_to_vector(learner.actor.parameters()).detach().clone()
+    buffer = ReplayBuffer(
+        config.buffer_size,
+        obs_dim,
+        (action_dim,) if continuous else (),
+        torch.float32 if continuous else torch.long,
+        device,
+    )
+    with torch.no_grad():
+        learner.act(obs)
+    synchronize(device)
+    recorder = Recorder(device)
+    loss = torch.zeros((), device=device)
+    for timesteps in range(config.num_envs, config.total_timesteps + 1, config.num_envs):
+        before_step = timesteps - config.num_envs
+        if continuous and before_step < config.learning_starts:
+            action = torch.rand(config.num_envs, action_dim, device=device) * 2 - 1
+        else:
+            epsilon = max(0.05, 1 - 0.95 * before_step / (0.5 * config.total_timesteps))
+            action = learner.act(obs, epsilon)
+        transition = env.step(action)
+        buffer.add(
+            obs,
+            action,
+            encode(transition.final_observation, env.observation_space),
+            transition.reward,
+            transition.terminated,
+        )
+        obs = encode(transition.observation, env.observation_space)
+        recorder.add(transition)
+        if timesteps >= config.learning_starts and timesteps % config.train_every == 0:
+            for _ in range(config.gradient_steps):
+                loss = learner.update(buffer.sample(config.batch_size))
+        if timesteps % config.log_every == 0 or timesteps == config.total_timesteps:
+            recorder.record(timesteps, loss)
+    synchronize(device)
+    elapsed = time.perf_counter() - recorder.start
+    delta = float(
+        (nn.utils.parameters_to_vector(learner.actor.parameters()).detach() - initial).norm().cpu()
+    )
+    return elapsed, recorder.checkpoints, learner.updates, delta
+
+
+def train(config: TrainConfig) -> dict:
+    config.validate()
+    torch.set_num_threads(config.num_threads)
+    torch.manual_seed(config.seed)
+    torch.backends.cudnn.deterministic = True
+    setup_start = time.perf_counter()
+    env = make_backend(
+        config.env_id, config.backend, config.num_envs, config.device, config.compile_env
+    )
+    try:
+        continuous = isinstance(env.action_space, gym.spaces.Box)
+        if config.algorithm == "dqn" and continuous:
+            raise ValueError("DQN requires a discrete action space")
+        if config.algorithm in ("sac", "td3") and not continuous:
+            raise ValueError("SAC and TD3 require a continuous action space")
+        obs = encode(env.reset(config.seed), env.observation_space)
+        action_dim = math.prod(env.action_space.shape) if continuous else env.action_space.n
+        setup_seconds = time.perf_counter() - setup_start
+        warmup_start = time.perf_counter()
+        zeros = torch.zeros(
+            (config.num_envs, *env.action_space.shape),
+            device=env.device,
+            dtype=torch.float32 if continuous else torch.long,
+        )
+        for _ in range(3):
+            env.step(zeros)
+        synchronize(env.device)
+        warmup_seconds = time.perf_counter() - warmup_start
+        obs = encode(env.reset(config.seed), env.observation_space)
+        rate = config.learning_rate or (2.5e-4 if config.algorithm in ("ppo", "dqn") else 3e-4)
+        loop = _ppo if config.algorithm == "ppo" else _off_policy
+        elapsed, checkpoints, updates, delta = loop(
+            config, env, obs, obs.shape[-1], action_dim, continuous, rate
+        )
+        return {
+            "config": asdict(config),
+            "timesteps": config.total_timesteps,
+            "seconds": elapsed,
+            "steps_per_second": config.total_timesteps / elapsed,
+            "setup_seconds": setup_seconds,
+            "warmup_seconds": warmup_seconds,
+            "gradient_updates": updates,
+            "parameter_delta": delta,
+            "checkpoints": checkpoints,
+            "physics_equivalent": "LunarLander" not in config.env_id,
+            "metadata": {
+                "platform": platform.platform(),
+                "machine": platform.machine(),
+                "torch": torch.__version__,
+                "gymnasium": gym.__version__,
+                "device": str(env.device),
+                "num_threads": torch.get_num_threads(),
+                "cuda_device": torch.cuda.get_device_name(env.device)
+                if env.device.type == "cuda"
+                else None,
+            },
+        }
+    finally:
+        env.close()

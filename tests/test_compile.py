@@ -47,3 +47,43 @@ def test_accelerator(device, env_id):
         obs, reward, _, _, _ = env.step(torch.zeros(64, device=device, dtype=torch.long))
         assert obs.device.type == device and reward.device.type == device
         assert torch.isfinite(obs).all()
+
+
+@pytest.mark.accelerator
+@pytest.mark.compile
+@pytest.mark.parametrize(
+    "env_id",
+    [
+        "CartPole-v1",
+        "MountainCar-v0",
+        "MountainCarContinuous-v0",
+        "FrozenLake-v1",
+        "LunarLander-v3",
+        "LunarLanderContinuous-v3",
+    ],
+)
+def test_mps_inductor_including_autoreset(env_id):
+    if not torch.backends.mps.is_available():
+        pytest.skip("MPS unavailable")
+    eager = gymtosha.make(env_id, num_envs=8, device="mps", max_episode_steps=3)
+    compiled = gymtosha.make(env_id, num_envs=8, device="mps", max_episode_steps=3).compile()
+    eager.reset(seed=14)
+    compiled.reset(seed=14)
+    for _ in range(5):
+        actions = torch.zeros(
+            (8, *eager.single_action_space.shape),
+            device="mps",
+            dtype=torch.float32 if eager.continuous else torch.long,
+        )
+        expected, actual = eager.step(actions), compiled.step(actions)
+        for left, right in zip(expected[:4], actual[:4], strict=True):
+            torch.testing.assert_close(left, right, rtol=1e-4, atol=2e-5)
+
+
+@pytest.mark.accelerator
+@pytest.mark.compile
+def test_mps_compile_mode():
+    if not torch.backends.mps.is_available():
+        pytest.skip("MPS unavailable")
+    env = gymtosha.make("CartPole-v1", num_envs=4, device="mps").compile(mode="default")
+    env.step(torch.zeros(4, dtype=torch.long, device="mps"))
