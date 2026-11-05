@@ -128,9 +128,14 @@ CleanRL에서 이식한 DQN·PPO·SAC·TD3를 GymTosha와 Gymnasium에 동일하
 # 저장소 개발 환경과 벤치마크 의존성
 uv sync --frozen --extra benchmark
 
-# 목표 성능 도달 시간, RTX GPU, 세 시드
+# 대표 알고리즘의 하이퍼파라미터 탐색
+TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark python benchmarks/tune_targets.py \
+  --device cuda --output outputs/tuning
+
+# 선택한 설정으로 목표 도달 시간 비교
 TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark gymtosha-benchmark time-to-target \
-  --device cuda --seeds 11 22 33 --output outputs/time-to-target
+  --device cuda --presets outputs/tuning/selected.json \
+  --seeds 11 22 33 --output outputs/time-to-target
 
 # 기존 처리량 비교
 uv run --extra benchmark gymtosha-benchmark train --device cuda --compile --output outputs/cuda

@@ -152,3 +152,45 @@ def test_new_seed_resume_validates_protocol_before_writing(tmp_path):
     with pytest.raises(ValueError, match="incompatible"):
         main([*changed, "--resume"])
     assert json.loads((tmp_path / "time_to_target.json").read_text()) == before
+
+
+def test_target_cli_uses_selected_hyperparameters(tmp_path):
+    import json
+    from dataclasses import asdict, replace
+
+    from gymtosha.benchmarks.target import target_preset
+
+    config = replace(
+        target_preset("CartPole-v1"),
+        num_envs=4,
+        total_timesteps=128,
+        rollout_steps=16,
+        update_epochs=1,
+        learning_rate=0.0007,
+    )
+    presets = tmp_path / "selected.json"
+    presets.write_text(json.dumps({"CartPole-v1": {"config": asdict(config)}}))
+    main(
+        [
+            "time-to-target",
+            "--env-ids",
+            "CartPole-v1",
+            "--device",
+            "cpu",
+            "--seeds",
+            "11",
+            "--presets",
+            str(presets),
+            "--target",
+            "-1",
+            "--eval-interval",
+            "64",
+            "--eval-episodes",
+            "4",
+            "--output",
+            str(tmp_path / "run"),
+        ]
+    )
+    records = json.loads((tmp_path / "run/time_to_target.json").read_text())
+    assert all(r["config"]["learning_rate"] == 0.0007 for r in records)
+    assert all(r["config"]["seed"] == 11 for r in records)

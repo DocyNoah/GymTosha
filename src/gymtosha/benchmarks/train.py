@@ -49,8 +49,12 @@ class TrainConfig:
     log_every: int = 4096
     exploration_fraction: float = 0.5
     exploration_hold_steps: int = 1
+    normalize_observations: bool = False
+    normalize_rewards: bool = False
 
     def validate(self):
+        if self.algorithm != "ppo" and (self.normalize_observations or self.normalize_rewards):
+            raise ValueError("running normalization is supported for PPO")
         if not 0 < self.exploration_fraction <= 1:
             raise ValueError("exploration_fraction must be in (0, 1]")
         if self.algorithm not in ("ppo", "dqn", "sac", "td3"):
@@ -121,6 +125,20 @@ class Recorder:
 def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None):
     device = env.device
     agent = ActorCritic(obs_dim, action_dim, continuous).to(device)
+    from gymtosha.benchmarks.normalization import RewardNormalizer, RunningMoments
+
+    observation_normalizer = (
+        RunningMoments(obs_dim, device) if config.normalize_observations else None
+    )
+    reward_normalizer = (
+        RewardNormalizer(config.num_envs, device, config.gamma)
+        if config.normalize_rewards
+        else None
+    )
+    agent.observation_normalizer = observation_normalizer
+    if observation_normalizer is not None:
+        observation_normalizer.update(obs)
+        obs = observation_normalizer.normalize(obs)
     optimizer = torch.optim.Adam(agent.parameters(), lr=rate, eps=1e-5)
     initial = nn.utils.parameters_to_vector(agent.parameters()).detach().clone()
     size = config.num_envs * config.rollout_steps
@@ -152,13 +170,25 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
                 # boundary, while the likelihood uses the original sample.
                 env_action = action.clamp(-1, 1) if continuous else action
                 transition = env.step(env_action)
-                next_value = agent.critic(
-                    encode(transition.final_observation, env.observation_space)
-                )
+                raw_next_obs = encode(transition.observation, env.observation_space)
+                final_obs = encode(transition.final_observation, env.observation_space)
+                if observation_normalizer is not None:
+                    observation_normalizer.update(raw_next_obs)
+                    final_obs = observation_normalizer.normalize(final_obs)
+                next_value = agent.critic(final_obs)
             actions[step], log_probs[step], values[step] = action, log_prob, value
-            rewards[step], next_values[step] = transition.reward, next_value.squeeze(-1)
+            rewards[step] = (
+                reward_normalizer.normalize(transition.reward, transition.done)
+                if reward_normalizer is not None
+                else transition.reward
+            )
+            next_values[step] = next_value.squeeze(-1)
             terminated[step], dones[step] = transition.terminated, transition.done
-            obs = encode(transition.observation, env.observation_space)
+            obs = (
+                observation_normalizer.normalize(raw_next_obs)
+                if observation_normalizer is not None
+                else raw_next_obs
+            )
             recorder.add(transition)
         advantages = generalized_advantage(
             rewards, values, next_values, terminated, dones, config.gamma, config.gae_lambda

@@ -42,7 +42,12 @@ def target_preset(env_id, *, backend="gymtosha", device="cuda", seed=1, algorith
     if env_id == "MountainCar-v0":
         config = replace(config, exploration_hold_steps=16, exploration_fraction=0.5)
     if env_id == "MountainCarContinuous-v0":
-        config = replace(config, entropy_coef=0.0)
+        config = replace(
+            config,
+            entropy_coef=0.0,
+            normalize_observations=config.algorithm == "ppo",
+            normalize_rewards=config.algorithm == "ppo",
+        )
     if env_id == "LunarLander-v3":
         config = replace(config, rollout_steps=128)
     if env_id == "FrozenLake-v1":

@@ -111,6 +111,9 @@ class TargetEvaluator:
         policy = copy.deepcopy(model).cpu().eval()
 
         def action(observation):
+            normalizer = getattr(policy, "observation_normalizer", None)
+            if normalizer is not None:
+                observation = normalizer.normalize(observation)
             if isinstance(policy, ActorCritic):
                 output = policy.actor(observation)
                 return output if policy.continuous else output.argmax(-1)

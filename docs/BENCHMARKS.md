@@ -71,3 +71,31 @@ TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark gymtosha-benchmark time-to-t
 
 단위 테스트는 타임아웃 부트스트랩, replay 최종 관측, 평가 RNG 보존, 연속 확인,
 목표 미달성 처리, 서로 다른 설정의 집계 거부와 실제 CLI 출력을 검사합니다.
+
+## 하이퍼파라미터 선택
+
+각 환경은 위 표의 대표 알고리즘 하나로 검증합니다. `benchmarks/tune_targets.py`에는
+환경별 후보 4개가 고정되어 있습니다. 학습률, 병렬 환경 수, rollout 길이, epoch 수,
+탐험 행동 유지 길이와 할인율을 비교합니다.
+
+1. Gymnasium 백엔드, 학습 seed 101, 평가 seed 900000에서 네 후보를 실행합니다.
+2. 목표 달성 여부와 도달 시간을 우선하여 상위 두 후보를 선택합니다.
+3. 학습 seed 202에서 두 후보를 재검증합니다.
+4. 두 시드에서의 달성률을 먼저 비교하고, 모두 달성했다면 도달 시간 중앙값이 가장 짧은 후보를 선택합니다.
+5. 선택한 설정을 고정하고 학습 seed 11·22·33, 평가 seed 100000으로 양쪽 백엔드를 비교합니다.
+
+탐색 기록에는 실패한 후보도 포함됩니다. 어떤 후보도 목표를 확인하지 못했다면
+가장 높은 최종 점수의 설정으로 본 실험을 진행하되, 효율적인 목표 도달 설정을 찾았다고
+판정하지 않습니다. 이는 명시한 후보 집합 안의 탐색이며 전역 최적성을 주장하지 않습니다.
+
+```bash
+TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark python benchmarks/tune_targets.py \
+  --device cuda --output outputs/tuning
+TRITON_DEFAULT_FP_FUSION=1 uv run --extra benchmark gymtosha-benchmark time-to-target \
+  --device cuda --presets outputs/tuning/selected.json --seeds 11 22 33 \
+  --output outputs/time-to-target
+```
+
+연속 PPO의 선택 후보는 CleanRL 원본과 같이 관측의 running mean/variance 및 discounted-return
+기반 보상 정규화, ±10 clipping을 적용합니다. 학습 중 관측 통계를 동결해 평가 정책에 복사하며,
+평가 점수는 정규화 이전의 실제 환경 리턴입니다. 이전 처리량 모드는 정규화를 기본으로 켜지 않습니다.

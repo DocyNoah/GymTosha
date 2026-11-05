@@ -133,6 +133,7 @@ def _time_to_target(args):
 
     path = args.output / "time_to_target.json"
     records = json.loads(path.read_text()) if args.resume and path.exists() else []
+    selected = json.loads(args.presets.read_text()) if args.presets else {}
     evaluation = EvaluationConfig(
         target=args.target,
         interval=args.eval_interval,
@@ -141,14 +142,29 @@ def _time_to_target(args):
         seed=args.eval_seed,
     )
     for env_id in args.env_ids:
-        algorithms = args.algorithms or [target_preset(env_id).algorithm]
+        if args.presets and env_id not in selected:
+            raise ValueError(f"no selected hyperparameters for {env_id}")
+        preset = (
+            TrainConfig(**selected[env_id]["config"]) if args.presets else target_preset(env_id)
+        )
+        algorithms = args.algorithms or [preset.algorithm]
         for algorithm in algorithms:
             if not _compatible(algorithm, env_id):
                 continue
             for seed in args.seeds:
                 for backend in args.backends:
-                    config = target_preset(
-                        env_id, backend=backend, device=args.device, seed=seed, algorithm=algorithm
+                    if args.presets and algorithm != preset.algorithm:
+                        raise ValueError(
+                            "selected preset uses a different representative algorithm"
+                        )
+                    config = replace(
+                        preset,
+                        env_id=env_id,
+                        backend=backend,
+                        device=args.device,
+                        seed=seed,
+                        algorithm=algorithm,
+                        compile_env=backend == "gymtosha",
                     )
                     overrides = {
                         name: getattr(args, name)
@@ -269,6 +285,7 @@ def main(argv=None):
     target.add_argument("--confirmations", type=int, default=2)
     target.add_argument("--target", type=float)
     target.add_argument("--resume", action="store_true")
+    target.add_argument("--presets", type=Path)
     plots = commands.add_parser("plot")
     plots.add_argument("--inputs", type=Path, nargs="+", required=True)
     plots.add_argument("--output", type=Path, required=True)

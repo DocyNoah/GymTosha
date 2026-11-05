@@ -27,9 +27,9 @@ training and evaluation. Also retain training-only timing for diagnosis.
 
 The targets follow Gymnasium's published registry thresholds, including
 FrozenLake 0.70 for the slippery 4x4 map. Three training seeds per backend are used in the final suite.
-Both backends use identical presets per environment. The original eleven
-algorithm/task throughput comparisons remain available. The target runner also
-accepts all supported DQN/PPO/SAC/TD3 task combinations.
+Both backends use identical presets per environment. The original eleven algorithm/task throughput comparisons remain available.
+The user clarified that the new target study must use one representative learner
+per environment, with hyperparameters selected by actual validation runs.
 
 Never infer a speedup when one backend misses the target. Record such trials as
 right-censored at the measured budget. LunarLander transfer failure is a valid
