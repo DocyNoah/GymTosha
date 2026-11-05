@@ -63,7 +63,7 @@ PPO의 수집 버퍼 크기는 환경 수와 rollout 길이의 곱으로 정합�
 
 ## 시각화
 
-- 한 파라미터 탐색마다 후보별 성공률, 시간 평균·표준편차, 학습 에피소드 보상 평균·표준편차를 표시합니다.
+- 한 파라미터 탐색마다 후보별 안정적 도달 수와 학습 에피소드 보상 평균·표준편차를 표시합니다.
 - 환경 수와 파라미터 값에 따른 결과는 히트맵으로 표시합니다.
 - 환경 수별 선택값 변화와 백엔드별 학습 곡선을 표시합니다.
 - 백엔드별 최적 환경 수 비교에는 원시 20개 시드와 평균·표준편차를 함께 표시합니다.
@@ -84,7 +84,7 @@ rollout 길이, epoch와 미니배치 크기를 직접 탐색하면 이에 따�
 
 하이퍼파라미터 선택 통계는 고정 학습 구간 전체에서 완료된 에피소드 보상의 평균입니다.
 각 시드의 에피소드 보상 평균을 먼저 계산하고, 20개 시드의 평균과 표본 표준편차를 보고합니다.
-가장 높은 평균 보상을 선택하며 동률이면 표준편차, 학습 시간을 차례로 비교합니다.
+가장 높은 평균 보상을 선택하며 동률이면 표준편차를 비교합니다.
 목표 달성률과 최초 도달 시간은 별도 참고 지표로 보존합니다.
 
 ## 안정적 도달 판정
@@ -119,7 +119,8 @@ Gymnasium NEXT_STEP 초기화 slot은 손실에서 제외하고 유효 transitio
 
 ```bash
 uv run --extra benchmark python -m gymtosha.benchmarks.study tune \
-  --device cuda --min-envs 32 --max-envs 65536 --output outputs/cartpole-study-full
+  --device cuda --min-envs 32 --max-envs 65536 --parallel-trials 16 \
+  --output outputs/cartpole-study-full
 uv run --extra benchmark python -m gymtosha.benchmarks.study compare \
   --presets outputs/cartpole-study-full/selected.json \
   --capacity benchmarks/results/cartpole-study/capacity/summary.json \
@@ -141,3 +142,15 @@ uv run --extra benchmark python -m gymtosha.benchmarks.study compare \
 탐색 학습에도 초기화와 각 rollout 수집에 60초 제한을 적용합니다. 제한 초과는 해당
 후보의 실패로 보존합니다. 고정 길이 학습 전체의 경과 시간은 60초로 자르지 않습니다.
 수집 시간, 업데이트 시간과 학습기 초기화 시간은 `phase_seconds`에 별도로 기록합니다.
+
+## 탐색 병렬 실행
+
+하이퍼파라미터 탐색은 기본 최대 16개 실험을 동시에 실행합니다. `--parallel-trials`로
+1–32개를 지정할 수 있습니다. 각 실험은 독립된 프로세스와 시드를 사용합니다.
+가용 장치 메모리와 rollout·미니배치 크기의 예상 사용량에 따라 동시 실행 수를 줄입니다.
+예상치보다 큰 단일 실험은 단독 실행으로 실제 성공 여부를 확인합니다.
+
+GPU 공유 중인 탐색 결과는 보상 통계와 안정적 도달 수에 사용합니다. 경과 시간은 원시
+기록에 남기되 시간 평균·표준편차와 후보 순위에서는 제외합니다. 이전 단독 탐색의 완료된
+시드는 같은 설정·학습 코드·런타임이면 재사용합니다. 최종 백엔드 속도 비교는 별도 시드로
+한 번에 한 실험씩 실행합니다.

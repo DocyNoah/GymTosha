@@ -13,13 +13,12 @@ def plot_parameter(phase, path):
     plt = _pyplot()
     candidates = phase["candidates"]
     positions = np.arange(len(candidates))
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.2))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2))
     for index, candidate in enumerate(candidates):
         values = [value for value in candidate.get("seed_rewards", []) if value is not None]
         axes[0].scatter(np.full(len(values), index), values, s=13, alpha=0.35, color="#327d63")
     for axis, metric, deviation, title in (
         (axes[0], "mean_training_return", "std_training_return", "Mean training episode return"),
-        (axes[1], "mean_wall_seconds", "std_wall_seconds", "Full training wall time (s)"),
     ):
         values = [candidate["summary"][metric] for candidate in candidates]
         errors = [candidate["summary"][deviation] for candidate in candidates]
@@ -31,13 +30,13 @@ def plot_parameter(phase, path):
             capsize=4,
         )
         axis.set_title(title)
-    axes[2].bar(
+    axes[1].bar(
         positions,
         [candidate["summary"]["target_reached"] for candidate in candidates],
         color="#327d63",
     )
-    axes[2].set_ylim(0, 20)
-    axes[2].set_title("Stable target reached / 20 seeds")
+    axes[1].set_ylim(0, 20)
+    axes[1].set_title("Stable target reached / 20 seeds")
     for axis in axes:
         axis.set_xticks(
             positions, [str(candidate["value"]) for candidate in candidates], rotation=30

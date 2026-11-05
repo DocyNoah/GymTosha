@@ -25,12 +25,13 @@
 <body>
   <h1>CartPole PPO · 20개 시드</h1>
   <p>평균 학습 에피소드 보상으로 후보를 선택합니다. 오차 막대는 시드 간 표본 표준편차입니다.</p>
+  <p>탐색은 여러 실험이 GPU를 공유합니다. 탐색 시간은 비교 통계에서 제외하고, 최종 속도 비교는 단독 실행으로 측정합니다.</p>
   <p id="progress" aria-live="polite"></p>
   <label>환경 수 <select id="count"></select></label>
   <label>파라미터 <select id="parameter"></select></label>
   <div id="status" aria-live="polite"></div>
   <div id="table" class="table-container"></div>
-  <img id="plot" alt="후보별 보상과 시간 평균 및 표준편차">
+  <img id="plot" alt="후보별 보상 평균과 표준편차 및 안정적 도달 수">
   <img id="heatmap" alt="환경 수와 파라미터 후보별 평균 학습 보상">
   <div id="comparison"></div>
   <div id="best"></div>
@@ -40,16 +41,25 @@
     if (data.progress) {
       const p = data.progress;
       document.getElementById('progress').textContent =
-        '진행 중 · 환경 ' + p.num_envs + ' · ' + (p.parameter || '비교') +
-        ' · seed ' + p.seed + (p.value === undefined ? '' : ' · 후보 ' + p.value);
+        '최근 완료 · 환경 ' + p.num_envs + ' · ' + (p.parameter || '비교') +
+        ' · seed ' + p.seed + (p.value === undefined ? '' : ' · 후보 ' + p.value) +
+        (p.total_jobs ? ' · 완료 ' + p.completed_jobs + '/' + p.total_jobs +
+          ' · 실행 중 ' + p.running_trials + '/' + p.parallelism_limit : '');
     }
     const count = document.getElementById('count');
     const parameter = document.getElementById('parameter');
-    const counts = [...new Set(data.phases.map(phase => phase.num_envs))].sort((a, b) => a - b);
+    const counts = [...new Set([
+      ...data.phases.map(phase => phase.num_envs),
+      ...(data.progress && data.progress.num_envs ? [data.progress.num_envs] : [])
+    ])].sort((a, b) => a - b);
     for (const value of counts) {
       count.add(new Option(value.toLocaleString(), value));
     }
-    for (const name of [...new Set(data.phases.map(phase => phase.parameter))]) {
+    const parameters = [...new Set([
+      ...data.phases.map(phase => phase.parameter),
+      ...(data.progress && data.progress.parameter ? [data.progress.parameter] : [])
+    ])];
+    for (const name of parameters) {
       parameter.add(new Option(name, name));
     }
     function number(value) {
@@ -60,7 +70,7 @@
         item.num_envs === Number(count.value) && item.parameter === parameter.value);
       document.getElementById('status').textContent = phase
         ? '선택값 ' + phase.selected_value
-        : '이 조합의 탐색 결과가 아직 없습니다.';
+        : '후보별 20개 시드가 완료되면 통계가 표시됩니다.';
       const image = document.getElementById('plot');
       image.hidden = !phase;
       document.getElementById('heatmap').hidden = true;
@@ -70,7 +80,7 @@
       }
       const table = document.createElement('table');
       const header = table.insertRow();
-      const titles = ['후보', '완료 시드', '학습 보상 평균 ± SD', '시간 평균 ± SD', '안정적 도달'];
+      const titles = ['후보', '완료 시드', '학습 보상 평균 ± SD', '안정적 도달'];
       for (const title of titles) {
         const cell = document.createElement('th');
         cell.textContent = title;
@@ -83,7 +93,6 @@
           String(candidate.value),
           summary.successful_trials + '/20',
           number(summary.mean_training_return) + ' ± ' + number(summary.std_training_return),
-          number(summary.mean_wall_seconds) + ' ± ' + number(summary.std_wall_seconds),
           summary.target_reached + '/20'
         ];
         for (const value of values) {

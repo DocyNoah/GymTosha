@@ -167,6 +167,7 @@ def test_failed_worker_exit_keeps_a_trial_id_for_resume(tmp_path, monkeypatch):
     from gymtosha.benchmarks.study import run_trial
 
     class ExitedWorker:
+        pid = 999999999
         returncode = 1
 
         def wait(self):
@@ -290,3 +291,54 @@ def test_controller_refuses_hot_changed_training_source(tmp_path, monkeypatch):
     config = reference_config(32)
     with pytest.raises(RuntimeError, match="restart"):
         run_trial(config, study_evaluation(config), tmp_path)
+
+
+def test_shared_search_reports_rewards_but_does_not_compare_wall_times():
+    result = summarize_trials(trials(), timing_comparable=False)
+    assert result["mean_training_return"] == 10.5
+    assert result["mean_wall_seconds"] is None
+    assert result["mean_target_seconds"] is None
+    assert not result["timing_comparable"]
+
+
+def test_parallel_search_respects_memory_budget_and_twenty_seeds(tmp_path, monkeypatch):
+    import threading
+    import time
+
+    from gymtosha.benchmarks.study import collect_candidates
+
+    state = {"active": 0, "peak": 0}
+    lock = threading.Lock()
+
+    def fake_trial(config, evaluation, output, **kwargs):
+        with lock:
+            state["active"] += 1
+            state["peak"] = max(state["peak"], state["active"])
+        time.sleep(0.01)
+        with lock:
+            state["active"] -= 1
+        return {
+            "status": "completed",
+            "seed": config.seed,
+            "trial_id": str(config.seed),
+            "result": {
+                "config": asdict(config),
+                "mean_training_episode_return": float(config.seed),
+                "wall_seconds": 1.0,
+                "evaluation": {"time_to_target_seconds": None},
+            },
+        }
+
+    monkeypatch.setattr("gymtosha.benchmarks.study.run_trial", fake_trial)
+    monkeypatch.setattr("gymtosha.benchmarks.study.estimate_trial_bytes", lambda config: 1)
+    results = collect_candidates(
+        reference_config(32),
+        "learning_rate",
+        [0.0003, 0.001],
+        tmp_path,
+        parallelism=4,
+        memory_budget=2,
+    )
+    assert state["peak"] == 2
+    assert all(row["summary"]["attempted_seeds"] == 20 for row in results)
+    assert all(row["summary"]["mean_training_return"] == 10.5 for row in results)

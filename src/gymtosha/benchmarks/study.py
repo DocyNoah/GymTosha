@@ -3,6 +3,7 @@
 from contextlib import contextmanager
 from dataclasses import asdict, replace
 from statistics import mean, stdev
+from threading import Event, Lock
 
 from gymtosha.benchmarks.evaluation import EvaluationConfig
 from gymtosha.benchmarks.train import TrainConfig
@@ -10,6 +11,9 @@ from gymtosha.benchmarks.train import TrainConfig
 SEEDS = tuple(range(1, 21))
 COMPARISON_SEEDS = tuple(range(1001, 1021))
 ROLLOUT_UPDATES = 64
+_ACTIVE_WORKERS = {}
+_WORKERS_LOCK = Lock()
+_CANCELLED = Event()
 PARAMETERS = {
     "learning_rate": [0.0001, 0.0003, 0.001, 0.003, 0.01],
     "gamma": [0.95, 0.98, 0.99, 0.995, 0.998],
@@ -98,7 +102,7 @@ def study_evaluation(config, *, comparison=False):
     )
 
 
-def summarize_trials(records, *, seeds=SEEDS):
+def summarize_trials(records, *, seeds=SEEDS, timing_comparable=True):
     actual = [record["seed"] for record in records]
     if len(set(actual)) != len(actual):
         raise ValueError("duplicate study seeds")
@@ -120,22 +124,26 @@ def summarize_trials(records, *, seeds=SEEDS):
         "successful_trials": len(good),
         "mean_training_return": mean(returns) if usable else None,
         "std_training_return": stdev(returns) if usable else None,
-        "mean_wall_seconds": mean(times) if usable else None,
-        "std_wall_seconds": stdev(times) if usable else None,
+        "timing_comparable": timing_comparable,
+        "mean_wall_seconds": mean(times) if usable and timing_comparable else None,
+        "std_wall_seconds": stdev(times) if usable and timing_comparable else None,
         "target_reached": reached,
-        "mean_target_seconds": mean(target_times) if usable and reached == len(seeds) else None,
-        "std_target_seconds": stdev(target_times) if usable and reached == len(seeds) else None,
+        "mean_target_seconds": mean(target_times)
+        if usable and timing_comparable and reached == len(seeds)
+        else None,
+        "std_target_seconds": stdev(target_times)
+        if usable and timing_comparable and reached == len(seeds)
+        else None,
     }
 
 
 def selection_key(summary):
     if summary["mean_training_return"] is None:
-        return (1, 0, 0, 0)
+        return (1, 0, 0)
     return (
         0,
         -summary["mean_training_return"],
         summary["std_training_return"],
-        summary["mean_wall_seconds"],
     )
 
 
@@ -174,16 +182,19 @@ def runtime_fingerprint():
     }
 
 
-def run_trial(config, evaluation, output):
+def run_trial(config, evaluation, output, *, timing_scope="isolated"):
     import hashlib
     import json
     import subprocess
     import sys
+    from concurrent.futures import CancelledError
     from pathlib import Path
 
     from gymtosha.benchmarks.capacity import terminate_probe
     from gymtosha.benchmarks.cli import _write
 
+    if _CANCELLED.is_set():
+        raise CancelledError()
     if source_fingerprint() != _LOADED_SOURCE:
         raise RuntimeError("training source changed; restart the study controller")
     request = {
@@ -214,16 +225,29 @@ def run_trial(config, evaluation, output):
                 str(request_path),
                 "--result",
                 str(path),
+                "--timing-scope",
+                timing_scope,
             ],
             stdout=log,
             stderr=log,
             start_new_session=True,
         )
+        with _WORKERS_LOCK:
+            _ACTIVE_WORKERS[process.pid] = process
         try:
+            if _CANCELLED.is_set():
+                terminate_probe(process)
+                raise CancelledError()
             process.wait()
         except BaseException:
-            terminate_probe(process)
+            if process.poll() is None:
+                terminate_probe(process)
             raise
+        finally:
+            with _WORKERS_LOCK:
+                _ACTIVE_WORKERS.pop(process.pid, None)
+    if _CANCELLED.is_set():
+        raise CancelledError()
     if not path.exists():
         _write(
             {
@@ -231,6 +255,7 @@ def run_trial(config, evaluation, output):
                 "status": "failed",
                 "seed": config.seed,
                 "trial_id": key,
+                "timing_scope": timing_scope,
                 "error": f"worker exited with code {process.returncode}",
             },
             path,
@@ -238,7 +263,7 @@ def run_trial(config, evaluation, output):
     return json.loads(path.read_text())
 
 
-def run_worker(request_path, result_path):
+def run_worker(request_path, result_path, *, timing_scope="isolated"):
     import json
     import math
     from pathlib import Path
@@ -248,7 +273,12 @@ def run_worker(request_path, result_path):
 
     request = json.loads(Path(request_path).read_text())
     config = TrainConfig(**request["config"])
-    record = {"request": request, "seed": config.seed, "trial_id": Path(result_path).stem}
+    record = {
+        "request": request,
+        "seed": config.seed,
+        "trial_id": Path(result_path).stem,
+        "timing_scope": timing_scope,
+    }
     if request["source"] != source_fingerprint() or request["runtime"] != runtime_fingerprint():
         raise ValueError("training source or runtime changed while the study was running")
 
@@ -259,7 +289,7 @@ def run_worker(request_path, result_path):
                 "config": asdict(config),
                 "checkpoint": {k: v for k, v in point.items() if k != "episode_returns"},
             },
-            Path(result_path).parent.parent / "current-trial.json",
+            Path(result_path).with_suffix(".progress.json"),
         )
 
     try:
@@ -276,38 +306,119 @@ def run_worker(request_path, result_path):
         _write(record, Path(result_path))
 
 
-def collect_candidates(config, parameter, values, output):
+def estimate_trial_bytes(config):
+    rollout = config.num_envs * config.rollout_steps
+    minibatch = config.ppo_minibatch_size or rollout // config.num_minibatches
+    return 512 * 1024**2 + 64 * rollout + 16384 * minibatch
+
+
+def search_memory_budget(device):
+    import torch
+
+    if device == "cuda":
+        free, _ = torch.cuda.mem_get_info()
+        return int(free * 0.8)
+    if device == "mps":
+        from gymtosha.benchmarks.capacity import _available_memory
+
+        available = _available_memory()
+        recommended = torch.mps.recommended_max_memory()
+        return int(min(recommended, available or recommended) * 0.7)
+    return 8 * 1024**3
+
+
+def cancel_active_trials():
+    from gymtosha.benchmarks.capacity import terminate_probe
+
+    _CANCELLED.set()
+    with _WORKERS_LOCK:
+        processes = list(_ACTIVE_WORKERS.values())
+    for process in processes:
+        if process.poll() is None:
+            terminate_probe(process)
+
+
+def collect_candidates(config, parameter, values, output, *, parallelism=16, memory_budget=None):
     import random
+    from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
     from pathlib import Path
 
     from gymtosha.benchmarks.cli import _write
 
-    records = {str(value): [] for value in values}
+    if parallelism < 1:
+        raise ValueError("parallelism must be positive")
+    _CANCELLED.clear()
+    budget = search_memory_budget(config.device) if memory_budget is None else memory_budget
+    pending = []
     for seed in SEEDS:
         order = list(values)
         random.Random(f"{config.num_envs}:{parameter}:{seed}").shuffle(order)
         for value in order:
-            candidate = change_parameter(config, parameter, value)
-            trial = run_trial(replace(candidate, seed=seed), study_evaluation(candidate), output)
-            records[str(value)].append(trial)
-            _write(
-                {
-                    "num_envs": config.num_envs,
-                    "parameter": parameter,
-                    "value": value,
-                    "seed": seed,
-                    "completed_seeds": len(records[str(value)]),
-                },
-                Path(output) / "progress.json",
-            )
-            print(
-                f"tune N={config.num_envs} {parameter}={value} seed={seed} {trial['status']}",
-                flush=True,
-            )
+            candidate = replace(change_parameter(config, parameter, value), seed=seed)
+            pending.append((seed, value, candidate, estimate_trial_bytes(candidate)))
+    records = {str(value): [] for value in values}
+    running = {}
+    reserved = 0
+    completed = 0
+    total = len(pending)
+    executor = ThreadPoolExecutor(max_workers=parallelism)
+    try:
+        while pending or running:
+            while pending and len(running) < parallelism:
+                available_index = next(
+                    (i for i, job in enumerate(pending) if job[3] + reserved <= budget), None
+                )
+                if available_index is None:
+                    if running:
+                        break
+                    available_index = 0
+                seed, value, candidate, reservation = pending.pop(available_index)
+                future = executor.submit(
+                    run_trial,
+                    candidate,
+                    study_evaluation(candidate),
+                    output,
+                    timing_scope="shared_search",
+                )
+                running[future] = (seed, value, reservation)
+                reserved += reservation
+            finished, _ = wait(running, return_when=FIRST_COMPLETED)
+            for future in finished:
+                seed, value, reservation = running.pop(future)
+                reserved -= reservation
+                trial = future.result()
+                records[str(value)].append(trial)
+                completed += 1
+                _write(
+                    {
+                        "num_envs": config.num_envs,
+                        "parameter": parameter,
+                        "value": value,
+                        "seed": seed,
+                        "completed_seeds": len(records[str(value)]),
+                        "completed_jobs": completed,
+                        "total_jobs": total,
+                        "running_trials": len(running),
+                        "parallelism_limit": parallelism,
+                    },
+                    Path(output) / "progress.json",
+                )
+                print(
+                    f"tune N={config.num_envs} {parameter}={value} seed={seed} "
+                    f"{trial['status']} jobs={completed}/{total}",
+                    flush=True,
+                )
+    except BaseException:
+        cancel_active_trials()
+        raise
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)
+    for trials in records.values():
+        trials.sort(key=lambda record: record["seed"])
     return [
         {
             "value": value,
-            "summary": summarize_trials(records[str(value)]),
+            "summary": summarize_trials(records[str(value)], timing_comparable=False),
             "trial_ids": [record["trial_id"] for record in records[str(value)]],
             "seed_rewards": [
                 record["result"]["mean_training_episode_return"]
@@ -320,7 +431,7 @@ def collect_candidates(config, parameter, values, output):
     ]
 
 
-def tune_count(config, output):
+def tune_count(config, output, *, parallelism=16):
     import json
     from pathlib import Path
 
@@ -344,7 +455,9 @@ def tune_count(config, output):
         full_grid = candidate_values(parameter, config, local=False)
         values = candidate_values(parameter, config, local=config.num_envs > 32)
         while True:
-            candidates = collect_candidates(config, parameter, values, output)
+            candidates = collect_candidates(
+                config, parameter, values, output, parallelism=parallelism
+            )
             winner = min(candidates, key=lambda candidate: selection_key(candidate["summary"]))
             if winner["summary"]["mean_training_return"] is None:
                 raise RuntimeError(
@@ -405,7 +518,9 @@ def tune(args):
                 raise ValueError("selected device or runtime changed")
             previous = TrainConfig(**saved["config"])
         else:
-            previous = tune_count(base, args.output)
+            previous = tune_count(
+                base, args.output, parallelism=getattr(args, "parallel_trials", 16)
+            )
             selected[str(count)] = {
                 "source": source_fingerprint(),
                 "runtime": runtime_fingerprint(),
@@ -493,6 +608,7 @@ def main():
     search.add_argument("--max-envs", type=int, required=True)
     search.add_argument("--device", choices=["cuda", "mps"], default="cuda")
     search.add_argument("--output", type=Path, required=True)
+    search.add_argument("--parallel-trials", type=int, choices=range(1, 33), default=16)
     comparison = commands.add_parser("compare")
     comparison.add_argument("--presets", type=Path, required=True)
     comparison.add_argument("--capacity", type=Path, required=True)
@@ -501,11 +617,12 @@ def main():
     worker = commands.add_parser("worker")
     worker.add_argument("--request", type=Path, required=True)
     worker.add_argument("--result", type=Path, required=True)
+    worker.add_argument("--timing-scope", choices=["isolated", "shared_search"], default="isolated")
     args = parser.parse_args()
     signal.signal(signal.SIGINT, signal.default_int_handler)
     signal.signal(signal.SIGTERM, signal.default_int_handler)
     if args.command == "worker":
-        run_worker(args.request, args.result)
+        run_worker(args.request, args.result, timing_scope=args.timing_scope)
     else:
         with study_lock(args.output):
             if args.command == "tune":
