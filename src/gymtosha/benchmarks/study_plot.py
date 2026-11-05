@@ -532,9 +532,12 @@ def export_tables(phases, comparisons, root, *, include_checkpoints=False):
     for path in sorted((root / "device-probes").glob("*.json")):
         if path.stem.isdigit():
             probe = json.loads(path.read_text())
+            config = probe["config"]
+            updates = config["total_timesteps"] // (config["num_envs"] * config["rollout_steps"])
             device_rows.extend(
                 {
                     "num_envs": int(path.stem),
+                    "rollout_updates": updates,
                     **row,
                     "selected": row["trial_id"] == probe["selected"]["trial_id"],
                 }

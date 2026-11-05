@@ -117,6 +117,10 @@ def test_device_probes_are_isolated_and_choose_separately_for_each_count(tmp_pat
         assert choose_search_device(base, base, "cuda", tmp_path) == config
     assert len(calls) == 8
     assert {config.seed for config in calls} == {DEVICE_PROBE_SEED}
+    assert {
+        (config.num_envs, config.total_timesteps // (config.num_envs * config.rollout_steps))
+        for config in calls
+    } == {(32, 64), (256, 8)}
 
 
 def test_fixed_gae_value_bypasses_candidate_search(tmp_path, monkeypatch):

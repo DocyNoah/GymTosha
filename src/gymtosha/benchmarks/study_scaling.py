@@ -25,6 +25,7 @@ from gymtosha.benchmarks.train import TrainConfig
 SCALING_ANCHORS = (32, 256, 1024, 4096)
 SCALING_DESIGN = "joint_rollout_optimizer_v1"
 DEVICE_PROBE_SEED = 9001
+DEVICE_PROBE_UPDATES = 8
 FIXED_PARAMETERS = {"gae_lambda": 0.99}
 
 
@@ -130,6 +131,13 @@ def choose_search_device(config, probe_config, accelerator, output):
         return replace(config, device=selected["device"], compile_env=selected["compile_env"])
 
     trials = []
+    if config.num_envs > SCALING_ANCHORS[0]:
+        probe_config = replace(
+            probe_config,
+            total_timesteps=probe_config.num_envs
+            * probe_config.rollout_steps
+            * DEVICE_PROBE_UPDATES,
+        )
     for device in ("cpu", accelerator):
         for compiled in (False, True):
             probe = replace(
