@@ -202,3 +202,36 @@ def test_native_ppo_excludes_autoreset_slots_from_updates(monkeypatch):
 def test_native_vector_rejects_unmasked_off_policy_learning():
     with pytest.raises(ValueError, match="PPO only"):
         train(TrainConfig(backend="gymnasium-native", algorithm="dqn"))
+
+
+def test_ppo_uses_configured_adam_epsilon_and_constant_learning_rate(monkeypatch):
+    original = torch.optim.Adam
+    epsilons, rates = [], []
+
+    def tracked_adam(parameters, **kwargs):
+        epsilons.append(kwargs["eps"])
+        optimizer = original(parameters, **kwargs)
+        step = optimizer.step
+
+        def tracked_step(*args, **step_kwargs):
+            rates.append(optimizer.param_groups[0]["lr"])
+            return step(*args, **step_kwargs)
+
+        optimizer.step = tracked_step
+        return optimizer
+
+    monkeypatch.setattr(torch.optim, "Adam", tracked_adam)
+    train(
+        TrainConfig(
+            num_envs=4,
+            rollout_steps=4,
+            total_timesteps=32,
+            update_epochs=1,
+            ppo_minibatch_size=4,
+            learning_rate=0.001,
+            adam_eps=1e-8,
+            anneal_learning_rate=False,
+        )
+    )
+    assert epsilons == [1e-8]
+    assert len(rates) == 8 and all(rate == 0.001 for rate in rates)

@@ -105,3 +105,27 @@ CartPole의 새 실험은 학습과 별개의 평가 환경 100개를 사용합�
 60초가 지나면 해당 환경 수는 사용 가능한 용량에서 제외하고 절반 크기를 적용합니다.
 60초를 넘겼던 과거 실행은 원래 결과와 시간을 보존하면서 이 기준에서는 실패로 분류합니다.
 시스템 자원 한도를 늘리거나 더 오래 기다려 통과시키지 않습니다.
+
+## 실행 계획
+
+각 실행은 rollout 업데이트 64회까지 진행합니다. 기본 rollout 길이 128, 환경 32개이면
+총 262,144 sampling slot이며, 환경 수가 두 배가 되면 총 slot 수도 두 배입니다.
+Gymnasium NEXT_STEP 초기화 slot은 손실에서 제외하고 유효 transition 수도 따로 기록합니다.
+
+32개 환경에서는 후보 전체를 탐색합니다. 더 큰 환경 수에서는 이전 선택값과 인접 후보로
+시작하고, 경계 후보가 가장 좋으면 범위를 넓혀 다시 확인합니다. 한 번에 한 파라미터만
+바꾸며, 동일 설정의 20개 시드 결과는 재사용합니다.
+탐색 시드는 1–20, 최종 비교 시드는 1001–1020입니다. 평가는 4 rollout 업데이트마다 수행합니다.
+
+```bash
+uv run --extra benchmark python -m gymtosha.benchmarks.study tune \
+  --device cuda --min-envs 32 --max-envs 65536 --output outputs/cartpole-study-full
+uv run --extra benchmark python -m gymtosha.benchmarks.study compare \
+  --presets outputs/cartpole-study-full/selected.json \
+  --capacity benchmarks/results/cartpole-study/capacity/summary.json \
+  --devices cpu cuda --output outputs/cartpole-study-full
+```
+
+`index.html`은 환경 수와 파라미터를 선택하는 오프라인 결과 화면입니다.
+`search/`에는 후보별 20시드 통계와 그림, `trials/`에는 설정·진행·평가 원시 기록이 있습니다.
+완료된 실행은 설정과 학습 소스·런타임이 일치할 때 재개 과정에서 재사용합니다.

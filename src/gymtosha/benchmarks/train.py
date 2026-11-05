@@ -53,8 +53,12 @@ class TrainConfig:
     normalize_rewards: bool = False
     hidden_sizes: list[int] = field(default_factory=lambda: [64, 64])
     ppo_minibatch_size: int | None = None
+    adam_eps: float = 1e-5
+    anneal_learning_rate: bool = True
 
     def validate(self):
+        if not math.isfinite(self.adam_eps) or self.adam_eps <= 0:
+            raise ValueError("Adam epsilon must be finite and positive")
         if not self.hidden_sizes or any(
             isinstance(size, bool) or not isinstance(size, int) or size < 1
             for size in self.hidden_sizes
@@ -154,7 +158,7 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
     if observation_normalizer is not None:
         observation_normalizer.update(obs)
         obs = observation_normalizer.normalize(obs)
-    optimizer = torch.optim.Adam(agent.parameters(), lr=rate, eps=1e-5)
+    optimizer = torch.optim.Adam(agent.parameters(), lr=rate, eps=config.adam_eps)
     initial = nn.utils.parameters_to_vector(agent.parameters()).detach().clone()
     size = config.num_envs * config.rollout_steps
     minibatch_size = config.ppo_minibatch_size or size // config.num_minibatches
@@ -180,7 +184,9 @@ def _ppo(config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None
     for iteration in range(iterations):
         if stop:
             break
-        optimizer.param_groups[0]["lr"] = rate * (1 - iteration / iterations)
+        optimizer.param_groups[0]["lr"] = (
+            rate * (1 - iteration / iterations) if config.anneal_learning_rate else rate
+        )
         for step in range(config.rollout_steps):
             observations[step] = obs
             with torch.no_grad():

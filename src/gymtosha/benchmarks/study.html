@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CartPole PPO study</title>
+  <style>
+    body {
+      max-width: 1400px;
+      margin: 40px auto;
+      padding: 0 24px;
+      font: 16px system-ui;
+      color: #1c2824;
+      background: #f7f7f3;
+    }
+    h1 { font-size: 30px; }
+    select { font: inherit; padding: 8px; margin: 0 16px 20px 0; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { text-align: right; padding: 10px; border-bottom: 1px solid #ddd; }
+    th:first-child, td:first-child { text-align: left; }
+    img { width: 100%; height: auto; margin: 20px 0; }
+    .table-container { overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>CartPole PPO · 20개 시드</h1>
+  <p>평균 학습 에피소드 보상으로 후보를 선택합니다. 오차 막대는 시드 간 표본 표준편차입니다.</p>
+  <label>환경 수 <select id="count"></select></label>
+  <label>파라미터 <select id="parameter"></select></label>
+  <div id="status" aria-live="polite"></div>
+  <div id="table" class="table-container"></div>
+  <img id="plot" alt="후보별 보상과 시간 평균 및 표준편차">
+  <div id="comparison"></div>
+  <script>
+    const data = __DATA__;
+    const count = document.getElementById('count');
+    const parameter = document.getElementById('parameter');
+    const counts = [...new Set(data.phases.map(phase => phase.num_envs))].sort((a, b) => a - b);
+    for (const value of counts) {
+      count.add(new Option(value.toLocaleString(), value));
+    }
+    for (const name of [...new Set(data.phases.map(phase => phase.parameter))]) {
+      parameter.add(new Option(name, name));
+    }
+    function number(value) {
+      return value === null || value === undefined ? '—' : Number(value).toFixed(3);
+    }
+    function update() {
+      const phase = data.phases.find(item =>
+        item.num_envs === Number(count.value) && item.parameter === parameter.value);
+      document.getElementById('status').textContent = phase
+        ? '선택값 ' + phase.selected_value
+        : '이 조합의 탐색 결과가 아직 없습니다.';
+      const image = document.getElementById('plot');
+      image.hidden = !phase;
+      if (!phase) {
+        document.getElementById('table').replaceChildren();
+        return;
+      }
+      const table = document.createElement('table');
+      const header = table.insertRow();
+      const titles = ['후보', '완료 시드', '학습 보상 평균 ± SD', '시간 평균 ± SD', '안정적 도달'];
+      for (const title of titles) {
+        const cell = document.createElement('th');
+        cell.textContent = title;
+        header.append(cell);
+      }
+      for (const candidate of phase.candidates) {
+        const row = table.insertRow();
+        const summary = candidate.summary;
+        const values = [
+          String(candidate.value),
+          summary.successful_trials + '/20',
+          number(summary.mean_training_return) + ' ± ' + number(summary.std_training_return),
+          number(summary.mean_wall_seconds) + ' ± ' + number(summary.std_wall_seconds),
+          summary.target_reached + '/20'
+        ];
+        for (const value of values) {
+          row.insertCell().textContent = value;
+        }
+      }
+      document.getElementById('table').replaceChildren(table);
+      image.src = 'search/' + phase.num_envs + '/' + phase.parameter + '.png';
+    }
+    count.onchange = update;
+    parameter.onchange = update;
+    update();
+    if (data.comparisons.length) {
+      const image = document.createElement('img');
+      image.src = 'comparison.png';
+      image.alt = '백엔드별 환경 수에 따른 20시드 결과';
+      document.getElementById('comparison').append(image);
+    }
+  </script>
+</body>
+</html>
