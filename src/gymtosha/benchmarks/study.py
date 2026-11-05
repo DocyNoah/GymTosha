@@ -8,7 +8,7 @@ from threading import Event, Lock
 from gymtosha.benchmarks.evaluation import EvaluationConfig
 from gymtosha.benchmarks.train import TrainConfig
 
-SEEDS = tuple(range(1, 21))
+SEEDS = tuple(range(1, 11))
 COMPARISON_SEEDS = tuple(range(1001, 1021))
 ROLLOUT_UPDATES = 64
 _ACTIVE_WORKERS = {}
@@ -121,6 +121,7 @@ def summarize_trials(records, *, seeds=SEEDS, timing_comparable=True):
     return {
         "complete": complete,
         "attempted_seeds": len(actual),
+        "expected_seeds": len(seeds),
         "successful_trials": len(good),
         "mean_training_return": mean(returns) if usable else None,
         "std_training_return": stdev(returns) if usable else None,
@@ -449,8 +450,8 @@ def tune_count(config, output, *, parallelism=16):
     directory = Path(output) / "search" / str(config.num_envs)
     for parameter in PARAMETERS:
         phase_path = directory / f"{parameter}.json"
-        if phase_path.exists():
-            phase = json.loads(phase_path.read_text())
+        phase = json.loads(phase_path.read_text()) if phase_path.exists() else None
+        if phase is not None and phase.get("seeds") == list(SEEDS):
             if (
                 phase["starting_config"] != asdict(config)
                 or phase["source"] != source_fingerprint()
@@ -469,7 +470,7 @@ def tune_count(config, output, *, parallelism=16):
             winner = min(candidates, key=lambda candidate: selection_key(candidate["summary"]))
             if winner["summary"]["mean_training_return"] is None:
                 raise RuntimeError(
-                    f"no valid twenty-seed candidate for {parameter}, N={config.num_envs}"
+                    f"no valid {len(SEEDS)}-seed candidate for {parameter}, N={config.num_envs}"
                 )
             # Expand a local bracket while its best candidate lies on an open edge.
             position = full_grid.index(winner["value"])
@@ -487,6 +488,7 @@ def tune_count(config, output, *, parallelism=16):
             "runtime": runtime_fingerprint(),
             "num_envs": config.num_envs,
             "parameter": parameter,
+            "seeds": list(SEEDS),
             "starting_config": starting_config,
             "candidates": candidates,
             "selected_value": winner["value"],
@@ -515,8 +517,8 @@ def tune(args):
     while count <= args.max_envs:
         base = reference_config(count, previous=previous)
         base = replace(base, device=args.device, compile_env=True)
-        if str(count) in selected:
-            saved = selected[str(count)]
+        saved = selected.get(str(count))
+        if saved is not None:
             if saved["source"] != source_fingerprint():
                 raise ValueError("selected training source changed")
             if (
@@ -524,6 +526,7 @@ def tune(args):
                 or saved.get("runtime") != runtime_fingerprint()
             ):
                 raise ValueError("selected device or runtime changed")
+        if saved is not None and saved.get("seeds") == list(SEEDS):
             previous = TrainConfig(**saved["config"])
         else:
             previous = tune_count(
@@ -533,6 +536,7 @@ def tune(args):
                 "source": source_fingerprint(),
                 "runtime": runtime_fingerprint(),
                 "config": asdict(previous),
+                "seeds": list(SEEDS),
             }
             _write(selected, path)
         render_dashboard(args.output)

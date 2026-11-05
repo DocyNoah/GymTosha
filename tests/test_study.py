@@ -55,7 +55,7 @@ def test_larger_batches_search_incumbent_and_neighbors_first():
     ]
 
 
-def trials(count=20):
+def trials(count=None):
     config = reference_config(32)
     return [
         {
@@ -73,21 +73,21 @@ def trials(count=20):
     ]
 
 
-def test_summary_requires_twenty_seeds_and_reports_sample_standard_deviation():
+def test_summary_requires_ten_seeds_and_reports_sample_standard_deviation():
     result = summarize_trials(trials())
-    assert result["complete"] and result["successful_trials"] == 20
-    assert result["mean_training_return"] == 10.5
-    assert result["std_training_return"] == pytest.approx(5.9160797831)
-    assert not summarize_trials(trials(19))["complete"]
-    assert summarize_trials(trials(19))["mean_training_return"] is None
+    assert result["complete"] and result["successful_trials"] == 10
+    assert result["mean_training_return"] == 5.5
+    assert result["std_training_return"] == pytest.approx(3.0276503541)
+    assert not summarize_trials(trials(9))["complete"]
+    assert summarize_trials(trials(9))["mean_training_return"] is None
 
 
 def test_summary_does_not_drop_a_failed_trial():
     records = trials()
-    records[-1] = {"status": "failed", "seed": 20, "error": "out of memory"}
+    records[-1] = {"status": "failed", "seed": 10, "error": "out of memory"}
     result = summarize_trials(records)
     assert result["complete"]
-    assert result["successful_trials"] == 19
+    assert result["successful_trials"] == 9
     assert result["mean_training_return"] is None
 
 
@@ -135,7 +135,7 @@ def test_worker_runs_fixed_budget_and_trial_cache_is_reusable(tmp_path, monkeypa
     assert run_trial(config, evaluation, tmp_path) == first
 
 
-def test_parameter_dashboard_contains_real_twenty_seed_statistics(tmp_path):
+def test_parameter_dashboard_contains_real_ten_seed_statistics(tmp_path):
     import json
 
     from gymtosha.benchmarks.study_plot import plot_parameter, render_dashboard
@@ -148,7 +148,7 @@ def test_parameter_dashboard_contains_real_twenty_seed_statistics(tmp_path):
             {
                 "value": 0.001,
                 "summary": summarize_trials(trials()),
-                "seed_rewards": list(range(1, 21)),
+                "seed_rewards": list(SEEDS),
             }
         ],
     }
@@ -160,7 +160,7 @@ def test_parameter_dashboard_contains_real_twenty_seed_statistics(tmp_path):
     assert (directory / "learning_rate.png").stat().st_size > 1000
     text = (tmp_path / "index.html").read_text()
     assert "__DATA__" not in text
-    assert "10.5" in text
+    assert "5.5" in text
 
 
 def test_failed_worker_exit_keeps_a_trial_id_for_resume(tmp_path, monkeypatch):
@@ -295,14 +295,14 @@ def test_controller_refuses_hot_changed_training_source(tmp_path, monkeypatch):
 
 def test_shared_search_reports_rewards_but_does_not_compare_wall_times():
     result = summarize_trials(trials(), timing_comparable=False)
-    assert result["mean_training_return"] == 10.5
+    assert result["mean_training_return"] == 5.5
     assert result["mean_wall_seconds"] is None
     assert result["mean_target_seconds"] is None
     assert not result["timing_comparable"]
 
 
 @pytest.mark.parametrize("host_gib,expected_peak", [(100, 2), (5, 1)])
-def test_parallel_search_respects_memory_budget_and_twenty_seeds(
+def test_parallel_search_respects_memory_budget_and_ten_seeds(
     tmp_path, monkeypatch, host_gib, expected_peak
 ):
     import threading
@@ -346,5 +346,53 @@ def test_parallel_search_respects_memory_budget_and_twenty_seeds(
         memory_budget=2,
     )
     assert state["peak"] == expected_peak
-    assert all(row["summary"]["attempted_seeds"] == 20 for row in results)
-    assert all(row["summary"]["mean_training_return"] == 10.5 for row in results)
+    assert all(row["summary"]["attempted_seeds"] == 10 for row in results)
+    assert all(row["summary"]["mean_training_return"] == 5.5 for row in results)
+
+
+def test_search_uses_ten_seeds_and_final_comparison_uses_twenty():
+    from gymtosha.benchmarks.study import COMPARISON_SEEDS
+
+    assert SEEDS == tuple(range(1, 11))
+    assert COMPARISON_SEEDS == tuple(range(1001, 1021))
+
+
+def test_search_recomputes_phase_when_seed_protocol_changes(tmp_path, monkeypatch):
+    import json
+
+    from gymtosha.benchmarks.study import runtime_fingerprint, source_fingerprint, tune_count
+
+    config = reference_config(32)
+    path = tmp_path / "search/32/learning_rate.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps(
+            {
+                "starting_config": asdict(config),
+                "source": source_fingerprint(),
+                "runtime": runtime_fingerprint(),
+                "selected_config": asdict(config),
+                "seeds": list(range(1, 21)),
+            }
+        )
+    )
+    calls = []
+
+    def candidates(*args, **kwargs):
+        calls.append(True)
+        return [
+            {
+                "value": 0.001,
+                "summary": summarize_trials(trials()),
+                "trial_ids": [],
+                "seed_rewards": list(SEEDS),
+            }
+        ]
+
+    monkeypatch.setattr("gymtosha.benchmarks.study.PARAMETERS", {"learning_rate": [0.001]})
+    monkeypatch.setattr("gymtosha.benchmarks.study.collect_candidates", candidates)
+    monkeypatch.setattr("gymtosha.benchmarks.study_plot.plot_parameter", lambda *args: None)
+    monkeypatch.setattr("gymtosha.benchmarks.study_plot.render_dashboard", lambda *args: None)
+    tune_count(config, tmp_path)
+    assert calls == [True]
+    assert json.loads(path.read_text())["seeds"] == list(range(1, 11))

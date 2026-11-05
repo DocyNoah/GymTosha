@@ -12,6 +12,9 @@ from gymtosha.benchmarks.plot import _pyplot
 def plot_parameter(phase, path):
     plt = _pyplot()
     candidates = phase["candidates"]
+    seed_count = candidates[0]["summary"].get(
+        "expected_seeds", candidates[0]["summary"]["attempted_seeds"]
+    )
     positions = np.arange(len(candidates))
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.2))
     for index, candidate in enumerate(candidates):
@@ -35,14 +38,14 @@ def plot_parameter(phase, path):
         [candidate["summary"]["target_reached"] for candidate in candidates],
         color="#327d63",
     )
-    axes[1].set_ylim(0, 20)
-    axes[1].set_title("Stable target reached / 20 seeds")
+    axes[1].set_ylim(0, seed_count)
+    axes[1].set_title(f"Stable target reached / {seed_count} seeds")
     for axis in axes:
         axis.set_xticks(
             positions, [str(candidate["value"]) for candidate in candidates], rotation=30
         )
         axis.set_xlabel(phase["parameter"])
-    fig.suptitle(f"CartPole PPO · N={phase['num_envs']:,} · mean ± sample SD · 20 seeds")
+    fig.suptitle(f"CartPole PPO · N={phase['num_envs']:,} · mean ± sample SD · {seed_count} seeds")
     fig.tight_layout()
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -128,7 +131,7 @@ def plot_heatmaps(phases, output):
         ax.set_yticks(range(len(values)), [str(value) for value in values])
         ax.set_xlabel("Environments")
         ax.set_ylabel(parameter + (" / num_envs" if parameter == "ppo_minibatch_size" else ""))
-        ax.set_title("Mean training episode return · 20 seeds per measured cell")
+        ax.set_title("Mean training episode return · 10 seeds per measured cell")
         fig.colorbar(plotted, ax=ax)
         fig.tight_layout()
         fig.savefig(Path(output) / f"heatmap-{parameter}.png", dpi=150)
