@@ -137,14 +137,18 @@ def _time_to_target(args):
     evaluation = EvaluationConfig(
         target=args.target,
         interval=args.eval_interval,
-        episodes=args.eval_episodes or 100,
+        episodes=args.eval_episodes if args.eval_episodes is not None else 100,
         confirmations=args.confirmations,
         seed=args.eval_seed,
     )
     for env_id in args.env_ids:
         evaluation = replace(
             evaluation,
-            episodes=args.eval_episodes or (1000 if env_id.startswith("FrozenLake") else 100),
+            episodes=(
+                args.eval_episodes
+                if args.eval_episodes is not None
+                else (1000 if env_id.startswith("FrozenLake") else 100)
+            ),
         )
         if args.presets and env_id not in selected:
             raise ValueError(f"no selected hyperparameters for {env_id}")
@@ -258,7 +262,7 @@ def main(argv=None):
     training.add_argument(
         "--algorithms",
         nargs="+",
-        default=["ppo", "dqn", "sac", "td3"],
+        default=None,
         choices=["ppo", "dqn", "sac", "td3"],
     )
     defaults = asdict(TrainConfig())
@@ -324,8 +328,11 @@ def main(argv=None):
     path = args.output / f"{name}.json"
     records = json.loads(path.read_text()) if args.append and path.exists() else []
     if args.command == "train":
+        from gymtosha.benchmarks.target import REPRESENTATIVE_ALGORITHMS
+
         for env_id in args.env_ids:
-            for algorithm in args.algorithms:
+            algorithms = args.algorithms or [REPRESENTATIVE_ALGORITHMS.get(env_id, "ppo")]
+            for algorithm in algorithms:
                 if not _compatible(algorithm, env_id):
                     continue
                 for seed in args.seeds:

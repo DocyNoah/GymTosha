@@ -6,20 +6,21 @@ from statistics import median
 
 from gymtosha.benchmarks.train import TrainConfig
 
+REPRESENTATIVE_ALGORITHMS = {
+    "CartPole-v1": "ppo",
+    "MountainCar-v0": "dqn",
+    "MountainCarContinuous-v0": "ppo",
+    "LunarLander-v3": "ppo",
+    "FrozenLake-v1": "dqn",
+}
+
 
 def target_preset(env_id, *, backend="gymtosha", device="cuda", seed=1, algorithm=None):
-    algorithms = {
-        "CartPole-v1": "ppo",
-        "MountainCar-v0": "dqn",
-        "MountainCarContinuous-v0": "ppo",
-        "LunarLander-v3": "ppo",
-        "FrozenLake-v1": "dqn",
-    }
-    if env_id not in algorithms:
+    if env_id not in REPRESENTATIVE_ALGORITHMS:
         raise ValueError(f"no target preset for {env_id}")
     config = TrainConfig(
         env_id=env_id,
-        algorithm=algorithm or algorithms[env_id],
+        algorithm=algorithm or REPRESENTATIVE_ALGORITHMS[env_id],
         backend=backend,
         device=device,
         seed=seed,

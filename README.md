@@ -112,7 +112,8 @@ episode_lengths = info["episode_length"][done]
 
 ## 성능 검증
 
-CleanRL에서 이식한 DQN·PPO·SAC·TD3를 GymTosha와 Gymnasium에 동일하게 적용합니다.
+CleanRL에서 이식한 학습기를 GymTosha와 Gymnasium에 동일하게 적용합니다.
+본 비교는 환경마다 대표 알고리즘 하나만 사용하며, 기본 `train` 명령도 같은 대표 알고리즘을 선택합니다.
 
 | 측정 | 확인하는 항목 | 명령 |
 | --- | --- | --- |

@@ -74,3 +74,26 @@ def test_plots_reject_mismatched_training_settings(tmp_path):
     }
     with pytest.raises(ValueError, match="incompatible"):
         plot_training([first, second], tmp_path)
+
+
+def test_default_training_uses_one_representative_algorithm(tmp_path):
+    main(
+        [
+            "train",
+            "--env-ids",
+            "CartPole-v1",
+            "--num-envs",
+            "4",
+            "--total-timesteps",
+            "128",
+            "--rollout-steps",
+            "16",
+            "--seeds",
+            "1",
+            "--output",
+            str(tmp_path),
+        ]
+    )
+    records = json.loads((tmp_path / "training.json").read_text())
+    assert len(records) == 2
+    assert {r["config"]["algorithm"] for r in records} == {"ppo"}

@@ -226,3 +226,32 @@ def test_alternative_algorithm_gets_its_own_valid_preset(tmp_path):
     )
     records = json.loads((tmp_path / "time_to_target.json").read_text())
     assert all(not r["config"]["normalize_observations"] for r in records)
+
+
+def test_zero_evaluation_episodes_is_rejected(tmp_path):
+    with pytest.raises(ValueError, match="counts"):
+        main(
+            [
+                "time-to-target",
+                "--env-ids",
+                "CartPole-v1",
+                "--device",
+                "cpu",
+                "--seeds",
+                "11",
+                "--num-envs",
+                "4",
+                "--rollout-steps",
+                "16",
+                "--total-timesteps",
+                "128",
+                "--eval-interval",
+                "64",
+                "--eval-episodes",
+                "0",
+                "--target",
+                "-1",
+                "--output",
+                str(tmp_path),
+            ]
+        )
