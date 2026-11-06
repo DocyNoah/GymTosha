@@ -24,7 +24,6 @@ DESIGN = "fixed_experience_budget_v1"
 ENV_COUNTS = (32, 256, 512, 1024, 4096, 8192, 16384)
 HORIZONS = (16, 32, 64, 128, 256, 512)
 MIN_ROLLOUTS = 16
-SCORE_TOLERANCE = 5
 TARGET = 475
 
 
@@ -81,29 +80,17 @@ def select_horizon(candidates):
         if c["summary"]["target_reached"] == len(SEEDS)
         and c["summary"]["mean_final_eval_return"] >= TARGET
     ]
-    if stable:
-        score = max(c["summary"]["mean_final_eval_return"] for c in stable)
-        comparable = [
-            c for c in stable if c["summary"]["mean_final_eval_return"] >= score - SCORE_TOLERANCE
-        ]
-        winner = min(
-            comparable,
-            key=lambda c: (
-                c["summary"]["mean_target_seconds"],
-                -c["summary"]["mean_final_eval_return"],
-                c["value"],
-            ),
-        )
-        return winner["value"], "stable_target_time"
-    winner = max(
-        completed,
+    winner = min(
+        stable or completed,
         key=lambda c: (
-            c["summary"]["mean_final_eval_return"],
-            c["summary"]["target_reached"],
-            -c["summary"]["std_final_eval_return"],
+            -c["summary"]["mean_final_eval_return"],
+            -c["summary"]["target_reached"],
+            c["summary"]["std_final_eval_return"],
+            c["summary"]["mean_target_transitions"] or float("inf"),
+            c["value"],
         ),
     )
-    return winner["value"], "final_score_no_stable_horizon"
+    return winner["value"], "stable_final_score" if stable else "final_score_no_stable_horizon"
 
 
 def expected_presets(base, budget, horizon):
@@ -135,9 +122,8 @@ def tune(base, budget, args):
         configs,
         "rollout_steps",
         args.output,
-        parallelism=1,
+        parallelism=args.parallel_trials,
         evaluation_interval=budget.evaluation_interval,
-        isolated=True,
     )
     horizon, basis = select_horizon(candidates)
     phase = {
@@ -163,6 +149,7 @@ def main():
     parser.add_argument("--tune-envs", type=int, choices=ENV_COUNTS, default=1024)
     parser.add_argument("--total-timesteps", type=int, default=134_217_728)
     parser.add_argument("--minibatch-size", type=int, default=512)
+    parser.add_argument("--parallel-trials", type=int, choices=range(1, 33), default=16)
     parser.add_argument("--compare-only", action="store_true")
     args = parser.parse_args()
     signal.signal(signal.SIGTERM, signal.default_int_handler)

@@ -131,6 +131,12 @@ def summarize_trials(records, *, seeds=SEEDS, timing_comparable=True):
     evaluation_usable = usable and all(score is not None for score in final_scores)
     times = [row["wall_seconds"] for row in good]
     target_times = [row["evaluation"]["time_to_target_seconds"] for row in good]
+    target_transitions = [
+        row["evaluation"].get("valid_transitions_to_target")
+        if row["evaluation"].get("valid_transitions_to_target") is not None
+        else row["evaluation"].get("transitions_to_target")
+        for row in good
+    ]
     reached = sum(value is not None for value in target_times)
     return {
         "complete": complete,
@@ -145,6 +151,9 @@ def summarize_trials(records, *, seeds=SEEDS, timing_comparable=True):
         "mean_wall_seconds": mean(times) if usable and timing_comparable else None,
         "std_wall_seconds": stdev(times) if usable and timing_comparable else None,
         "target_reached": reached,
+        "mean_target_transitions": mean(target_transitions)
+        if usable and reached == len(seeds) and all(x is not None for x in target_transitions)
+        else None,
         "mean_target_seconds": mean(target_times)
         if usable and timing_comparable and reached == len(seeds)
         else None,
@@ -370,7 +379,6 @@ def collect_configurations(
     parallelism=16,
     memory_budget=None,
     evaluation_interval=None,
-    isolated=False,
 ):
     import random
     from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
@@ -381,8 +389,6 @@ def collect_configurations(
 
     if parallelism < 1:
         raise ValueError("parallelism must be positive")
-    if isolated and parallelism != 1:
-        raise ValueError("isolated timings require a single worker")
     if not configs:
         raise ValueError("at least one study candidate is required")
     config = next(iter(configs.values()))
@@ -421,7 +427,7 @@ def collect_configurations(
                     candidate,
                     study_evaluation(candidate, interval=evaluation_interval),
                     output,
-                    timing_scope="isolated" if isolated else "shared_search",
+                    timing_scope="shared_search",
                 )
                 running[future] = (seed, value, reservation)
                 reserved += reservation
@@ -464,7 +470,7 @@ def collect_configurations(
     return [
         {
             "value": value,
-            "summary": summarize_trials(records[str(value)], timing_comparable=isolated),
+            "summary": summarize_trials(records[str(value)], timing_comparable=False),
             "trial_ids": [record["trial_id"] for record in records[str(value)]],
             "seed_scores": [
                 final_evaluation_score(record["result"])

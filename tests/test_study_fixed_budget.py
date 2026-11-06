@@ -40,6 +40,30 @@ def test_budget_rejects_truncated_rollouts_or_insufficient_final_updates():
         Budget((32, 16384), (16, 512), 134_217_728, 1024)
 
 
+def test_horizon_uses_returns_and_transitions_with_shared_workers():
+    from gymtosha.benchmarks.study_fixed_budget import select_horizon
+
+    def trial(horizon, reached, reward, steps):
+        return {
+            "value": horizon,
+            "summary": {
+                "target_reached": reached,
+                "mean_final_eval_return": reward,
+                "std_final_eval_return": 0.0,
+                "mean_target_transitions": steps,
+                "mean_target_seconds": None,
+            },
+        }
+
+    candidates = [
+        trial(32, 10, 498, 40_000),
+        trial(64, 10, 500, 80_000),
+        trial(128, 10, 500, 60_000),
+        trial(512, 9, 500, None),
+    ]
+    assert select_horizon(candidates) == (128, "stable_final_score")
+
+
 def test_native_exact_budget_uses_all_slots_after_cartpole_resets():
     config = TrainConfig(
         backend="gymnasium-native",

@@ -35,9 +35,9 @@ CartPole은 RTX 3090에서 $N=1{,}024$로 고정하고 $T=16,32,64,128,256,512$�
 | 공통 평가 간격 | 8,388,608 트랜지션 |
 | 예정 optimizer 호출 수 | 1,048,576 |
 
-$S$는 최대 구성인 $16{,}384\times512$의 rollout 16회분입니다. $M=512$는 가장 작은 $32\times16$ 수집 배치부터 모든 후보를 나눌 수 있습니다. 탐색의 월타임은 각 시드를 단독 실행해 측정합니다.
+$S$는 최대 구성인 $16{,}384\times512$의 rollout 16회분입니다. $M=512$는 가장 작은 $32\times16$ 수집 배치부터 모든 후보를 나눌 수 있습니다. 탐색은 장치 메모리와 호스트 메모리 한도 안에서 여러 시드를 병렬 실행합니다. 탐색 시간은 실행 기록에 남기고, 속도 비교는 최종 단독 측정에서 수행합니다.
 
-후보마다 마지막 5개 평가의 시드별 평균과 시드 간 표준편차를 기록합니다. 10개 시드가 모두 안정적으로 도달하고 마지막 평가 평균이 475 이상인 후보 중, 최고 평균과 5점 이내인 후보를 비교해 목표 도달 시간이 가장 짧은 $T$를 선택합니다. 모든 시드가 도달한 후보가 없으면 가장 높은 마지막 평가 평균의 $T$를 선택하고 그 사실을 기록합니다.
+후보마다 마지막 5개 평가의 시드별 평균과 시드 간 표준편차를 기록합니다. 10개 시드가 모두 안정적으로 도달하고 마지막 5개 평가 평균이 475 이상인 후보에서 평균 점수가 가장 높은 $T$를 선택합니다. 동점이면 시드 간 표준편차와 평균 목표 도달 트랜지션 수가 작은 순서로 선택합니다. 모든 시드가 도달한 후보가 없으면 가장 높은 마지막 평가 평균의 $T$를 선택하고 그 사실을 기록합니다.
 
 ## 4. 백엔드 용량과 최종 비교
 
@@ -54,7 +54,7 @@ $S$는 최대 구성인 $16{,}384\times512$의 rollout 16회분입니다. $M=512
 uv sync --frozen --extra benchmark
 uv run --no-sync python -m gymtosha.benchmarks.study_fixed_budget \
   --baseline benchmarks/results/cartpole-study/scaling/selected.json \
-  --output outputs/cartpole-fixed-budget-3090 --devices cpu cuda --tune-envs 1024
+  --output outputs/cartpole-fixed-budget-3090 --devices cpu cuda --tune-envs 1024 --parallel-trials 16
 ```
 
 MPS에서는 RTX 3090 실행이 생성한 `selected.json`을 별도의 출력 경로로 복사하고 `--devices mps --compare-only`를 사용합니다. 같은 프로토콜과 출력 경로로 재실행하면 완료 기록을 재사용합니다. 이전 그룹별 비교의 재현 명령은 [이전 CartPole 실험 명세](CARTPOLE_STUDY.md)에 있습니다.

@@ -44,7 +44,7 @@
     const data = __DATA__;
     if (data.fixed_experience_budget) {
       document.getElementById('timing-method').textContent =
-        '탐색과 최종 비교 모두 같은 트랜지션 예산을 사용하고 시드마다 단독 실행합니다.';
+        '두 단계에 같은 트랜지션 예산을 사용합니다. 탐색은 병렬로 실행하고 최종 시간은 단독으로 측정합니다.';
     }
     if (data.progress) {
       const p = data.progress;
