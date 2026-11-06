@@ -91,7 +91,7 @@ class TargetEvaluator:
         self.next_checkpoint = 0
         self.evaluation_seconds = 0.0
 
-    def record(self, timesteps, scores, *, elapsed):
+    def record(self, timesteps, scores, *, elapsed, **counts):
         score = float(np.mean(scores))
         success_rate = float(np.mean(np.asarray(scores) >= self.target))
         passed = score >= self.target and success_rate >= self.config.min_episode_success_rate
@@ -106,6 +106,7 @@ class TargetEvaluator:
                 "episode_success_rate": success_rate,
                 "episode_returns": [float(value) for value in scores],
                 "consecutive_passes": self.streak,
+                **counts,
             }
         )
         if confirmed and not self.reached:
@@ -116,9 +117,10 @@ class TargetEvaluator:
             self.on_progress(self.summary())
         return self.reached and self.config.stop_on_target
 
-    def check(self, model, timesteps, algorithm, *, force=False):
+    def check(self, model, timesteps, algorithm, *, force=False, **counts):
         if timesteps < self.next_checkpoint and not force:
             return False
+        counts = {key: int(value) for key, value in counts.items()}
         # Copy weights to CPU so evaluation has the same device and overhead for
         # both training backends and does not mutate the training model or RNG.
         evaluation_started = time.perf_counter()
@@ -140,7 +142,7 @@ class TargetEvaluator:
             action, self.env_id, episodes=self.config.episodes, seed=self.config.seed
         )
         self.evaluation_seconds += time.perf_counter() - evaluation_started
-        return self.record(timesteps, scores, elapsed=time.perf_counter() - self.started)
+        return self.record(timesteps, scores, elapsed=time.perf_counter() - self.started, **counts)
 
     def summary(self):
         final = self.checkpoints[-1] if self.checkpoints else None
@@ -153,6 +155,12 @@ class TargetEvaluator:
             "status": "reached" if self.reached else "budget_exhausted",
             "time_to_target_seconds": self.first_target["wall_seconds"] if self.reached else None,
             "transitions_to_target": self.first_target["timesteps"] if self.reached else None,
+            "valid_transitions_to_target": (
+                self.first_target.get("valid_transitions") if self.reached else None
+            ),
+            "gradient_updates_to_target": (
+                self.first_target.get("gradient_updates") if self.reached else None
+            ),
             "observed_wall_seconds": final["wall_seconds"] if final else 0.0,
             "checkpoints": list(self.checkpoints),
         }

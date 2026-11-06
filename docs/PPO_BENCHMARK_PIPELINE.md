@@ -55,3 +55,18 @@
 - 백엔드별 최적 환경 수 비교에는 20개 시드의 개별 도달 시간, 평균·표준편차, 최종 평가 점수를 표시합니다. 용량 검증 실패, 학습 목표 미달, 아직 실행하지 않은 조건을 구분합니다.
 
 이 문서는 신규 PPO 비교에 적용할 절차입니다. 기존 CartPole 결과와 재현 명령은 [이전 실험 명세](CARTPOLE_STUDY.md)에 있습니다.
+
+## RTX 3090에서 CartPole 실행
+
+```bash
+uv sync --frozen --extra benchmark
+uv run --no-sync python -m gymtosha.benchmarks.study_grouped \
+  --baseline benchmarks/results/cartpole-study/scaling/selected.json \
+  --output outputs/cartpole-grouped --devices cpu cuda --parallel-trials 8
+```
+
+같은 출력 경로로 재실행하면 완료된 탐색·검증·비교 기록을 재사용합니다. 그룹별 선택과
+실패 사유는 `groups/`, 용량 결과는 `capacity-screening/`과 `capacity-selected/`,
+표와 그림은 `index.html`에서 확인합니다. CartPole 그룹 탐색은 양 끝에서 모두
+10개 시드가 안정적으로 도달하고 마지막 5개 평가 평균이 475점 이상인 후보를 선택합니다.
+두 끝점 각각에서 최고점과 5점 이내인 후보의 단독 실행 시간을 비교합니다.

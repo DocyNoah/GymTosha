@@ -35,6 +35,7 @@
   <img id="learning" alt="후보별 학습 보상과 평가 보상 곡선" hidden>
   <img id="heatmap" alt="환경 수와 파라미터 후보별 마지막 5회 평가 평균">
   <div id="comparison"></div>
+  <div id="comparison-heatmaps"></div>
   <div id="best"></div>
   <div id="curves"></div>
   <div id="trends"></div>
@@ -131,6 +132,7 @@
     parameter.onchange = update;
     update();
     for (const [enabled, id, filename, description] of [
+      [data.has_comparison_heatmaps, 'comparison-heatmaps', 'comparison-heatmaps.png', '목표 달성률과 도달 시간 히트맵'],
       [data.has_best, 'best', 'best-backends.png', '백엔드별 최적 환경 수의 비교'],
       [data.has_curves, 'curves', 'best-learning-curves.png', '최적 환경 수의 20시드 평가 보상 곡선'],
       [data.has_trends, 'trends', 'selected-trends.png', '환경 수에 따른 선택 파라미터 변화']

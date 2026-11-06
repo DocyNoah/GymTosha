@@ -607,8 +607,16 @@ def comparison_seed_details(record):
         "wall_seconds": result.get("wall_seconds"),
         "time_to_target_seconds": evaluation.get("time_to_target_seconds"),
         "transitions_to_target": evaluation.get("transitions_to_target"),
+        "valid_transitions_to_target": evaluation.get("valid_transitions_to_target"),
+        "gradient_updates_to_target": evaluation.get("gradient_updates_to_target"),
         "evaluation_curve": [
-            {key: point[key] for key in ("timesteps", "wall_seconds", "mean_return")}
+            {
+                "timesteps": point["timesteps"],
+                "valid_transitions": point.get("valid_transitions", point["timesteps"]),
+                "gradient_updates": point.get("gradient_updates"),
+                "wall_seconds": point["wall_seconds"],
+                "mean_return": point["mean_return"],
+            }
             for point in evaluation.get("checkpoints", [])
         ],
     }
@@ -640,10 +648,10 @@ def compare(args):
         maximum = condition["maximum_verified"]
         if condition["backend"] == "gymnasium-async":
             maximum = min(maximum, 32)
-        conditions.append((condition, maximum))
+        conditions.append((condition, maximum, condition.get("verified_counts")))
     for count in sorted(map(int, selected)):
-        for condition, maximum in conditions:
-            if count > maximum:
+        for condition, maximum, verified in conditions:
+            if count > maximum or (verified is not None and count not in verified):
                 continue
             preset = selected[str(count)]
             if preset.get("score_metric") != SCORE_METRIC or preset.get("seeds") != list(SEEDS):
@@ -684,6 +692,7 @@ def compare(args):
                 {
                     "name": name,
                     "config": asdict(config),
+                    **{key: preset[key] for key in ("group", "batch_rule") if key in preset},
                     "summary": summarize_trials(records, seeds=COMPARISON_SEEDS),
                     "seeds": list(COMPARISON_SEEDS),
                     "score_metric": SCORE_METRIC,

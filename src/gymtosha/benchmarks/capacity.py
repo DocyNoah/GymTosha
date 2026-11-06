@@ -62,18 +62,22 @@ def _probe(args):
     from gymtosha.benchmarks.train import TrainConfig, train
 
     started = time.perf_counter()
-    config = TrainConfig(
-        env_id="CartPole-v1",
-        algorithm="ppo",
-        backend=args.backend,
-        device=args.device,
-        compile_env=args.compile,
-        num_envs=args.num_envs,
-        total_timesteps=args.num_envs * 128,
-        rollout_steps=128,
-        update_epochs=1,
-        num_minibatches=4,
-        hidden_sizes=[256, 256, 256],
+    config = (
+        TrainConfig(**json.loads(args.training_config.read_text()))
+        if args.training_config
+        else TrainConfig(
+            env_id="CartPole-v1",
+            algorithm="ppo",
+            backend=args.backend,
+            device=args.device,
+            compile_env=args.compile,
+            num_envs=args.num_envs,
+            total_timesteps=args.num_envs * 128,
+            rollout_steps=128,
+            update_epochs=1,
+            num_minibatches=4,
+            hidden_sizes=[256, 256, 256],
+        )
     )
     result = {"config": asdict(config), "num_envs": args.num_envs, "status": "failed"}
     try:
@@ -127,6 +131,9 @@ def _isolated_probe(args, count):
     ]
     if args.compile:
         command.append("--compile")
+    training_config = getattr(args, "training_config", None)
+    if training_config is not None:
+        command.extend(("--training-config", str(training_config)))
     started = time.perf_counter()
     reason = None
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -219,6 +226,7 @@ def main():
     parser.add_argument("--timeout", type=float, default=60)
     parser.add_argument("--probe", action="store_true")
     parser.add_argument("--num-envs", type=int)
+    parser.add_argument("--training-config", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if not 0 < args.timeout <= 60:
         parser.error("capacity verification must finish within 60 seconds")

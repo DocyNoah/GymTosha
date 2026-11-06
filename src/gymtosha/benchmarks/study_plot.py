@@ -183,7 +183,7 @@ def plot_search_learning_curves(phase, trial_dir, path):
             windows.append(points)
             assessments.append(
                 [
-                    (point["timesteps"], point["mean_return"])
+                    (point.get("valid_transitions", point["timesteps"]), point["mean_return"])
                     for point in result["evaluation"]["checkpoints"]
                 ]
             )
@@ -216,7 +216,8 @@ def plot_search_learning_curves(phase, trial_dir, path):
         axis.set_xscale("symlog", linthresh=8192)
         axis.set_xlim(left=0)
     training.legend(title=phase["parameter"], ncols=3, loc="upper left", fontsize=8)
-    evaluation.set_xlabel("Sampling slots (symlog scale)")
+    training.set_xlabel("Sampling slots (symlog scale)")
+    evaluation.set_xlabel("Valid transitions (symlog scale)")
     fig.suptitle(
         f"CartPole PPO · {phase['num_envs']:,} environments\n"
         f"Mean ± sample SD across {len(series[0][1])} training seeds per candidate"
@@ -237,6 +238,8 @@ def render_dashboard(output, *, figures=True):
         plot_comparisons(comparisons, root / "comparison.png")
         plot_best(best, root)
         plot_best_learning_curves(best, root / "best-learning-curves.png")
+        if any("group" in row for row in comparisons):
+            plot_comparison_heatmaps(comparisons, root / "comparison-heatmaps.png")
     (root / "best-backends.json").write_text(json.dumps(best, indent=2) + "\n")
     selected_path = root / "selected.json"
     if figures and selected_path.exists():
@@ -283,6 +286,7 @@ def render_dashboard(output, *, figures=True):
             "has_trends": selected_path.exists(),
             "has_best": bool(best),
             "has_curves": (root / "best-learning-curves.png").exists(),
+            "has_comparison_heatmaps": (root / "comparison-heatmaps.png").exists(),
             "tables": sorted(path.name for path in root.glob("*.csv")),
         }
     ).replace("</", "<\\/")
@@ -422,13 +426,18 @@ def plot_best_learning_curves(best, path):
         curves = [seed["evaluation_curve"] for seed in row["seed_results"]]
         returns = np.array([[point["mean_return"] for point in curve] for curve in curves])
         elapsed = np.array([[point["wall_seconds"] for point in curve] for curve in curves])
-        timesteps = [point["timesteps"] for point in curves[0]]
+        transitions = np.array(
+            [
+                [point.get("valid_transitions", point["timesteps"]) for point in curve]
+                for curve in curves
+            ]
+        )
         mean = returns.mean(axis=0)
         deviation = returns.std(axis=0, ddof=1)
         config = row["config"]
         compiled = " compiled" if config["compile_env"] else ""
         label = f"{config['backend']} / {config['device']}{compiled} / N={config['num_envs']:,}"
-        for axis, x in zip(axes, (timesteps, elapsed.mean(axis=0)), strict=True):
+        for axis, x in zip(axes, (transitions.mean(axis=0), elapsed.mean(axis=0)), strict=True):
             line = axis.plot(x, mean, label=label)[0]
             axis.fill_between(
                 x, mean - deviation, mean + deviation, alpha=0.12, color=line.get_color()
@@ -436,12 +445,48 @@ def plot_best_learning_curves(best, path):
     for axis in axes:
         axis.axhline(475, color="#666", linestyle="--", linewidth=1)
         axis.set_ylabel("Evaluation episode return")
-    axes[0].set_xlabel("Sampling slots")
+    axes[0].set_xlabel("Mean valid transitions at each checkpoint")
     axes[1].set_xlabel("Mean wall time at each checkpoint (s)")
     axes[0].legend(fontsize=7)
     fig.suptitle("Best environment count per backend · mean ± sample SD · 20 seeds")
     fig.tight_layout()
     fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
+def plot_comparison_heatmaps(comparisons, path):
+    plt = _pyplot()
+    labels = sorted(
+        {(c["backend"], c["device"], c["compile_env"]) for c in (r["config"] for r in comparisons)}
+    )
+    counts = sorted({row["config"]["num_envs"] for row in comparisons})
+    reach = np.full((len(labels), len(counts)), np.nan)
+    times = np.full_like(reach, np.nan)
+    for row in comparisons:
+        config, stats = row["config"], row["summary"]
+        key = (config["backend"], config["device"], config["compile_env"])
+        position = labels.index(key), counts.index(config["num_envs"])
+        reach[position] = stats["target_reached"] / stats["expected_seeds"]
+        if stats["mean_target_seconds"] is not None:
+            times[position] = stats["mean_target_seconds"]
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5), constrained_layout=True)
+    for axis, grid, title, upper in zip(
+        axes,
+        (reach, times),
+        ("Stable target rate", "Mean stable target time (s)"),
+        (1, None),
+        strict=True,
+    ):
+        rendered = axis.imshow(np.ma.masked_invalid(grid), aspect="auto", vmin=0, vmax=upper)
+        axis.set_xticks(range(len(counts)), [f"{count:,}" for count in counts], rotation=30)
+        axis.set_yticks(
+            range(len(labels)),
+            [f"{b} / {d}" + (" compiled" if c else "") for b, d, c in labels],
+        )
+        axis.set_title(title)
+        axis.set_xlabel("Environments")
+        fig.colorbar(rendered, ax=axis)
+    fig.savefig(path, dpi=150)
     plt.close(fig)
 
 
@@ -474,6 +519,8 @@ def final_checkpoint_rows(root, seeds):
                 **scope,
                 "checkpoint": index,
                 "sampling_slots": point["timesteps"],
+                "valid_transitions": point.get("valid_transitions"),
+                "gradient_updates": point.get("gradient_updates"),
                 "episodes": len(scores),
                 "mean_return": float(scores.mean()),
                 "episode_population_std": float(scores.std()),
@@ -495,7 +542,14 @@ def export_tables(phases, comparisons, root, *, include_checkpoints=False):
         for phase in phases
         for candidate in phase["candidates"]
     ]
-    results = [{**row["config"], **row["summary"]} for row in comparisons]
+    results = [
+        {
+            **row["config"],
+            **row["summary"],
+            **{key: row[key] for key in ("group", "batch_rule") if key in row},
+        }
+        for row in comparisons
+    ]
     search_seeds = [
         {
             "num_envs": phase["num_envs"],
@@ -554,6 +608,7 @@ def export_tables(phases, comparisons, root, *, include_checkpoints=False):
                         **row["config"],
                         "selection_basis": row.get("selection_basis", "searched"),
                         "anchor_counts": row.get("anchor_counts", [int(count)]),
+                        **{key: row[key] for key in ("group", "batch_rule") if key in row},
                     }
                     for count, row in sorted(
                         json.loads(presets.read_text()).items(), key=lambda item: int(item[0])

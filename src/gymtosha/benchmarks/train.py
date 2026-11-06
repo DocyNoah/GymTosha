@@ -191,7 +191,9 @@ def _ppo(
     iterations = config.total_timesteps // size
     timesteps = 0
     valid_transitions = torch.zeros((), dtype=torch.long, device=device)
-    stop = evaluator is not None and evaluator.check(agent, 0, config.algorithm)
+    stop = evaluator is not None and evaluator.check(
+        agent, 0, config.algorithm, valid_transitions=0, gradient_updates=0
+    )
     for iteration in range(iterations):
         if stop:
             break
@@ -301,7 +303,12 @@ def _ppo(
         update_seconds += time.perf_counter() - update_start
         if evaluator is not None:
             stop = evaluator.check(
-                agent, timesteps, config.algorithm, force=timesteps == config.total_timesteps
+                agent,
+                timesteps,
+                config.algorithm,
+                force=timesteps == config.total_timesteps,
+                valid_transitions=valid_transitions,
+                gradient_updates=updates,
             )
     synchronize(device)
     elapsed = time.perf_counter() - recorder.start
