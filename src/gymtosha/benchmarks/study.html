@@ -25,7 +25,7 @@
 <body>
   <h1>CartPole PPO · 탐색 10개 시드 / 최종 비교 20개 시드</h1>
   <p>별도 Gymnasium 평가의 마지막 5개 체크포인트 평균으로 후보를 선택합니다. 오차 막대는 시드 간 표본 표준편차입니다.</p>
-  <p>탐색은 여러 실험이 GPU를 공유합니다. 탐색 시간은 비교 통계에서 제외하고, 최종 속도 비교는 단독 실행으로 측정합니다.</p>
+  <p id="timing-method">탐색은 여러 실험이 GPU를 공유합니다. 최종 속도 비교는 단독 실행으로 측정합니다.</p>
   <p id="progress" aria-live="polite"></p>
   <label>환경 수 <select id="count"></select></label>
   <label>파라미터 <select id="parameter"></select></label>
@@ -42,6 +42,10 @@
   <ul id="tables"></ul>
   <script>
     const data = __DATA__;
+    if (data.fixed_experience_budget) {
+      document.getElementById('timing-method').textContent =
+        '탐색과 최종 비교 모두 같은 트랜지션 예산을 사용하고 시드마다 단독 실행합니다.';
+    }
     if (data.progress) {
       const p = data.progress;
       document.getElementById('progress').textContent =

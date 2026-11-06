@@ -55,7 +55,9 @@ class TrainConfig:
     ppo_minibatch_size: int | None = None
     adam_eps: float = 1e-5
     anneal_learning_rate: bool = True
+    anneal_by_optimizer_step: bool = False
     rollout_timeout_seconds: float | None = None
+    native_same_step: bool = False
 
     def validate(self):
         if self.rollout_timeout_seconds is not None and (
@@ -189,6 +191,7 @@ def _ppo(
     update_seconds = 0.0
     updates = 0
     iterations = config.total_timesteps // size
+    planned_updates = config.total_timesteps // minibatch_size * config.update_epochs
     timesteps = 0
     valid_transitions = torch.zeros((), dtype=torch.long, device=device)
     stop = evaluator is not None and evaluator.check(
@@ -197,9 +200,8 @@ def _ppo(
     for iteration in range(iterations):
         if stop:
             break
-        optimizer.param_groups[0]["lr"] = (
-            rate * (1 - iteration / iterations) if config.anneal_learning_rate else rate
-        )
+        if config.anneal_learning_rate and not config.anneal_by_optimizer_step:
+            optimizer.param_groups[0]["lr"] = rate * (1 - iteration / iterations)
         collection_start = time.perf_counter()
         initial_seconds = startup_seconds + learner_setup_seconds if iteration == 0 else 0.0
         for step in range(config.rollout_steps):
@@ -296,6 +298,8 @@ def _ppo(
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 nn.utils.clip_grad_norm_(agent.parameters(), config.max_grad_norm)
+                if config.anneal_learning_rate and config.anneal_by_optimizer_step:
+                    optimizer.param_groups[0]["lr"] = rate * (1 - updates / planned_updates)
                 optimizer.step()
                 updates += 1
         timesteps = (iteration + 1) * size
@@ -428,7 +432,12 @@ def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
         else None
     )
     env = make_backend(
-        config.env_id, config.backend, config.num_envs, config.device, config.compile_env
+        config.env_id,
+        config.backend,
+        config.num_envs,
+        config.device,
+        config.compile_env,
+        native_same_step=config.native_same_step,
     )
     try:
         continuous = isinstance(env.action_space, gym.spaces.Box)

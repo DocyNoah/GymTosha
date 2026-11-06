@@ -238,7 +238,7 @@ def render_dashboard(output, *, figures=True):
         plot_comparisons(comparisons, root / "comparison.png")
         plot_best(best, root)
         plot_best_learning_curves(best, root / "best-learning-curves.png")
-        if any("group" in row for row in comparisons):
+        if any("batch_rule" in row for row in comparisons):
             plot_comparison_heatmaps(comparisons, root / "comparison-heatmaps.png")
     (root / "best-backends.json").write_text(json.dumps(best, indent=2) + "\n")
     selected_path = root / "selected.json"
@@ -278,8 +278,11 @@ def render_dashboard(output, *, figures=True):
     ]
     progress_path = root / "progress.json"
     progress = json.loads(progress_path.read_text()) if progress_path.exists() else None
+    protocol_path = root / "protocol.json"
+    design = json.loads(protocol_path.read_text()).get("design") if protocol_path.exists() else None
     data = json.dumps(
         {
+            "fixed_experience_budget": design == "fixed_experience_budget_v1",
             "phases": view_phases,
             "has_comparisons": bool(comparisons),
             "progress": progress,

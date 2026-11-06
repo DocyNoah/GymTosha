@@ -93,10 +93,10 @@ def candidate_values(parameter, config, *, local):
     return valid
 
 
-def study_evaluation(config, *, comparison=False):
+def study_evaluation(config, *, comparison=False, interval=None):
     return EvaluationConfig(
         target=475.0,
-        interval=config.num_envs * config.rollout_steps * 4,
+        interval=config.num_envs * config.rollout_steps * 4 if interval is None else interval,
         episodes=100,
         confirmations=5,
         seed=200000 if comparison else 100000,
@@ -362,7 +362,16 @@ def collect_candidates(config, parameter, values, output, *, parallelism=16, mem
     )
 
 
-def collect_configurations(configs, parameter, output, *, parallelism=16, memory_budget=None):
+def collect_configurations(
+    configs,
+    parameter,
+    output,
+    *,
+    parallelism=16,
+    memory_budget=None,
+    evaluation_interval=None,
+    isolated=False,
+):
     import random
     from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
     from pathlib import Path
@@ -372,6 +381,8 @@ def collect_configurations(configs, parameter, output, *, parallelism=16, memory
 
     if parallelism < 1:
         raise ValueError("parallelism must be positive")
+    if isolated and parallelism != 1:
+        raise ValueError("isolated timings require a single worker")
     if not configs:
         raise ValueError("at least one study candidate is required")
     config = next(iter(configs.values()))
@@ -408,9 +419,9 @@ def collect_configurations(configs, parameter, output, *, parallelism=16, memory
                 future = executor.submit(
                     run_trial,
                     candidate,
-                    study_evaluation(candidate),
+                    study_evaluation(candidate, interval=evaluation_interval),
                     output,
-                    timing_scope="shared_search",
+                    timing_scope="isolated" if isolated else "shared_search",
                 )
                 running[future] = (seed, value, reservation)
                 reserved += reservation
@@ -453,7 +464,7 @@ def collect_configurations(configs, parameter, output, *, parallelism=16, memory
     return [
         {
             "value": value,
-            "summary": summarize_trials(records[str(value)], timing_comparable=False),
+            "summary": summarize_trials(records[str(value)], timing_comparable=isolated),
             "trial_ids": [record["trial_id"] for record in records[str(value)]],
             "seed_scores": [
                 final_evaluation_score(record["result"])
@@ -668,7 +679,9 @@ def compare(args):
                 records.append(
                     run_trial(
                         replace(config, seed=seed),
-                        study_evaluation(config, comparison=True),
+                        study_evaluation(
+                            config, comparison=True, interval=preset.get("evaluation_interval")
+                        ),
                         directory,
                     )
                 )
@@ -692,7 +705,11 @@ def compare(args):
                 {
                     "name": name,
                     "config": asdict(config),
-                    **{key: preset[key] for key in ("group", "batch_rule") if key in preset},
+                    **{
+                        key: preset[key]
+                        for key in ("group", "batch_rule", "evaluation_interval")
+                        if key in preset
+                    },
                     "summary": summarize_trials(records, seeds=COMPARISON_SEEDS),
                     "seeds": list(COMPARISON_SEEDS),
                     "score_metric": SCORE_METRIC,
