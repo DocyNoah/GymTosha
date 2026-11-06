@@ -155,7 +155,7 @@ uv run --extra benchmark python -m gymtosha.benchmarks.study tune \
   --output outputs/cartpole-study-full
 uv run --extra benchmark python -m gymtosha.benchmarks.study compare \
   --presets outputs/cartpole-study-full/selected.json \
-  --capacity outputs/cartpole-study-full/capacity/summary.json \
+  --capacity benchmarks/results/cartpole-study/capacity/summary.json \
   --devices cpu cuda --output outputs/cartpole-study-full
 ```
 

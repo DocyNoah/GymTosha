@@ -9,7 +9,7 @@ Specification lives in `docs/CARTPOLE_STUDY.md`.
 - [x] Save probe outcomes, failure bounds, memory and hardware metadata. Show the first-stage results before launching parameter sweeps.
 - [x] Implement restartable single-parameter searches with 10 training seeds per candidate and frozen selection history.
 - [x] Separate selection seeds from the 20 final comparison seeds and preserve unsuccessful trials.
-- [x] Carry selected parameters to doubled environment counts and record their scaling trends.
+- [x] Finish the four anchor searches and derive the other environment-count presets.
 - [x] Add candidate plots, environment-count heatmaps and per-backend comparison plots.
-- [ ] Complete parameter searches for every environment count and execute all backend comparisons.
+- [ ] Execute all backend comparisons with 20 independent seeds per condition.
 - [ ] Verify and publish the completed study tables and graphs.
