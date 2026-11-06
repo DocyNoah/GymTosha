@@ -117,7 +117,8 @@ Async는 최대 32개, 나머지는 4,096개에서 두 배씩 늘려 60초 내 P
 가능한 크기를 확인했습니다. 아래 기존 성능 실험과 설정·시드를 구분해 보관합니다.
 
 [진행 상태와 용량 검증](benchmarks/results/cartpole-study/README.md) ·
-[20개 시드 탐색 명세](docs/CARTPOLE_STUDY.md)
+[이전 CartPole 실험 명세](docs/CARTPOLE_STUDY.md) ·
+[공통 PPO 벤치마크 파이프라인](docs/PPO_BENCHMARK_PIPELINE.md)
 
 ## 성능 검증
 

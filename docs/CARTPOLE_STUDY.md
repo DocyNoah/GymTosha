@@ -1,5 +1,8 @@
 # CartPole PPO 실험 명세
 
+이 문서는 기존 CartPole 실험을 재현하기 위한 명세입니다. 새 비교와 다른 환경에는
+[공통 PPO 벤치마크 파이프라인](PPO_BENCHMARK_PIPELINE.md)을 적용합니다.
+
 ## 고정 조건
 
 - 과제는 `CartPole-v1`, 알고리즘은 PPO입니다.
