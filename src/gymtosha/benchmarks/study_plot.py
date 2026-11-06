@@ -282,7 +282,7 @@ def render_dashboard(output, *, figures=True):
     design = json.loads(protocol_path.read_text()).get("design") if protocol_path.exists() else None
     data = json.dumps(
         {
-            "fixed_experience_budget": design == "fixed_experience_budget_v1",
+            "fixed_experience_budget": (design or "").startswith("fixed_experience_budget_v"),
             "phases": view_phases,
             "has_comparisons": bool(comparisons),
             "progress": progress,

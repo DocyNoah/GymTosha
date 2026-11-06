@@ -34,10 +34,25 @@ def test_budget_rejects_truncated_rollouts_or_insufficient_final_updates():
 
     with pytest.raises(ValueError, match="divisible"):
         Budget((32, 16384), (16, 512), 134_217_727, 512)
-    with pytest.raises(ValueError, match="16"):
-        Budget((32, 16384), (16, 512), 67_108_864, 512)
+    with pytest.raises(ValueError, match="8"):
+        Budget((32, 16384), (16, 512), 33_554_432, 512)
     with pytest.raises(ValueError, match="minibatch"):
         Budget((32, 16384), (16, 512), 134_217_728, 1024)
+
+
+def test_cartpole_tuning_budget_uses_only_the_fixed_tuning_count():
+    from gymtosha.benchmarks.study_fixed_budget import HORIZONS, Budget, final_budget
+
+    tuning = Budget((1024,), HORIZONS, 4_194_304, 512)
+    assert tuning.evaluation_interval == 524_288
+    assert tuning.configure(reference_config(32), 1024, 512).total_timesteps == 4_194_304
+    assert final_budget(tuning, 16).total_timesteps == 4_194_304
+    assert final_budget(tuning, 64).total_timesteps == 8_388_608
+    assert final_budget(tuning, 512).total_timesteps == 67_108_864
+    final = final_budget(tuning, 64)
+    assert final.horizons == (64,)
+    assert final.evaluation_interval == 1_048_576
+    assert final.configure(reference_config(32), 16384, 64).total_timesteps == 8_388_608
 
 
 def test_horizon_uses_returns_and_transitions_with_shared_workers():

@@ -1,4 +1,4 @@
-"""Retune CartPole's rollout horizon and compare backends at one experience budget."""
+"""Retune CartPole's rollout horizon and compare backends at matched stage budgets."""
 
 import argparse
 import json
@@ -20,10 +20,11 @@ from gymtosha.benchmarks.study import (
 from gymtosha.benchmarks.study_grouped import load_baseline, verify_selected
 from gymtosha.benchmarks.study_plot import plot_parameter, render_dashboard
 
-DESIGN = "fixed_experience_budget_v1"
+DESIGN = "fixed_experience_budget_v2"
 ENV_COUNTS = (32, 256, 512, 1024, 4096, 8192, 16384)
 HORIZONS = (16, 32, 64, 128, 256, 512)
-MIN_ROLLOUTS = 16
+MIN_ROLLOUTS = 8
+TUNING_TIMESTEPS = 4_194_304
 TARGET = 475
 
 
@@ -93,6 +94,14 @@ def select_horizon(candidates):
     return winner["value"], "stable_final_score" if stable else "final_score_no_stable_horizon"
 
 
+def final_budget(tuning, horizon):
+    if horizon not in tuning.horizons:
+        raise ValueError("final horizon must be a registered tuning candidate")
+    interval = lcm(*(n * horizon for n in ENV_COUNTS))
+    intervals = max(MIN_ROLLOUTS, (tuning.total_timesteps + interval - 1) // interval)
+    return Budget(ENV_COUNTS, (horizon,), intervals * interval, tuning.minibatch)
+
+
 def expected_presets(base, budget, horizon):
     return {
         str(count): {
@@ -147,13 +156,15 @@ def main():
     parser.add_argument("--devices", nargs="+", choices=("cpu", "cuda", "mps"), required=True)
     parser.add_argument("--tune-device", choices=("cpu", "cuda", "mps"), default="cuda")
     parser.add_argument("--tune-envs", type=int, choices=ENV_COUNTS, default=1024)
-    parser.add_argument("--total-timesteps", type=int, default=134_217_728)
+    parser.add_argument("--tune-timesteps", type=int, default=TUNING_TIMESTEPS)
     parser.add_argument("--minibatch-size", type=int, default=512)
     parser.add_argument("--parallel-trials", type=int, choices=range(1, 33), default=16)
     parser.add_argument("--compare-only", action="store_true")
     args = parser.parse_args()
     signal.signal(signal.SIGTERM, signal.default_int_handler)
-    budget = Budget(ENV_COUNTS, HORIZONS, args.total_timesteps, args.minibatch_size)
+    tuning = Budget((args.tune_envs,), HORIZONS, args.tune_timesteps, args.minibatch_size)
+    if any(n * t % tuning.minibatch for n in ENV_COUNTS for t in tuning.horizons):
+        parser.error("minibatch must divide every possible final rollout batch")
     args.presets = args.output / "selected.json"
     args.capacity = args.output / "capacity-selected" / f"summary-{'-'.join(args.devices)}.json"
     with study_lock(args.output):
@@ -167,26 +178,38 @@ def main():
             "tune_envs": args.tune_envs,
             "tune_device": args.tune_device,
             "compare_only": args.compare_only,
-            "counts": list(budget.counts),
-            "horizons": list(budget.horizons),
-            "total_timesteps": budget.total_timesteps,
-            "minibatch": budget.minibatch,
-            "evaluation_interval": budget.evaluation_interval,
+            "counts": list(ENV_COUNTS),
+            "horizons": list(tuning.horizons),
+            "tune_timesteps": tuning.total_timesteps,
+            "minibatch": tuning.minibatch,
+            "tune_evaluation_interval": tuning.evaluation_interval,
             "baseline": asdict(base),
         }
         if protocol.exists() and json.loads(protocol.read_text()) != metadata:
             raise ValueError("use a new output directory for a different fixed-budget protocol")
         if args.compare_only:
             selected = json.loads(args.presets.read_text())
-            horizon = selected[str(budget.counts[0])]["config"]["rollout_steps"]
-            if selected != expected_presets(base, budget, horizon):
+            horizon = selected[str(ENV_COUNTS[0])]["config"]["rollout_steps"]
+            final = final_budget(tuning, horizon)
+            if selected != expected_presets(base, final, horizon):
                 raise ValueError("presets do not match the fixed-budget protocol")
             _write(metadata, protocol)
         else:
             _write(metadata, protocol)
-            horizon = tune(base, budget, args)
-            selected = expected_presets(base, budget, horizon)
+            horizon = tune(base, tuning, args)
+            final = final_budget(tuning, horizon)
+            selected = expected_presets(base, final, horizon)
             _write(selected, args.presets)
+        _write(
+            {
+                "horizon": horizon,
+                "total_timesteps": final.total_timesteps,
+                "evaluation_interval": final.evaluation_interval,
+                "minibatch": final.minibatch,
+                "rollouts": {n: final.total_timesteps // (n * horizon) for n in final.counts},
+            },
+            args.output / "final_plan.json",
+        )
         _write(verify_selected(selected, args.output, args.devices), args.capacity)
         compare(args)
 
