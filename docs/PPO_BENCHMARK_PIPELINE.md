@@ -1,6 +1,6 @@
 # PPO 환경 벤치마크 파이프라인
 
-GymTosha와 Gymnasium에 같은 양의 학습 경험을 주고, 같은 평가 성능에 안정적으로 도달하는 데 걸린 시간을 비교합니다. CartPole은 rollout 길이 탐색에 짧은 공통 예산을 사용하고, 최종 비교 예산은 선택한 rollout 길이로 계산합니다.
+GymTosha와 Gymnasium에 같은 양의 학습 경험을 주고, 같은 평가 성능에 안정적으로 도달하는 데 걸린 시간을 비교합니다. 최종 비교 예산은 rollout 길이로 계산합니다. 현재 CartPole 최종 비교는 사용자 지정 rollout 길이 $T=64$를 사용합니다.
 
 ## 1. 과제와 평가 기준
 
@@ -23,9 +23,9 @@ GymTosha와 Gymnasium에 같은 양의 학습 경험을 주고, 같은 평가 �
 
 Gymnasium의 CartPole 전용 NumPy 백엔드에서는 종료한 행을 같은 스텝에 리셋합니다. 원래 벡터 물리 계산과 리셋 분포를 사용하면서 종료 관측을 보존하므로, 다음 수집 슬롯도 학습에 쓸 수 있습니다. 모든 비교에서 수집 슬롯, 유효 트랜지션, 실제 optimizer 호출 수를 따로 기록합니다.
 
-## 3. rollout 길이 재탐색
+## 3. rollout 길이 탐색
 
-CartPole은 RTX 3090에서 $N=1{,}024$로 고정하고 $T=16,32,64,128,256,512$를 같은 10개 시드로 비교합니다. 이전 512 선택은 rollout 횟수를 고정한 탐색에서 나왔고, 후보마다 경험량이 달랐습니다. 새 설계에서는 512도 같은 예산에서 다시 평가합니다.
+CartPole의 기존 탐색은 RTX 3090에서 $N=1{,}024$를 고정하고 $T=16,32,64,128,256,512$를 같은 10개 시드와 공통 경험 예산으로 비교했습니다. 현재 최종 비교는 `--fixed-horizon 64`로 바로 시작합니다.
 
 | 항목 | CartPole 설정 |
 | --- | ---: |
@@ -42,7 +42,7 @@ $S_{\rm tune}$은 탐색에서 가장 큰 배치인 $1{,}024\times512$의 rollou
 ## 4. 백엔드 용량과 최종 비교
 
 - 환경 수는 **32, 256, 512, 1,024, 4,096, 8,192, 16,384**입니다. 각 환경 수에 하나의 $T$를 적용합니다. Async는 32개까지만 비교합니다.
-- 최종 공통 평가 간격 $A$는 선택된 $T$에 대한 모든 $NT$의 최소공배수입니다. $S_{\rm final}$은 $S_{\rm tune}$과 $8A$ 이상인 최소 $A$의 배수로 정합니다. 예를 들어 $T=64$이면 $A=1{,}048{,}576$, $S_{\rm final}=8{,}388{,}608$입니다. 확정값과 환경 수별 rollout 횟수는 `final_plan.json`에 기록합니다.
+- 최종 공통 평가 간격 $A$는 선택된 $T$에 대한 모든 $NT$의 최소공배수입니다. $S_{\rm final}$은 $S_{\rm tune}$과 $8A$ 이상인 최소 $A$의 배수로 정합니다. $T=64$에서는 $A=1{,}048{,}576$, $S_{\rm final}=8{,}388{,}608$이고, $M=512$, $E=4$이므로 시드마다 optimizer를 65,536회 호출합니다. 확정값과 환경 수별 rollout 횟수는 `final_plan.json`에 기록합니다.
 - 실제 설정으로 환경 초기화부터 PPO 업데이트 한 번까지 60초 이내에 완료해야 통과입니다. 용량 실패는 시간 초과, 메모리 부족, 미지원 등 원인별로 기록합니다.
 - 통과한 조건마다 탐색과 겹치지 않는 **20개 시드**로 단독 실행합니다. Gymnasium과 GymTosha CPU·CUDA는 RTX 3090 호스트에서, GymTosha MPS는 Apple 호스트에서 측정합니다. 호스트와 eager·compile 구성을 결과에 표시합니다.
 - 목표 도달 월타임은 환경 생성부터 컴파일·워밍업, 학습, 확인 평가 종료까지입니다. 같은 환경 수의 백엔드, 백엔드 안의 환경 수, 백엔드별 최적 환경 수를 비교합니다. 20개 시드가 모두 도달한 조건끼리 평균 도달 시간을 비교합니다. 미달 시드가 있는 조건은 달성률과 마지막 평가 점수를 보고합니다.
@@ -55,7 +55,7 @@ $S_{\rm tune}$은 탐색에서 가장 큰 배치인 $1{,}024\times512$의 rollou
 uv sync --frozen --extra benchmark
 uv run --no-sync python -m gymtosha.benchmarks.study_fixed_budget \
   --baseline benchmarks/results/cartpole-study/scaling/selected.json \
-  --output outputs/cartpole-practical-budget-3090 --devices cpu cuda --tune-envs 1024 --parallel-trials 16
+  --output outputs/cartpole-t64-3090 --devices cpu cuda --fixed-horizon 64
 ```
 
-MPS에서는 RTX 3090 실행이 생성한 `selected.json`을 별도의 출력 경로로 복사하고 `--devices mps --compare-only`를 사용합니다. 같은 프로토콜과 출력 경로로 재실행하면 완료 기록을 재사용합니다. 이전 그룹별 비교의 재현 명령은 [이전 CartPole 실험 명세](CARTPOLE_STUDY.md)에 있습니다.
+MPS에서는 같은 기준 설정과 `--fixed-horizon 64`를 쓰고 `--output outputs/cartpole-t64-mps --devices mps`를 지정합니다. 같은 프로토콜과 출력 경로로 재실행하면 완료 기록을 재사용합니다. 이전 그룹별 비교의 재현 명령은 [이전 CartPole 실험 명세](CARTPOLE_STUDY.md)에 있습니다.

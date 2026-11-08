@@ -1,4 +1,4 @@
-"""Retune CartPole's rollout horizon and compare backends at matched stage budgets."""
+"""Compare CartPole backends at matched budgets with a tuned or fixed rollout horizon."""
 
 import argparse
 import json
@@ -159,11 +159,19 @@ def main():
     parser.add_argument("--tune-timesteps", type=int, default=TUNING_TIMESTEPS)
     parser.add_argument("--minibatch-size", type=int, default=512)
     parser.add_argument("--parallel-trials", type=int, choices=range(1, 33), default=16)
-    parser.add_argument("--compare-only", action="store_true")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--compare-only", action="store_true")
+    selection.add_argument(
+        "--fixed-horizon",
+        type=int,
+        choices=HORIZONS,
+        help="skip tuning and use this rollout length",
+    )
     args = parser.parse_args()
     signal.signal(signal.SIGTERM, signal.default_int_handler)
     tuning = Budget((args.tune_envs,), HORIZONS, args.tune_timesteps, args.minibatch_size)
-    if any(n * t % tuning.minibatch for n in ENV_COUNTS for t in tuning.horizons):
+    final_horizons = (args.fixed_horizon,) if args.fixed_horizon is not None else tuning.horizons
+    if any(n * t % tuning.minibatch for n in ENV_COUNTS for t in final_horizons):
         parser.error("minibatch must divide every possible final rollout batch")
     args.presets = args.output / "selected.json"
     args.capacity = args.output / "capacity-selected" / f"summary-{'-'.join(args.devices)}.json"
@@ -185,6 +193,8 @@ def main():
             "tune_evaluation_interval": tuning.evaluation_interval,
             "baseline": asdict(base),
         }
+        if args.fixed_horizon is not None:
+            metadata["fixed_horizon"] = args.fixed_horizon
         if protocol.exists() and json.loads(protocol.read_text()) != metadata:
             raise ValueError("use a new output directory for a different fixed-budget protocol")
         if args.compare_only:
@@ -196,7 +206,9 @@ def main():
             _write(metadata, protocol)
         else:
             _write(metadata, protocol)
-            horizon = tune(base, tuning, args)
+            horizon = (
+                args.fixed_horizon if args.fixed_horizon is not None else tune(base, tuning, args)
+            )
             final = final_budget(tuning, horizon)
             selected = expected_presets(base, final, horizon)
             _write(selected, args.presets)

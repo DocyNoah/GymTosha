@@ -1,3 +1,7 @@
+import json
+import sys
+from pathlib import Path
+
 import pytest
 import torch
 
@@ -77,6 +81,55 @@ def test_horizon_uses_returns_and_transitions_with_shared_workers():
         trial(512, 9, 500, None),
     ]
     assert select_horizon(candidates) == (128, "stable_final_score")
+
+
+def test_fixed_horizon_starts_comparison_without_tuning(tmp_path, monkeypatch):
+    from gymtosha.benchmarks import study_fixed_budget as study
+
+    baseline = (
+        Path(__file__).resolve().parents[1]
+        / "benchmarks/results/cartpole-study/scaling/selected.json"
+    )
+    output = tmp_path / "comparison"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "study_fixed_budget",
+            "--baseline",
+            str(baseline),
+            "--output",
+            str(output),
+            "--devices",
+            "cpu",
+            "--fixed-horizon",
+            "64",
+        ],
+    )
+
+    def unexpected_tuning(*args):
+        pytest.fail("fixed horizon should skip tuning")
+
+    def verify_selected(selected, directory, devices):
+        assert directory == output
+        assert devices == ["cpu"]
+        assert {row["config"]["rollout_steps"] for row in selected.values()} == {64}
+        return []
+
+    def compare(args):
+        plan = json.loads((args.output / "final_plan.json").read_text())
+        assert plan["horizon"] == 64
+        assert plan["total_timesteps"] == 8_388_608
+        assert plan["evaluation_interval"] == 1_048_576
+        assert plan["rollouts"] == {str(n): 8_388_608 // (n * 64) for n in study.ENV_COUNTS}
+
+    monkeypatch.setattr(study.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(study, "tune", unexpected_tuning)
+    monkeypatch.setattr(study, "verify_selected", verify_selected)
+    monkeypatch.setattr(study, "compare", compare)
+    study.main()
+
+    assert json.loads((output / "protocol.json").read_text())["fixed_horizon"] == 64
 
 
 def test_native_exact_budget_uses_all_slots_after_cartpole_resets():
