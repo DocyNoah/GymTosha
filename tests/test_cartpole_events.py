@@ -44,6 +44,7 @@ def test_live_cartpole_records_raw_events_after_each_update(tmp_path):
     assert all(point.shape == (100,) for point in values("eval/episode_returns"))
     assert np.all(np.diff(values("time/training_seconds")) > 0)
     assert values("time/training_seconds")[-1] <= result["wall_seconds"]
+    assert all(value >= 0 for value in values("time/learner_setup_seconds"))
     assert np.all(np.diff(values("time/collection_seconds")) > 0)
     assert np.all(np.diff(values("time/update_seconds")) > 0)
     assert all(value >= 0 for value in values("train/completed_episodes"))

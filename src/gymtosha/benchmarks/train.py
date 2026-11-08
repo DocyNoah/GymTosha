@@ -356,6 +356,7 @@ def _ppo(
                     {
                         "ppo_update": iteration + 1,
                         "completed_episodes": completed_episodes,
+                        "learner_setup_seconds": learner_setup_seconds,
                         "collection_seconds": collection_seconds,
                         "update_seconds": update_seconds,
                     },

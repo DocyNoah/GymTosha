@@ -22,6 +22,7 @@ METRIC_TAGS = {
     "wall_seconds": "time/training_seconds",
     "setup_seconds": "time/setup_seconds",
     "warmup_seconds": "time/warmup_seconds",
+    "learner_setup_seconds": "time/learner_setup_seconds",
     "collection_seconds": "time/collection_seconds",
     "update_seconds": "time/update_seconds",
     **{
