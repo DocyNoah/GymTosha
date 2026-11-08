@@ -1,0 +1,363 @@
+import csv
+import json
+
+import pytest
+
+
+def write_matrix(root, *, host="RTX 3090", seeds=range(1001, 1006), device="cuda", extra=()):
+    root.mkdir()
+    (root / "matrix.json").write_text(
+        json.dumps(
+            {
+                "conditions": [
+                    {
+                        "backend": "gymtosha",
+                        "device": device,
+                        "compile_env": False,
+                        "num_envs": 16384,
+                        "host": host,
+                        "status": "passed",
+                    },
+                    {
+                        "backend": "gymtosha",
+                        "device": device,
+                        "compile_env": True,
+                        "num_envs": 16384,
+                        "host": host,
+                        "status": "failed",
+                    },
+                    *extra,
+                ],
+                "seeds": list(seeds),
+                "horizon": 64,
+                "budget": 8388608,
+            }
+        )
+    )
+
+
+def write_seed(
+    root,
+    seed,
+    *,
+    scores=(474, 475, 450, 480, 480, 480, 480, 480),
+    mutate=None,
+    status="completed",
+    missing_fields=(),
+    source="live",
+    count=16384,
+    host="RTX 3090",
+    device="cuda",
+    duplicate_update=None,
+    config_overrides=None,
+):
+    from tensorboard.compat.proto.event_pb2 import Event
+    from tensorboard.compat.proto.summary_pb2 import Summary
+    from tensorboard.summary.writer.event_file_writer import EventFileWriter
+    from tensorboard.util.tensor_util import make_tensor_proto
+
+    folder = root / "events" / f"gymtosha-{device}-0-{count}" / f"seed-{seed}"
+    folder.mkdir(parents=True)
+    writer = EventFileWriter(str(folder))
+    try:
+        for step, score in enumerate(scores, start=1):
+            metrics = {
+                "eval/episode_returns": [score] * 100,
+                "eval/mean_return": 500,
+                "train/valid_transitions": count * 64 * step,
+                "time/training_seconds": 2.5 * step,
+                "train/optimizer_calls": count * step // 2,
+                "train/ppo_update": step,
+                "train/completed_episodes": 20 * step,
+                "time/setup_seconds": 0.1,
+                "time/warmup_seconds": 0.2,
+                "time/learner_setup_seconds": 0.3,
+                "time/collection_seconds": 0.4 * step,
+                "time/update_seconds": 0.5 * step,
+                "ppo/learning_rate": 0.001,
+                "ppo/entropy": 0.6,
+                "ppo/policy_loss": -0.1,
+                "ppo/value_loss": 0.7,
+                "ppo/approx_kl": 0.05,
+                "ppo/clip_fraction": 0.3,
+            }
+            if mutate:
+                mutate(step, metrics)
+            values = [
+                Summary.Value(tag=key, tensor=make_tensor_proto(value))
+                for key, value in metrics.items()
+            ]
+            event = Event(step=step, summary=Summary(value=values))
+            writer.add_event(event)
+            if step == duplicate_update:
+                writer.add_event(event)
+    finally:
+        writer.close()
+    (folder / "metadata.json").write_text(
+        json.dumps(
+            {
+                "host": host,
+                "status": status,
+                "config": {
+                    "seed": seed,
+                    "backend": "gymtosha",
+                    "device": device,
+                    "compile_env": False,
+                    "num_envs": count,
+                    "rollout_steps": 64,
+                    "total_timesteps": 8_388_608,
+                    "ppo_minibatch_size": 512,
+                    "num_minibatches": count // 8,
+                    "update_epochs": 4,
+                    "env_id": "CartPole-v1",
+                    "algorithm": "ppo",
+                    "gae_lambda": 0.99,
+                    "hidden_sizes": [256, 256, 256],
+                    "num_threads": 1,
+                    "anneal_by_optimizer_step": True,
+                    "anneal_learning_rate": True,
+                    "native_same_step": True,
+                    "normalize_observations": False,
+                    "normalize_rewards": False,
+                    **(config_overrides or {}),
+                },
+                "evaluation": {
+                    "target": 475.0,
+                    "interval": count * 64,
+                    "episodes": 100,
+                    "confirmations": 1,
+                    "seed": 200000,
+                    "stop_on_target": False,
+                    "min_episode_success_rate": 0.0,
+                    "evaluate_at_start": False,
+                    "training_time_only": True,
+                    "native_cartpole": True,
+                },
+                "source": source,
+                "timing_scope": "isolated",
+                "missing_fields": missing_fields,
+                "code_version": "test",
+            }
+        )
+    )
+
+
+def rows(path):
+    with path.open(newline="") as file:
+        return list(csv.DictReader(file))
+
+
+def test_report_uses_first_raw_mean_and_preserves_censoring(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import main
+
+    root = tmp_path / "input"
+    output = tmp_path / "report"
+    write_matrix(root)
+    write_seed(root, 1001)
+    write_seed(root, 1002, scores=(474, 474, 475, 490, 480, 480, 480, 480))
+    for seed in (1003, 1004, 1005):
+        write_seed(root, seed, scores=(474,) * 8)
+
+    main(["--inputs", str(root), "--output", str(output)])
+
+    seed, second, censored, *_ = rows(output / "seeds.csv")
+    assert seed["status"] == "reached"
+    assert seed["target_update"] == "2"
+    assert seed["target_transitions"] == "2097152"
+    assert float(seed["target_training_seconds"]) == 5
+    assert seed["target_optimizer_calls"] == "16384"
+    assert second["target_update"] == "3"
+    assert censored["status"] == "censored"
+    assert censored["target_transitions"] == ""
+    assert censored["last_transitions"] == "8388608"
+    assert float(censored["last_mean_return"]) == 474
+
+    (condition,) = rows(output / "conditions.csv")
+    assert condition["host"] == "RTX 3090"
+    assert condition["evaluation_spacing_transitions"] == "1048576"
+    assert condition["completed_seeds"] == "5"
+    assert condition["censored_seeds"] == "3"
+    assert condition["reached_seeds"] == "2"
+    assert float(condition["reach_rate"]) == 0.4
+    assert float(condition["mean_target_transitions"]) == 2621440
+    assert float(condition["sd_target_transitions"]) == pytest.approx(741455.20019)
+    assert float(condition["mean_target_training_seconds"]) == 6.25
+    assert float(condition["sd_target_training_seconds"]) == pytest.approx(1.76776695)
+    assert len(rows(output / "checkpoints.csv")) == 40
+    assert len(rows(output / "capacity.csv")) == 2
+    assert len(rows(output / "best-n.csv")) == 1
+    assert list(output.glob("same-n-*.png"))
+    assert list(output.glob("best-n-*.png"))
+
+
+def test_partial_mode_distinguishes_unfinished_missing_and_censored_seeds(tmp_path, capsys):
+    from gymtosha.benchmarks.cartpole_report import main
+
+    root = tmp_path / "input"
+    output = tmp_path / "report"
+    write_matrix(root)
+    write_seed(root, 1001, scores=(474,) * 8)
+    write_seed(root, 1002, scores=(474, 475), status="running")
+
+    with pytest.raises(SystemExit) as error:
+        main(["--inputs", str(root), "--output", str(output)])
+    assert error.value.code == 2
+    assert "missing or incomplete eligible runs" in capsys.readouterr().err
+    assert not output.exists()
+
+    main(["--inputs", str(root), "--output", str(output), "--partial"])
+
+    assert [row["status"] for row in rows(output / "seeds.csv")] == [
+        "censored",
+        "incomplete",
+        "missing",
+        "missing",
+        "missing",
+    ]
+    (condition,) = rows(output / "conditions.csv")
+    assert condition["completed_seeds"] == "1"
+    assert condition["expected_seeds"] == "5"
+    assert condition["reached_seeds"] == "0"
+    assert rows(output / "best-n.csv") == []
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "error"),
+    [
+        ("eval/episode_returns", [475] * 99, "100 finite"),
+        ("eval/episode_returns", [475] * 99 + [float("nan")], "100 finite"),
+        ("train/valid_transitions", 12, "transitions"),
+        ("time/training_seconds", 1, "monotonic"),
+        ("train/optimizer_calls", 12, "optimizer"),
+        ("train/ppo_update", 12, "PPO update"),
+        ("ppo/approx_kl", float("nan"), "ppo/approx_kl.*finite"),
+    ],
+)
+def test_invalid_raw_checkpoint_rejects_final_report(tmp_path, field, value, error):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    def mutate(step, metrics):
+        if step == 2:
+            metrics[field] = value
+
+    root = tmp_path / "input"
+    write_matrix(root)
+    write_seed(root, 1001, mutate=mutate)
+
+    with pytest.raises(ValueError, match=error):
+        analyze([root])
+
+
+def test_extra_seed_directory_is_rejected(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    root = tmp_path / "input"
+    write_matrix(root)
+    write_seed(root, 1006)
+
+    with pytest.raises(ValueError, match="undeclared seed"):
+        analyze([root])
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_completed_seed_rejects_short_stream_or_duplicate_step(tmp_path, duplicate):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    root = tmp_path / "input"
+    write_matrix(root)
+    if duplicate:
+        write_seed(root, 1001, duplicate_update=2)
+        error = "duplicate .* PPO update 2"
+    else:
+        write_seed(root, 1001, scores=(474, 475))
+        error = "found 2 checkpoints, expected 8"
+
+    with pytest.raises(ValueError, match=error):
+        analyze([root])
+
+
+def test_best_n_prioritizes_reach_rate_within_each_host(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import main
+
+    rtx, mac = tmp_path / "rtx", tmp_path / "mac"
+    output = tmp_path / "report"
+    write_matrix(
+        rtx,
+        extra=[
+            {
+                "host": "RTX 3090",
+                "backend": "gymtosha",
+                "device": "cuda",
+                "compile_env": False,
+                "num_envs": 8192,
+                "status": "passed",
+            }
+        ],
+    )
+    write_matrix(mac, host="Mac", device="mps")
+    for seed in range(1001, 1006):
+        rtx_early_scores = (475,) * 8 if seed == 1001 else (474,) * 8
+        write_seed(rtx, seed, scores=rtx_early_scores)
+        write_seed(rtx, seed, count=8192, scores=(474, 474) + (475,) * 14)
+        write_seed(mac, seed, scores=(400,) * 8, host="Mac", device="mps")
+
+    main(["--inputs", str(rtx), str(mac), "--output", str(output)])
+
+    best = {row["host"]: row for row in rows(output / "best-n.csv")}
+    assert best["RTX 3090"]["num_envs"] == "8192"
+    assert best["RTX 3090"]["reached_seeds"] == "5"
+    assert best["RTX 3090"]["evaluation_spacing_transitions"] == "524288"
+    assert best["Mac"]["num_envs"] == "16384"
+    assert best["Mac"]["mean_target_training_seconds"] == ""
+    assert len(list(output.glob("best-n-*.png"))) == 2
+
+
+def test_legacy_seed_preserves_source_and_missing_diagnostics(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import main
+
+    def omit_historical_diagnostic(step, metrics):
+        if step < 8:
+            del metrics["time/collection_seconds"]
+
+    root = tmp_path / "input"
+    output = tmp_path / "report"
+    write_matrix(root)
+    write_seed(
+        root,
+        1001,
+        source="legacy_json",
+        missing_fields=("collection_seconds",),
+        mutate=omit_historical_diagnostic,
+    )
+    main(["--inputs", str(root), "--output", str(output), "--partial"])
+
+    seed, *_ = rows(output / "seeds.csv")
+    assert seed["status"] == "reached"
+    assert seed["source"] == "legacy_json"
+    assert seed["missing_fields"] == "collection_seconds"
+
+
+@pytest.mark.parametrize("source", ["live", "legacy_json"])
+def test_undeclared_missing_diagnostic_is_rejected(tmp_path, source):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    def omit_policy_loss(step, metrics):
+        del metrics["ppo/policy_loss"]
+
+    root = tmp_path / "input"
+    write_matrix(root)
+    write_seed(root, 1001, source=source, mutate=omit_policy_loss)
+
+    with pytest.raises(ValueError, match="missing ppo/policy_loss"):
+        analyze([root])
+
+
+def test_seed_configuration_requires_matched_gae(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    root = tmp_path / "input"
+    write_matrix(root)
+    write_seed(root, 1001, config_overrides={"gae_lambda": 0.95})
+
+    with pytest.raises(ValueError, match="config gae_lambda"):
+        analyze([root])

@@ -6,7 +6,7 @@ GymTosha와 Gymnasium에 같은 양의 학습 경험을 주고, 평가 목표에
 
 - 환경 ID·버전, 관측·행동, 보상과 종료 조건을 기록합니다. 환경 구현이 다르면 차이를 명시합니다.
 - PPO 학습기는 공통으로 사용하고 정책망과 가치망은 각각 `256–256–256`으로 구성합니다. CartPole은 GAE λ `0.99`와 기존 학습률·스케줄을 사용합니다.
-- PPO 업데이트 직후에 별도 Gymnasium 평가 환경에서 100개 에피소드를 실행합니다. 평가 평균이 **처음 475점 이상**인 시점의 학습 월타임, 유효 트랜지션과 optimizer 호출 수를 기록합니다. 평가와 평가 기록 시간은 학습 월타임에서 제외합니다.
+- PPO 업데이트 직후에 별도 Gymnasium 평가 환경에서 100개 에피소드를 실행하고 개별 리턴을 TensorBoard에 기록합니다. 실행이 끝나면 후처리가 평가 평균이 **처음 475점 이상**인 체크포인트의 유효 트랜지션 수와 학습 월타임을 계산합니다. 평가와 이벤트 기록에 걸린 시간은 학습 월타임에서 제외합니다.
 - CartPole 평가는 모든 백엔드에서 같은 CPU NumPy 벡터 환경을 사용합니다. 각 평가 행은 Gymnasium SyncVectorEnv와 동일한 `seed + 행 번호`로 초기화하고 첫 에피소드만 집계합니다.
 
 ## 2. 공통 학습 예산
@@ -26,7 +26,7 @@ Gymnasium의 CartPole 전용 NumPy 백엔드에서는 종료한 행을 같은 �
 
 ## 3. rollout 길이 탐색
 
-CartPole의 기존 탐색은 RTX 3090에서 $N=1{,}024$를 고정하고 $T=16,32,64,128,256,512$를 같은 10개 시드와 공통 경험 예산으로 비교했습니다. 현재 최종 비교는 `--fixed-horizon 64`로 바로 시작합니다.
+CartPole의 기존 탐색은 RTX 3090에서 $N=1{,}024$를 고정하고 $T=16,32,64,128,256,512$를 같은 10개 시드와 공통 경험 예산으로 비교했습니다. 최종 비교의 rollout 길이는 64로 고정합니다.
 
 | 항목 | CartPole 설정 |
 | --- | ---: |
@@ -44,19 +44,35 @@ $S_{\rm tune}$은 탐색에서 가장 큰 배치인 $1{,}024\times512$의 rollou
 
 - CPU 후보는 **32, 256, 512, 1,024개**이고, Gymnasium Async는 **32개**만 비교합니다. CUDA와 MPS 후보는 **32, 256, 512, 1,024, 4,096, 8,192, 16,384개**입니다. 모든 환경 수에 같은 $T$를 적용합니다.
 - 모든 rollout을 끝까지 실행할 수 있도록 예산 산정 단위 $A$는 모든 $NT$의 최소공배수로 정합니다. $S_{\rm final}$은 $S_{\rm tune}$과 $8A$ 이상인 최소 $A$의 배수입니다. $T=64$에서는 $A=1{,}048{,}576$, $S_{\rm final}=8{,}388{,}608$이고, $M=512$, $E=4$이므로 시드마다 optimizer를 65,536회 호출합니다. 환경 수별 평가 간격과 rollout 횟수는 `final_plan.json`에 기록합니다.
-- 실제 설정으로 환경 초기화부터 PPO 업데이트 한 번까지 60초 이내에 완료해야 통과입니다. 용량 실패는 시간 초과, 메모리 부족, 미지원 등 원인별로 기록합니다.
-- 통과한 조건마다 탐색과 겹치지 않는 **20개 시드**로 단독 실행합니다. Gymnasium과 GymTosha CPU·CUDA는 RTX 3090 호스트에서, GymTosha MPS는 Apple 호스트에서 측정합니다. 호스트와 eager·compile 구성을 결과에 표시합니다.
-- 목표 도달 월타임은 환경 생성부터 컴파일·워밍업과 최초로 475점을 달성한 정책의 PPO 업데이트 종료까지입니다. 모든 평가 소요 시간은 별도로 기록합니다. 20개 시드가 모두 도달한 조건은 평균 도달 시간과 평균 도달 트랜지션 수를 비교합니다. 미달 시드가 있는 조건은 달성률과 마지막 평가 점수를 보고합니다.
+- 동일한 호스트·런타임·학습 설정에서 완료된 T=64 용량 검사를 재사용합니다. 추가 검사는 환경 초기화부터 PPO 업데이트 한 번까지 60초 이내에 완료해야 통과입니다.
+- 통과한 조건마다 **시드 1001–1005**를 단독 실행합니다. 나머지 15개 시드는 후속 실행에 사용합니다. Gymnasium과 GymTosha CPU·CUDA는 RTX 3090 호스트에서, GymTosha MPS는 Mac에서 측정합니다.
+- 목표 도달 월타임은 환경 생성부터 컴파일·워밍업과 최초로 475점을 달성한 정책의 PPO 업데이트 종료까지입니다. 도달률과 함께 도달한 시드의 트랜지션·월타임 평균 및 표본 표준편차를 표시합니다.
 
 ## 5. 결과 기록과 실행
 
-실행별 설정, 시드, 체크포인트별 100개 평가 리턴과 평균·표준편차를 보존합니다. 결과 화면에는 목표 달성률, 도달 시간, 월타임 및 유효 트랜지션에 따른 학습 곡선, 백엔드별 최적 환경 수를 표시합니다.
+TensorBoard 로그는 조건과 시드별로 분리합니다. 업데이트마다 평가 리턴 100개, 유효 트랜지션, 누적 학습 시간, 초기화·워밍업과 누적 수집·업데이트 시간, 업데이트 번호, optimizer 호출과 완료 에피소드 수를 기록합니다. PPO 진단은 학습률, 정책 엔트로피, policy loss, value loss, approx KL, clip fraction을 남깁니다. 실행 메타데이터에는 설정, 호스트, 장치, 코드 버전, 상태가 들어갑니다.
+
+완료된 기존 T=64 JSON을 변환할 때는 저장된 값만 이벤트에 넣고, 당시 측정하지 않은 항목은 메타데이터에 표시합니다. T=256 결과는 기존 출력 경로에 별도로 보존합니다.
 
 ```bash
 uv sync --frozen --extra benchmark
-uv run --no-sync python -m gymtosha.benchmarks.study_fixed_budget \
+uv run --no-sync python -m gymtosha.benchmarks.cartpole_final \
   --baseline benchmarks/results/cartpole-study/scaling/selected.json \
-  --output outputs/cartpole-t64-3090 --devices cpu cuda --fixed-horizon 64
+  --output outputs/cartpole-t64-tb-3090 --legacy outputs/cartpole-t64-3090 --devices cpu cuda
+
+uv run --no-sync python -m gymtosha.benchmarks.cartpole_final \
+  --baseline benchmarks/results/cartpole-study/scaling/selected.json \
+  --output outputs/cartpole-t64-tb-mps --legacy outputs/cartpole-t64-mps --devices mps
+
+uv run --no-sync tensorboard --logdir outputs/cartpole-t64-tb-mps/events
 ```
 
-MPS에서는 같은 기준 설정과 `--fixed-horizon 64`를 쓰고 `--output outputs/cartpole-t64-mps --devices mps`를 지정합니다. 같은 프로토콜과 출력 경로로 재실행하면 완료 기록을 재사용합니다. 이전 그룹별 비교의 재현 명령은 [이전 CartPole 실험 명세](CARTPOLE_STUDY.md)에 있습니다.
+두 호스트의 `matrix.json`과 `events/`를 한곳에 모아 후처리합니다. 스크립트는 이벤트에서 첫 도달, 조건별 통계, 트랜지션·학습 시간 기준 곡선, 환경 수별 평가 간격, 같은 환경 수의 비교와 백엔드별 최적 환경 수를 재생성합니다.
+
+```bash
+uv run --no-sync python -m gymtosha.benchmarks.cartpole_report \
+  --inputs outputs/cartpole-t64-tb-3090 outputs/cartpole-t64-tb-mps \
+  --output outputs/cartpole-t64-tb-report
+```
+
+최종 보고서는 통과 조건마다 다섯 시드가 완료되어야 생성됩니다. 실행 중간에는 `--partial`을 사용합니다. 같은 출력 경로로 실행하면 검증된 완료 기록을 재사용합니다. 이전 그룹별 비교는 [기존 CartPole 실험 명세](CARTPOLE_STUDY.md)에 있습니다.
