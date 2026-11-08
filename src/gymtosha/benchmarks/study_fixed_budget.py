@@ -22,6 +22,7 @@ from gymtosha.benchmarks.study_plot import plot_parameter, render_dashboard
 
 DESIGN = "fixed_experience_budget_v2"
 ENV_COUNTS = (32, 256, 512, 1024, 4096, 8192, 16384)
+CPU_LIMIT = 1024
 HORIZONS = (16, 32, 64, 128, 256, 512)
 MIN_ROLLOUTS = 8
 TUNING_TIMESTEPS = 4_194_304
@@ -169,6 +170,13 @@ def main():
         help="skip tuning and use this rollout length",
     )
     args = parser.parse_args()
+    if (
+        args.fixed_horizon is None
+        and not args.compare_only
+        and args.tune_device == "cpu"
+        and args.tune_envs > CPU_LIMIT
+    ):
+        parser.error(f"CPU tuning supports at most {CPU_LIMIT:,} environments")
     signal.signal(signal.SIGTERM, signal.default_int_handler)
     tuning = Budget((args.tune_envs,), HORIZONS, args.tune_timesteps, args.minibatch_size)
     final_horizons = (args.fixed_horizon,) if args.fixed_horizon is not None else tuning.horizons
@@ -230,7 +238,9 @@ def main():
             },
             args.output / "final_plan.json",
         )
-        _write(verify_selected(selected, args.output, args.devices), args.capacity)
+        _write(
+            verify_selected(selected, args.output, args.devices, cpu_limit=CPU_LIMIT), args.capacity
+        )
         compare(args)
 
 

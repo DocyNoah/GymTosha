@@ -283,13 +283,15 @@ def preset(config, group, rule):
     }
 
 
-def verify_selected(selected, output, devices):
+def verify_selected(selected, output, devices, *, cpu_limit=None):
     capacity = []
     for backend, device, compiled in conditions(devices):
         verified = []
         for value, row in selected.items():
             count = int(value)
             if backend == "gymnasium-async" and count != 32:
+                continue
+            if device == "cpu" and cpu_limit is not None and count > cpu_limit:
                 continue
             config = replace(
                 TrainConfig(**row["config"]), backend=backend, device=device, compile_env=compiled

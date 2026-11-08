@@ -110,9 +110,10 @@ def test_fixed_horizon_starts_comparison_without_tuning(tmp_path, monkeypatch):
     def unexpected_tuning(*args):
         pytest.fail("fixed horizon should skip tuning")
 
-    def verify_selected(selected, directory, devices):
+    def verify_selected(selected, directory, devices, *, cpu_limit):
         assert directory == output
         assert devices == ["cpu"]
+        assert cpu_limit == 1024
         assert {row["config"]["rollout_steps"] for row in selected.values()} == {64}
         for count, row in selected.items():
             assert row["evaluation_interval"] == int(count) * 64
@@ -140,6 +141,25 @@ def test_fixed_horizon_starts_comparison_without_tuning(tmp_path, monkeypatch):
     study.main()
 
     assert json.loads((output / "protocol.json").read_text())["fixed_horizon"] == 64
+
+
+def test_capacity_cpu_limit_does_not_limit_accelerators(tmp_path, monkeypatch):
+    from gymtosha.benchmarks import study_grouped as study
+
+    def probe(config, directory):
+        assert config.device != "cpu" or config.num_envs <= 1024
+        return {"status": "passed"}
+
+    monkeypatch.setattr(study, "probe", probe)
+    selected = {str(n): {"config": {}} for n in (32, 1024, 4096)}
+    capacities = study.verify_selected(selected, tmp_path, ("cpu", "cuda", "mps"), cpu_limit=1024)
+    for row in capacities:
+        if row["backend"] == "gymnasium-async":
+            assert row["verified_counts"] == [32]
+        elif row["device"] == "cpu":
+            assert row["verified_counts"] == [32, 1024]
+        else:
+            assert row["verified_counts"] == [32, 1024, 4096]
 
 
 def test_native_exact_budget_uses_all_slots_after_cartpole_resets():
