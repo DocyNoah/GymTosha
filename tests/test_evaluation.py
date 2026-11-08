@@ -29,6 +29,17 @@ def test_evaluation_uses_held_out_episodes_and_preserves_rng():
     assert torch.equal(before, torch.random.get_rng_state())
 
 
+@pytest.mark.parametrize("angular_velocity_weight", [0.0, 0.19])
+def test_numpy_cartpole_evaluation_matches_sync_gymnasium_episodes(angular_velocity_weight):
+    def actions(obs):
+        return (obs[:, 2] + angular_velocity_weight * obs[:, 3] > 0).long()
+
+    kwargs = {"episodes": 100, "seed": 200000}
+    expected = evaluate_policy(actions, "CartPole-v1", **kwargs)
+    actual = evaluate_policy(actions, "CartPole-v1", **kwargs, native_cartpole=True)
+    np.testing.assert_array_equal(actual, expected)
+
+
 def test_target_needs_consecutive_confirmations():
     evaluation = TargetEvaluator("CartPole-v1", EvaluationConfig(target=10, confirmations=2))
     assert not evaluation.record(0, [9, 11], elapsed=1.0)
@@ -100,6 +111,44 @@ def test_target_measurement_can_run_full_training_budget():
     )
     assert result["timesteps"] == 128
     assert result["evaluation"]["transitions_to_target"] == 64
+
+
+def test_post_update_target_excludes_evaluation_and_latches_first_mean(monkeypatch):
+    from gymtosha.benchmarks import evaluation as module
+
+    clock = [100.0]
+    evaluations = iter([[500] * 50 + [450] * 50, [450] * 100])
+
+    def evaluate(*args, **kwargs):
+        clock[0] += 20
+        return next(evaluations)
+
+    def progress(summary):
+        clock[0] += 2
+
+    monkeypatch.setattr(module.time, "perf_counter", lambda: clock[0])
+    monkeypatch.setattr(module, "evaluate_policy", evaluate)
+    config = EvaluationConfig(
+        target=475,
+        interval=64,
+        confirmations=1,
+        stop_on_target=False,
+        evaluate_at_start=False,
+        training_time_only=True,
+    )
+    evaluator = TargetEvaluator("CartPole-v1", config, on_progress=progress)
+    model = torch.nn.Linear(4, 2)
+    assert not evaluator.check(model, 0, "ppo")
+    clock[0] += 3
+    assert not evaluator.check(model, 64, "ppo", valid_transitions=64, gradient_updates=4)
+    clock[0] += 5
+    assert not evaluator.check(model, 128, "ppo")
+    result = evaluator.summary()
+    assert result["time_to_target_seconds"] == 3
+    assert result["valid_transitions_to_target"] == 64
+    assert result["observed_wall_seconds"] == 8
+    assert result["evaluation_seconds"] == 44
+    assert [p["timesteps"] for p in result["checkpoints"]] == [64, 128]
 
 
 def test_stable_target_requires_five_mean_and_episode_rate_confirmations():

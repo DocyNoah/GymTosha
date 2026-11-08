@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from gymtosha.benchmarks.evaluation import EvaluationConfig
-from gymtosha.benchmarks.study import reference_config
+from gymtosha.benchmarks.study import reference_config, study_evaluation
 from gymtosha.benchmarks.train import TrainConfig, train
 
 
@@ -114,13 +114,23 @@ def test_fixed_horizon_starts_comparison_without_tuning(tmp_path, monkeypatch):
         assert directory == output
         assert devices == ["cpu"]
         assert {row["config"]["rollout_steps"] for row in selected.values()} == {64}
+        for count, row in selected.items():
+            assert row["evaluation_interval"] == int(count) * 64
+            assert row["evaluate_each_update"]
+            evaluation = study_evaluation(TrainConfig(**row["config"]), each_update=True)
+            assert evaluation.interval == row["evaluation_interval"]
+            assert evaluation.confirmations == 1
+            assert evaluation.min_episode_success_rate == 0
+            assert evaluation.episodes == 100
+            assert evaluation.training_time_only and not evaluation.evaluate_at_start
+            assert not evaluation.stop_on_target
         return []
 
     def compare(args):
         plan = json.loads((args.output / "final_plan.json").read_text())
         assert plan["horizon"] == 64
         assert plan["total_timesteps"] == 8_388_608
-        assert plan["evaluation_interval"] == 1_048_576
+        assert plan["evaluation_intervals"] == {str(n): n * 64 for n in study.ENV_COUNTS}
         assert plan["rollouts"] == {str(n): 8_388_608 // (n * 64) for n in study.ENV_COUNTS}
 
     monkeypatch.setattr(study.signal, "signal", lambda *args: None)

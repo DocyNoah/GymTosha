@@ -11,7 +11,7 @@ import gymnasium as gym
 import numpy as np
 import torch
 
-from gymtosha.benchmarks.adapters import encode, make_backend
+from gymtosha.benchmarks.adapters import encode, make_backend, synchronize
 from gymtosha.benchmarks.algorithms import ActorCritic, SoftActor
 
 
@@ -24,6 +24,9 @@ class EvaluationConfig:
     seed: int = 100000
     stop_on_target: bool = True
     min_episode_success_rate: float = 0.0
+    evaluate_at_start: bool = True
+    training_time_only: bool = False
+    native_cartpole: bool = False
 
     def resolved_target(self, env_id):
         if self.target is not None:
@@ -53,12 +56,20 @@ class EvaluationConfig:
 
 
 @torch.no_grad()
-def evaluate_policy(policy, env_id, *, episodes=100, seed=100000):
+def evaluate_policy(policy, env_id, *, episodes=100, seed=100000, native_cartpole=False):
     """Evaluate exactly one seeded episode per row on the common CPU reference."""
-    env = make_backend(env_id, "gymnasium-sync", episodes, "cpu")
+    if native_cartpole and env_id != "CartPole-v1":
+        raise ValueError("native evaluation requires CartPole-v1")
+    env = (
+        gym.make_vec(env_id, num_envs=episodes, vectorization_mode="vector_entry_point")
+        if native_cartpole
+        else make_backend(env_id, "gymnasium-sync", episodes, "cpu")
+    )
     numpy_state, python_state = np.random.get_state(), random.getstate()
     try:
         with torch.random.fork_rng(devices=[]):
+            if native_cartpole:
+                return _evaluate_native_cartpole(policy, env, episodes, seed)
             observation = env.reset(seed)
             active = torch.ones(episodes, dtype=torch.bool)
             scores = torch.zeros(episodes)
@@ -77,6 +88,24 @@ def evaluate_policy(policy, env_id, *, episodes=100, seed=100000):
         env.close()
 
 
+def _evaluate_native_cartpole(policy, env, episodes, seed):
+    env.reset(seed=seed)
+    # Match the independent seed+i resets of SyncVectorEnv for the first episode.
+    env.state[:] = np.stack(
+        [np.random.default_rng(seed + i).uniform(env.low, env.high, 4) for i in range(episodes)],
+        axis=1,
+    )
+    observation = env.state.T.astype(np.float32)
+    active = np.ones(episodes, dtype=bool)
+    scores = np.zeros(episodes, dtype=np.float32)
+    while active.any():
+        action = policy(torch.as_tensor(observation)).numpy()
+        observation, reward, terminated, truncated, _ = env.step(action)
+        scores += reward * active
+        active &= ~(terminated | truncated)
+    return scores
+
+
 class TargetEvaluator:
     def __init__(self, env_id, config, *, started=None, on_progress=None):
         self.env_id = env_id
@@ -88,7 +117,7 @@ class TargetEvaluator:
         self.streak = 0
         self.reached = False
         self.first_target = None
-        self.next_checkpoint = 0
+        self.next_checkpoint = 0 if config.evaluate_at_start else config.interval
         self.evaluation_seconds = 0.0
 
     def record(self, timesteps, scores, *, elapsed, **counts):
@@ -121,6 +150,8 @@ class TargetEvaluator:
         if timesteps < self.next_checkpoint and not force:
             return False
         counts = {key: int(value) for key, value in counts.items()}
+        if self.config.training_time_only:
+            synchronize(next(model.parameters()).device)
         # Copy weights to CPU so evaluation has the same device and overhead for
         # both training backends and does not mutate the training model or RNG.
         evaluation_started = time.perf_counter()
@@ -139,10 +170,24 @@ class TargetEvaluator:
             return output.argmax(-1) if algorithm == "dqn" else output
 
         scores = evaluate_policy(
-            action, self.env_id, episodes=self.config.episodes, seed=self.config.seed
+            action,
+            self.env_id,
+            episodes=self.config.episodes,
+            seed=self.config.seed,
+            native_cartpole=self.config.native_cartpole,
         )
-        self.evaluation_seconds += time.perf_counter() - evaluation_started
-        return self.record(timesteps, scores, elapsed=time.perf_counter() - self.started, **counts)
+        evaluated = time.perf_counter()
+        elapsed = (
+            evaluation_started - self.started - self.evaluation_seconds
+            if self.config.training_time_only
+            else evaluated - self.started
+        )
+        self.evaluation_seconds += evaluated - evaluation_started
+        try:
+            return self.record(timesteps, scores, elapsed=elapsed, **counts)
+        finally:
+            if self.config.training_time_only:
+                self.evaluation_seconds += time.perf_counter() - evaluated
 
     def summary(self):
         final = self.checkpoints[-1] if self.checkpoints else None

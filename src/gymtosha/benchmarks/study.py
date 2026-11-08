@@ -93,15 +93,19 @@ def candidate_values(parameter, config, *, local):
     return valid
 
 
-def study_evaluation(config, *, comparison=False, interval=None):
+def study_evaluation(config, *, comparison=False, interval=None, each_update=False):
+    rollout = config.num_envs * config.rollout_steps
     return EvaluationConfig(
         target=475.0,
-        interval=config.num_envs * config.rollout_steps * 4 if interval is None else interval,
+        interval=rollout if each_update else (4 * rollout if interval is None else interval),
         episodes=100,
-        confirmations=5,
+        confirmations=1 if each_update else 5,
         seed=200000 if comparison else 100000,
         stop_on_target=False,
-        min_episode_success_rate=0.95,
+        min_episode_success_rate=0.0 if each_update else 0.95,
+        evaluate_at_start=not each_update,
+        training_time_only=each_update,
+        native_cartpole=each_update,
     )
 
 
@@ -152,6 +156,9 @@ def summarize_trials(records, *, seeds=SEEDS, timing_comparable=True):
         "std_wall_seconds": stdev(times) if usable and timing_comparable else None,
         "target_reached": reached,
         "mean_target_transitions": mean(target_transitions)
+        if usable and reached == len(seeds) and all(x is not None for x in target_transitions)
+        else None,
+        "std_target_transitions": stdev(target_transitions)
         if usable and reached == len(seeds) and all(x is not None for x in target_transitions)
         else None,
         "mean_target_seconds": mean(target_times)
@@ -686,7 +693,10 @@ def compare(args):
                     run_trial(
                         replace(config, seed=seed),
                         study_evaluation(
-                            config, comparison=True, interval=preset.get("evaluation_interval")
+                            config,
+                            comparison=True,
+                            interval=preset.get("evaluation_interval"),
+                            each_update=preset.get("evaluate_each_update", False),
                         ),
                         directory,
                     )
@@ -713,7 +723,12 @@ def compare(args):
                     "config": asdict(config),
                     **{
                         key: preset[key]
-                        for key in ("group", "batch_rule", "evaluation_interval")
+                        for key in (
+                            "group",
+                            "batch_rule",
+                            "evaluation_interval",
+                            "evaluate_each_update",
+                        )
                         if key in preset
                     },
                     "summary": summarize_trials(records, seeds=COMPARISON_SEEDS),

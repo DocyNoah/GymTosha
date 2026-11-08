@@ -42,7 +42,10 @@
   <ul id="tables"></ul>
   <script>
     const data = __DATA__;
-    if (data.fixed_experience_budget) {
+    if (data.evaluate_each_update) {
+      document.getElementById('timing-method').textContent =
+        'PPO 업데이트 직후 100개 에피소드를 평가합니다. 평균 475점 최초 도달 시의 트랜지션 수와 평가를 제외한 학습 시간을 비교합니다.';
+    } else if (data.fixed_experience_budget) {
       document.getElementById('timing-method').textContent =
         '각 단계 안에서 트랜지션 예산을 맞춥니다. 탐색은 병렬로 실행하고 최종 시간은 단독으로 측정합니다.';
     }

@@ -102,14 +102,15 @@ def final_budget(tuning, horizon):
     return Budget(ENV_COUNTS, (horizon,), intervals * interval, tuning.minibatch)
 
 
-def expected_presets(base, budget, horizon):
+def expected_presets(base, budget, horizon, *, each_update=False):
     return {
         str(count): {
             "config": asdict(budget.configure(base, count, horizon)),
             "batch_rule": DESIGN,
             "scaling_design": DESIGN,
             "selection_basis": "common_horizon",
-            "evaluation_interval": budget.evaluation_interval,
+            "evaluation_interval": count * horizon if each_update else budget.evaluation_interval,
+            **({"evaluate_each_update": True} if each_update else {}),
             "score_metric": SCORE_METRIC,
             "seeds": list(SEEDS),
         }
@@ -195,6 +196,7 @@ def main():
         }
         if args.fixed_horizon is not None:
             metadata["fixed_horizon"] = args.fixed_horizon
+            metadata["evaluate_each_update"] = True
         if protocol.exists() and json.loads(protocol.read_text()) != metadata:
             raise ValueError("use a new output directory for a different fixed-budget protocol")
         if args.compare_only:
@@ -210,13 +212,19 @@ def main():
                 args.fixed_horizon if args.fixed_horizon is not None else tune(base, tuning, args)
             )
             final = final_budget(tuning, horizon)
-            selected = expected_presets(base, final, horizon)
+            selected = expected_presets(
+                base, final, horizon, each_update=args.fixed_horizon is not None
+            )
             _write(selected, args.presets)
         _write(
             {
                 "horizon": horizon,
                 "total_timesteps": final.total_timesteps,
-                "evaluation_interval": final.evaluation_interval,
+                **(
+                    {"evaluation_intervals": {count: count * horizon for count in final.counts}}
+                    if args.fixed_horizon is not None
+                    else {"evaluation_interval": final.evaluation_interval}
+                ),
                 "minibatch": final.minibatch,
                 "rollouts": {n: final.total_timesteps // (n * horizon) for n in final.counts},
             },

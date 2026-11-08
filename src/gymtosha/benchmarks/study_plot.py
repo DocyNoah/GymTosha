@@ -69,18 +69,23 @@ def plot_comparisons(comparisons, path):
             " compiled" if config["compile_env"] else ""
         )
         groups[label].append(record)
-    fig, axes = plt.subplots(1, 3, figsize=(16, 4.5))
+    fig, axes = plt.subplots(1, 4, figsize=(19, 4.5))
     metrics = [
         ("mean_final_eval_return", "std_final_eval_return", "Final-five evaluation return"),
         ("mean_wall_seconds", "std_wall_seconds", "Fixed-length wall time (s)"),
-        ("mean_target_seconds", "std_target_seconds", "Stable target time (s), 20/20 reached"),
+        ("mean_target_seconds", "std_target_seconds", "Time to target (s), 20/20 reached"),
+        (
+            "mean_target_transitions",
+            "std_target_transitions",
+            "Transitions to target, 20/20 reached",
+        ),
     ]
     for label, records in groups.items():
         records.sort(key=lambda record: record["config"]["num_envs"])
         counts = [record["config"]["num_envs"] for record in records]
         for axis, (metric, deviation, title) in zip(axes, metrics, strict=True):
-            values = [record["summary"][metric] for record in records]
-            errors = [record["summary"][deviation] for record in records]
+            values = [record["summary"].get(metric) for record in records]
+            errors = [record["summary"].get(deviation) for record in records]
             axis.errorbar(
                 counts,
                 [np.nan if v is None else v for v in values],
@@ -279,10 +284,13 @@ def render_dashboard(output, *, figures=True):
     progress_path = root / "progress.json"
     progress = json.loads(progress_path.read_text()) if progress_path.exists() else None
     protocol_path = root / "protocol.json"
-    design = json.loads(protocol_path.read_text()).get("design") if protocol_path.exists() else None
+    protocol = json.loads(protocol_path.read_text()) if protocol_path.exists() else {}
     data = json.dumps(
         {
-            "fixed_experience_budget": (design or "").startswith("fixed_experience_budget_v"),
+            "fixed_experience_budget": protocol.get("design", "").startswith(
+                "fixed_experience_budget_v"
+            ),
+            "evaluate_each_update": protocol.get("evaluate_each_update", False),
             "phases": view_phases,
             "has_comparisons": bool(comparisons),
             "progress": progress,
@@ -343,7 +351,7 @@ def plot_best(best, output):
     if not best:
         return
     plt = _pyplot()
-    fig, axes = plt.subplots(1, 3, figsize=(16, 6))
+    fig, axes = plt.subplots(1, 4, figsize=(19, 6))
     labels = []
     for row in best:
         config = row["config"]
@@ -363,11 +371,17 @@ def plot_best(best, output):
             axes[2],
             "mean_target_seconds",
             "std_target_seconds",
-            "Stable target time (s), 20/20 reached",
+            "Time to target (s), 20/20 reached",
+        ),
+        (
+            axes[3],
+            "mean_target_transitions",
+            "std_target_transitions",
+            "Transitions to target, 20/20 reached",
         ),
     ):
-        values = [row["summary"][metric] for row in best]
-        errors = [row["summary"][deviation] for row in best]
+        values = [row["summary"].get(metric) for row in best]
+        errors = [row["summary"].get(deviation) for row in best]
         axis.errorbar(
             range(len(best)),
             [np.nan if v is None else v for v in values],
@@ -476,7 +490,7 @@ def plot_comparison_heatmaps(comparisons, path):
     for axis, grid, title, upper in zip(
         axes,
         (reach, times),
-        ("Stable target rate", "Mean stable target time (s)"),
+        ("Target reach rate", "Mean time to target (s)"),
         (1, None),
         strict=True,
     ):

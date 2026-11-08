@@ -509,6 +509,8 @@ def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
         if evaluator is not None:
             result["evaluation"] = evaluator.summary()
             result["wall_seconds"] = time.perf_counter() - setup_start
+            if evaluation.training_time_only:
+                result["wall_seconds"] -= evaluator.evaluation_seconds
         return result
     finally:
         env.close()
