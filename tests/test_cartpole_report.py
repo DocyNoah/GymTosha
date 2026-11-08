@@ -1,5 +1,6 @@
 import csv
 import json
+import re
 
 import pytest
 
@@ -147,16 +148,27 @@ def rows(path):
         return list(csv.DictReader(file))
 
 
+def dashboard_data(path):
+    page = path.read_text(encoding="utf-8")
+    script = re.search(r'<script\b[^>]*\bid="dashboard-data"[^>]*>(.*?)</script>', page, re.S)
+    assert script is not None
+    return json.loads(script[1])
+
+
 def test_report_uses_first_raw_mean_and_preserves_censoring(tmp_path):
     from gymtosha.benchmarks.cartpole_report import main
+
+    def slower_training(step, metrics):
+        metrics["time/training_seconds"] = 5.0 * step
 
     root = tmp_path / "input"
     output = tmp_path / "report"
     write_matrix(root)
     write_seed(root, 1001)
     write_seed(root, 1002, scores=(474, 474, 475, 490, 480, 480, 480, 480))
-    for seed in (1003, 1004, 1005):
+    for seed in (1003, 1004):
         write_seed(root, seed, scores=(474,) * 8)
+    write_seed(root, 1005, scores=(474,) * 8, mutate=slower_training)
 
     main(["--inputs", str(root), "--output", str(output)])
 
@@ -189,6 +201,31 @@ def test_report_uses_first_raw_mean_and_preserves_censoring(tmp_path):
     assert list(output.glob("same-n-*.png"))
     assert list(output.glob("best-n-*.png"))
 
+    payload = dashboard_data(output / "index.html")
+    assert payload["partial"] is False
+    assert (payload["target"], payload["budget"], payload["horizon"]) == (475, 8388608, 64)
+    assert payload["generated_at"].endswith("+00:00")
+    passed, failed = payload["conditions"]
+    assert passed["id"] == "RTX 3090/gymtosha-cuda-0-16384"
+    assert passed["status"] == "passed"
+    assert passed["best"] is True
+    assert passed["reached_seeds"] == 2
+    assert passed["mean_target_training_seconds"] == 6.25
+    assert passed["curve"]["x"][:2] == [1048576, 2097152]
+    assert passed["curve"]["time"][:2] == [3.0, 6.0]
+    assert passed["curve"]["mean"][:2] == [474, 474.2]
+    assert passed["curve"]["sd"][:2] == pytest.approx([0.0, 0.4472135955])
+    assert passed["seeds"][2]["status"] == "censored"
+    assert passed["seeds"][2]["target_transitions"] is None
+    assert failed["status"] == "failed"
+    assert failed["reach_rate"] is None
+    assert failed["curve"] is None
+    assert failed["seeds"] == []
+    assert failed["best"] is False
+    static = (output / "static.html").read_text(encoding="utf-8")
+    assert 'href="same-n-01.png"' in static
+    assert 'href="seeds.csv"' in static
+
 
 def test_partial_mode_distinguishes_unfinished_missing_and_censored_seeds(tmp_path, capsys):
     from gymtosha.benchmarks.cartpole_report import main
@@ -219,6 +256,57 @@ def test_partial_mode_distinguishes_unfinished_missing_and_censored_seeds(tmp_pa
     assert condition["expected_seeds"] == "5"
     assert condition["reached_seeds"] == "0"
     assert rows(output / "best-n.csv") == []
+
+    payload = dashboard_data(output / "index.html")
+    assert payload["partial"] is True
+    passed, _ = payload["conditions"]
+    assert passed["coverage"] == 0.2
+    assert passed["curve"]["mean"] == [474.0] * 8
+    assert passed["curve"]["sd"] is None
+    assert [seed["status"] for seed in passed["seeds"]] == [
+        "censored",
+        "incomplete",
+        "missing",
+        "missing",
+        "missing",
+    ]
+
+
+def test_dashboard_preserves_capacity_errors_without_closing_data_script(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import main
+
+    root = tmp_path / "input"
+    output = tmp_path / "report"
+    error = '</script><img src="invalid">'
+    write_matrix(
+        root,
+        extra=[
+            {
+                "host": "Mac",
+                "backend": "gymtosha",
+                "device": "mps",
+                "compile_env": True,
+                "num_envs": 8192,
+                "status": "failed",
+                "capacity_source": "legacy_json",
+                "error": error,
+            }
+        ],
+    )
+
+    main(["--inputs", str(root), "--output", str(output), "--partial"])
+
+    page = output / "index.html"
+    assert error not in page.read_text(encoding="utf-8")
+    passed, _, failed = dashboard_data(page)["conditions"]
+    assert passed["expected_seeds"] == 5
+    assert passed["completed_seeds"] == 0
+    assert passed["coverage"] == 0
+    assert passed["curve"] is None
+    assert failed["capacity_source"] == "legacy_json"
+    assert failed["capacity_error"] == error
+    assert failed["expected_seeds"] == 0
+    assert failed["coverage"] is None
 
 
 @pytest.mark.parametrize(

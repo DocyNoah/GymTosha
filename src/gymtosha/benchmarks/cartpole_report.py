@@ -7,6 +7,7 @@ import math
 import re
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
 from statistics import mean, stdev
@@ -417,7 +418,7 @@ def _summarize(condition, runs):
         **condition.columns(),
         "expected_seeds": len(runs),
         "completed_seeds": len(completed),
-        "coverage": len(completed) / len(runs),
+        "coverage": len(completed) / len(runs) if runs else None,
         "reached_seeds": len(hits),
         "reach_rate": len(hits) / len(completed) if completed else None,
         "sources": ",".join(sorted({run.source for run in completed})),
@@ -478,7 +479,45 @@ def _checkpoint_rows(results):
                 }
 
 
-def _plot(path, title, conditions, results, summaries):
+def _learning_curve(runs):
+    completed = [run for run in runs if run.status in ("reached", "censored")]
+    if not completed:
+        return None
+    rewards = np.array([[point.mean_return for point in run.points] for run in completed])
+    times = np.array([[point.training_seconds for point in run.points] for run in completed])
+    return {
+        "x": np.array([point.transitions for point in completed[0].points]),
+        "time": times.mean(axis=0),
+        "mean": rewards.mean(axis=0),
+        "sd": rewards.std(axis=0, ddof=1) if len(completed) > 1 else None,
+    }
+
+
+def _dashboard_conditions(capacity, results, summaries, curves, best):
+    for entry in capacity:
+        condition = Condition(**{name: entry[name] for name in CONDITION_FIELDS[:-1]})
+        runs = results.get(condition, ())
+        summary = summaries.get(condition) or _summarize(condition, runs)
+        curve = curves.get(condition)
+        if curve is not None:
+            curve = {
+                key: values.tolist() if values is not None else None
+                for key, values in curve.items()
+            }
+        error = entry.get("error") or entry.get("error_type")
+        yield {
+            **summary,
+            "id": f"{condition.host}/{condition.folder}",
+            "status": entry["status"],
+            "capacity_source": entry.get("capacity_source"),
+            **({"capacity_error": error} if error else {}),
+            "best": condition in best,
+            "curve": curve,
+            "seeds": [run.columns(condition) for run in runs],
+        }
+
+
+def _plot(path, title, conditions, curves, summaries):
     from matplotlib.backends.backend_agg import FigureCanvasAgg
     from matplotlib.figure import Figure
     from matplotlib.ticker import EngFormatter
@@ -487,20 +526,17 @@ def _plot(path, title, conditions, results, summaries):
     FigureCanvasAgg(figure)
     transitions, wall = figure.subplots(ncols=2, sharey=True)
     for condition in conditions:
-        runs = [run for run in results[condition] if run.status in ("reached", "censored")]
-        if not runs:
+        curve = curves[condition]
+        if curve is None:
             continue
         summary = summaries[condition]
         label = (
             f"{condition.label}, N={condition.num_envs:,} "
             f"({summary['reached_seeds']}/{summary['completed_seeds']} reached)"
         )
-        rewards = np.array([[point.mean_return for point in run.points] for run in runs])
-        x = [point.transitions for point in runs[0].points]
-        times = np.array([[point.training_seconds for point in run.points] for run in runs])
-        average = rewards.mean(axis=0)
-        spread = rewards.std(axis=0, ddof=1) if len(runs) > 1 else None
-        for axis, positions in ((transitions, x), (wall, times.mean(axis=0))):
+        average = curve["mean"]
+        spread = curve["sd"]
+        for axis, positions in ((transitions, curve["x"]), (wall, curve["time"])):
             (line,) = axis.plot(positions, average, label=label, linewidth=1.5)
             if spread is not None:
                 axis.fill_between(
@@ -566,6 +602,7 @@ def _comparison_table(conditions, summaries):
 def write_report(output, capacity, results, *, partial=False):
     output.mkdir(parents=True, exist_ok=True)
     summaries = {condition: _summarize(condition, runs) for condition, runs in results.items()}
+    curves = {condition: _learning_curve(runs) for condition, runs in results.items()}
     best = _best_rows(summaries)
     ordered = sorted(results, key=lambda c: (c.host, c.num_envs, c.label))
     capacity_fields = (*CONDITION_FIELDS, "status")
@@ -612,7 +649,7 @@ def write_report(output, capacity, results, *, partial=False):
     for index, (host, conditions) in enumerate(best_n.items(), start=1):
         plots.append((f"best-n-{index:02d}.png", f"{host} | Best N by backend", conditions))
     for filename, title, conditions in plots:
-        _plot(output / filename, title, conditions, results, summaries)
+        _plot(output / filename, title, conditions, curves, summaries)
 
     links = "".join(
         f'<li><a href="{name}.csv">{name}.csv</a></li>'
@@ -629,7 +666,7 @@ def write_report(output, capacity, results, *, partial=False):
     best_table = (
         _comparison_table(best, summaries) if best else "<p>Awaiting full seed coverage.</p>"
     )
-    (output / "index.html").write_text(
+    (output / "static.html").write_text(
         f"""<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>CartPole T=64 | {label}</title>
@@ -664,6 +701,21 @@ come from the original collector, before the diagnostic instrumentation used in 
 <h2>Learning curves</h2>{figures}
 </html>""",
         encoding="utf-8",
+    )
+
+    payload = {
+        "partial": partial,
+        "target": TARGET,
+        "budget": BUDGET,
+        "horizon": HORIZON,
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "conditions": list(_dashboard_conditions(capacity, results, summaries, curves, best)),
+    }
+    # Prevent data from closing the application/json script element.
+    data = json.dumps(payload, separators=(",", ":"), allow_nan=False).replace("<", "\\u003c")
+    template = Path(__file__).with_name("cartpole_dashboard.html").read_text(encoding="utf-8")
+    (output / "index.html").write_text(
+        template.replace("__DASHBOARD_DATA__", data, 1), encoding="utf-8"
     )
 
 

@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CartPole PPO · GymTosha Benchmarks</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #101518; --panel: #161c20; --line: #30393e; --muted: #a5b1b6;
+  --ink: #edf2f3; --gold: #f1bf75; --green: #92d5b4;
+  --mono: ui-monospace, "SF Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.55 system-ui, sans-serif; }
+main, .masthead-inner { width: min(1450px, 100%); margin: auto; padding-inline: clamp(16px, 4vw, 58px); }
+button, select { font: inherit; color: inherit; }
+button, select, .download { background: #20282c; border: 1px solid var(--line); border-radius: 5px; }
+button, select { cursor: pointer; }
+button:hover, select:hover, .download:hover { border-color: var(--muted); }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+a { color: inherit; }
+.masthead { border-bottom: 1px solid var(--line); }
+.masthead-inner { min-height: 57px; display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+.brand { display: flex; gap: 11px; align-items: center; font-weight: 700; }
+.brand-mark { display: grid; place-items: center; width: 29px; height: 29px; color: var(--bg);
+  background: var(--gold); border-radius: 5px; font: 700 13px var(--mono); }
+.brand small { color: var(--muted); margin-left: 5px; font-weight: 400; }
+.download { display: inline-block; padding: 6px 10px; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.intro { padding-block: 30px 21px; }
+.intro-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px 20px; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: clamp(36px, 5.6vw, 60px); line-height: 1.05; letter-spacing: -.05em; }
+h2 { font-size: 20px; letter-spacing: -.025em; }
+h3 { font-size: 16px; }
+.intro p, .caption, .empty, .muted, .section-meta { color: var(--muted); }
+.intro p { margin-top: 9px; }
+.eyebrow { color: var(--gold); font: 600 11px/1.4 var(--mono); letter-spacing: .11em; }
+.state { display: inline-flex; gap: 7px; align-items: center; border: 1px solid #655136; color: var(--gold);
+  padding: 4px 9px; border-radius: 5px; white-space: nowrap; font-size: 12px; }
+.state.complete { color: var(--green); border-color: #3b5b50; }
+.state::before { content: ""; display: block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-block: 1px solid var(--line); }
+.metric { padding: 14px 16px 15px; min-width: 0; }
+.metric + .metric { border-left: 1px solid var(--line); }
+.metric:first-child { padding-left: 0; }
+.metric strong { display: block; margin: 3px 0 1px; font: 600 clamp(18px, 3vw, 30px)/1.2 var(--mono); }
+.metric-label, .metric small { color: var(--muted); font-size: 12px; }
+.progress { margin-top: 7px; height: 3px; background: #31383d; max-width: 190px; }
+.progress span { display: block; height: 100%; background: var(--gold); }
+.protocol { padding-block: 10px; color: var(--muted); font-size: 12px; }
+.protocol span { display: inline-block; margin-right: 16px; }
+.protocol strong { color: var(--ink); font-family: var(--mono); }
+.explorer { padding-top: 11px; }
+.toolbar { display: flex; align-items: end; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 13px; }
+.group { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 5px; }
+.group button { background: transparent; border-color: transparent; padding: 6px 10px; color: var(--muted); white-space: nowrap; }
+.group button[aria-pressed="true"] { background: #302b24; color: #ffda9e; border-color: #715b3e; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; }
+.filters label { display: grid; gap: 3px; color: var(--muted); font-size: 11px; }
+.filters select { padding: 6px 24px 6px 8px; min-width: 86px; font-size: 13px; }
+.workspace { display: grid; grid-template-columns: minmax(0, 3.2fr) minmax(240px, 1fr); gap: 12px; align-items: start; }
+.panel { border: 1px solid var(--line); border-radius: 5px; background: var(--panel); min-width: 0; }
+.panel-head { display: flex; align-items: start; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 16px 17px 5px; }
+.panel-head p { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.chart-opts { display: flex; gap: 6px 10px; align-items: center; flex-wrap: wrap; }
+.chart-opts .group button { font-size: 12px; padding: 4px 8px; }
+.chart-opts label { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 4px; }
+input[type=checkbox] { accent-color: var(--gold); }
+.plot { position: relative; margin: 5px 11px 0 6px; min-height: 245px; }
+#curve-chart { display: block; width: 100%; height: clamp(235px, 30vw, 365px); touch-action: pan-y; }
+#curve-chart text { font-family: var(--mono); fill: #bcc7cb; }
+.axis-label { font-size: 10px; }
+.tick { font-size: 10px; }
+.grid-line { stroke: #30393d; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.target-line { stroke: var(--gold); stroke-width: 1; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
+.series { fill: none; stroke-width: 1.7; vector-effect: non-scaling-stroke; }
+#chart-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 22px; text-align: center; }
+.legend { display: flex; flex-wrap: wrap; gap: 5px; padding: 1px 15px 13px; }
+.legend button { padding: 4px 7px; color: var(--ink); font-size: 11px; }
+.legend button[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
+.swatch { display: inline-block; vertical-align: middle; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+.tooltip { position: absolute; z-index: 2; pointer-events: none; border: 1px solid #53606a; border-radius: 5px;
+  background: #111719; padding: 8px 10px; width: max-content; max-width: 100%; color: var(--ink); font-size: 11px; }
+.tooltip strong { display: block; color: var(--gold); margin-bottom: 3px; }
+.tooltip div { display: flex; justify-content: space-between; gap: 8px; }
+.tooltip span:last-child { font: 12px var(--mono); }
+.detail { padding: 15px 14px; min-height: 250px; }
+.detail h3 { margin: 5px 0; }
+.detail p { color: var(--muted); font-size: 12px; }
+.detail table { margin-top: 10px; }
+.detail td, .detail th { padding: 6px 3px; white-space: nowrap; }
+.detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; margin: 11px 0; font-size: 12px; }
+.detail dt { color: var(--muted); } .detail dd { margin: 0; text-align: right; }
+section.result { margin-top: 19px; }
+.section-head { display: flex; justify-content: space-between; gap: 8px 14px; align-items: baseline; flex-wrap: wrap; margin-bottom: 7px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 12px; }
+thead th { color: var(--muted); font-weight: 600; }
+th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+tr:last-child td { border-bottom: 0; }
+thead button { border: 0; padding: 0; background: transparent; color: inherit; font-weight: 600; }
+thead button[aria-pressed="true"] { color: var(--gold); }
+.condition-btn { background: transparent; border: 0; text-align: left; font-weight: 650; padding: 2px 4px; }
+.condition-btn span { display: block; color: var(--muted); font-weight: 400; font-size: 11px; }
+tr.is-selected { background: #2a2620; }
+.empty { padding: 12px 14px; font-size: 13px; }
+.matrix-cell { min-width: 70px; text-align: center; }
+.matrix-cell button { width: 100%; min-width: 45px; font: 12px/1.6 var(--mono); }
+.matrix-cell button.full { color: #aee2c6; border-color: #3b5b50; }
+.matrix-cell button.pending { color: var(--gold); }
+.matrix-cell button.failed { color: #f3a9a4; }
+.matrix-cell button.measured { background: color-mix(in srgb, #366353 var(--heat), #20282c); }
+footer { margin-top: 25px; padding-block: 13px 30px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+footer a { display: inline-block; margin: 6px 12px 0 0; }
+@media(max-width: 970px) {
+  .workspace { grid-template-columns: 1fr; }
+  .detail { min-height: 0; }
+}
+@media(max-width: 590px) {
+  .intro { padding-block: 23px 15px; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric { padding-inline: 9px; }
+  .metric:nth-child(3) { border-left: 0; padding-left: 0; }
+  .metric:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .brand small { display: none; }
+  .panel-head { padding-inline: 12px; }
+  .axis-label, .tick { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">GT</span> GymTosha <small>BENCHMARKS</small></div>
+    <a class="download" href="conditions.csv" download>조건별 CSV</a>
+  </div>
+</header>
+<main>
+  <section class="intro" aria-labelledby="title">
+    <div class="intro-line"><h1 id="title">CartPole PPO</h1><span class="state" id="run-state">결과 확인 중</span></div>
+    <p>첫 475점 도달까지의 유효 트랜지션과 평가를 제외한 학습 시간을 비교합니다.</p>
+  </section>
+  <noscript><p class="empty">대시보드를 사용하려면 JavaScript를 켜세요. <a href="static.html">정적 보고서</a>도 열 수 있습니다.</p></noscript>
+  <p id="load-error" class="empty" role="alert" hidden>결과 데이터를 읽을 수 없습니다. <a href="static.html">정적 보고서</a>를 열어 보세요.</p>
+  <div class="metrics" id="metrics" aria-label="전체 실험 요약"></div>
+  <div class="protocol" id="protocol" aria-label="학습 설정"></div>
+  <section class="explorer" aria-labelledby="curves-title">
+    <div class="toolbar">
+      <div class="group" id="view-switch" aria-label="비교 기준">
+        <button type="button" data-view="same" aria-pressed="true">같은 환경 수</button>
+        <button type="button" data-view="best" aria-pressed="false">백엔드별 최적</button>
+      </div>
+      <div class="filters">
+        <label id="env-label">환경 수<select id="env-filter"></select></label>
+        <label>호스트<select id="host-filter"></select></label>
+        <label>장치<select id="device-filter"></select></label>
+      </div>
+    </div>
+    <div class="workspace">
+      <article class="panel">
+        <div class="panel-head">
+          <div><h2 id="curves-title">학습 곡선</h2><p id="curve-scope"></p></div>
+          <div class="chart-opts">
+            <div class="group" id="axis-switch" aria-label="곡선 가로축">
+              <button type="button" data-axis="x" aria-pressed="true">트랜지션</button>
+              <button type="button" data-axis="time" aria-pressed="false">학습 시간</button>
+            </div>
+            <label><input type="checkbox" id="zoom"> 초기 10%</label>
+            <label><input type="checkbox" id="spread" checked> ± SD</label>
+          </div>
+        </div>
+        <div class="plot" id="plot">
+          <svg id="curve-chart" viewBox="0 0 860 330" preserveAspectRatio="none" tabindex="0"
+            aria-label="학습 곡선. 좌우 화살표로 체크포인트 값을 탐색할 수 있습니다."></svg>
+          <div class="empty" id="chart-empty" hidden>선택한 조건에 완료된 시드가 없습니다.</div>
+          <div class="tooltip" id="tooltip" role="status" hidden></div>
+        </div>
+        <div class="legend" id="legend" aria-label="학습 곡선 표시"></div>
+      </article>
+      <aside class="panel detail" id="detail" aria-label="선택한 조건의 시드별 결과"></aside>
+    </div>
+  </section>
+  <section class="result" aria-labelledby="table-title">
+    <div class="section-head"><h2 id="table-title">조건별 도달 결과</h2><span class="section-meta" id="table-scope" aria-live="polite"></span></div>
+    <div class="panel table-wrap"><table id="results"></table><div class="empty" id="table-empty" hidden>선택한 조건이 없습니다.</div></div>
+    <p class="caption">평균과 표본 표준편차는 완료된 시드 중 도달한 시드를 기준으로 계산합니다.</p>
+  </section>
+  <section class="result" aria-labelledby="matrix-title">
+    <div class="section-head">
+      <h2 id="matrix-title">전체 실행 매트릭스</h2>
+      <div class="group" id="matrix-switch" aria-label="매트릭스 지표">
+        <button type="button" data-metric="coverage" aria-pressed="true">완료</button>
+        <button type="button" data-metric="reach" aria-pressed="false">도달률</button>
+        <button type="button" data-metric="time" aria-pressed="false">도달 시간</button>
+        <button type="button" data-metric="transitions" aria-pressed="false">도달 트랜지션</button>
+      </div>
+    </div>
+    <div class="panel table-wrap"><table id="matrix"></table></div>
+    <p class="caption" id="matrix-caption">완료 / 예정 시드 · 셀을 누르면 조건을 엽니다.</p>
+  </section>
+  <footer>
+    <p id="report-date"></p>
+    <a href="seeds.csv" download>시드별 CSV</a><a href="checkpoints.csv" download>체크포인트 CSV</a>
+    <a href="capacity.csv" download>용량 검사 CSV</a><a href="static.html">정적 보고서</a>
+  </footer>
+</main>
+<script id="dashboard-data" type="application/json">__DASHBOARD_DATA__</script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const integer = new Intl.NumberFormat("ko-KR", {maximumFractionDigits: 0});
+const decimal = new Intl.NumberFormat("ko-KR", {maximumFractionDigits: 2});
+const compact = new Intl.NumberFormat("en", {notation: "compact", maximumFractionDigits: 1});
+const format = (value, fmt = integer) => value == null ? "—" : fmt.format(value);
+const markup = value => String(value ?? "").replace(/[&<>"']/g, character => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+})[character]);
+const labels = {
+  "gymnasium-async": "Gymnasium Async", "gymnasium-sync": "Gymnasium Sync",
+  "gymnasium-native": "Gymnasium NumPy", "gymtosha": "GymTosha"
+};
+const seedStatus = {
+  reached: "도달", censored: "미도달", incomplete: "진행 중", missing: "대기", invalid: "검증 오류"
+};
+const palette = ["#f1bf75", "#88bdd8", "#b6a4ed", "#8ed0ae", "#e68f90", "#d1cb83",
+  "#8ac7cb", "#dbb0d0", "#c9aa89", "#b5bfd1"];
+const deviceName = value => value.toUpperCase();
+const hostName = value => /3090/.test(value) ? "RTX 3090 호스트" : /mac|m3|mps/i.test(value) ? "Mac 호스트" : value;
+const backendName = row => labels[row.backend] || row.backend;
+const shortName = row => backendName(row) + " · " + deviceName(row.device) +
+  (row.backend === "gymtosha" ? (row.compile_env ? " compile" : " eager") : "");
+const variant = row => JSON.stringify([row.host, row.backend, row.device, row.compile_env]);
+let data;
+try {
+  data = JSON.parse($("dashboard-data").textContent);
+  if (!Array.isArray(data.conditions)) throw new Error("Missing conditions");
+} catch (error) {
+  $("load-error").hidden = false;
+}
+const state = {view: "same", host: "", device: "", axis: "x", env: 32, zoom: false, spread: true,
+  sort: "time", desc: false, selected: null, hidden: new Set(), cursor: 0, matrix: "coverage"};
+const colors = new Map();
+const chartBounds = {left: 64, right: 842, top: 12, bottom: 286};
+let visibleRows = [];
+let series = [];
+let chartMaximum = 1;
+let plottedHeight = 0;
+const distinct = values => [...new Set(values)];
+const estimate = (mean, sd, fmt) => mean == null ? "—" :
+  format(mean, fmt) + (sd == null ? "" : " ± " + format(sd, fmt));
+
+function renderSummary() {
+  const passed = data.conditions.filter(row => row.status === "passed");
+  const expected = passed.reduce((sum, row) => sum + row.expected_seeds, 0);
+  const done = passed.reduce((sum, row) => sum + row.completed_seeds, 0);
+  const hits = passed.reduce((sum, row) => sum + row.reached_seeds, 0);
+  const ready = passed.filter(row => row.completed_seeds === row.expected_seeds).length;
+  const rate = done ? Math.round(hits * 100 / done) : null;
+  const cells = [
+    ["완료 시드", format(done) + " / " + format(expected),
+      '<div class="progress" aria-hidden="true"><span style="width:' +
+      (expected ? Math.round(done * 100 / expected) : 0) + '%"></span></div>'],
+    ["완료 조건", format(ready) + " / " + format(passed.length), "용량 검사를 통과한 조건"],
+    ["목표 도달률", rate == null ? "—" : rate + "%", format(hits) + " / " + format(done) + " 완료 시드"],
+    ["대상 백엔드", format(distinct(data.conditions.map(variant)).length),
+      format(distinct(data.conditions.map(row => row.host)).length) + "개 호스트"]
+  ];
+  $("metrics").innerHTML = cells.map(([label, value, detail]) =>
+    '<div class="metric"><div class="metric-label">' + label + '</div><strong>' + value +
+    '</strong><small>' + detail + '</small></div>').join("");
+  $("run-state").textContent = data.partial ? "중간 결과" : "최종 결과";
+  $("run-state").classList.toggle("complete", !data.partial);
+  $("protocol").innerHTML = '<span>Rollout <strong>T=' + format(data.horizon) + '</strong></span>' +
+    '<span>시드당 예산 <strong>' + format(data.budget) + '</strong></span>' +
+    '<span>업데이트당 평가 <strong>100</strong> 에피소드</span>' +
+    '<span>목표 <strong>' + format(data.target) + '</strong>점</span>';
+  const timestamp = Date.parse(data.generated_at);
+  $("report-date").textContent = Number.isFinite(timestamp) ? "스냅샷 " + new Date(timestamp).toLocaleString("ko-KR", {timeZone: "Asia/Seoul"}) + " KST" : "";
+}
+
+function setOptions(id, values, defaultLabel, labeler) {
+  const select = $(id);
+  if (defaultLabel) select.add(new Option(defaultLabel, ""));
+  for (const value of values) select.add(new Option(labeler(value), String(value)));
+}
+
+function filterRows() {
+  return data.conditions.filter(row => {
+    if (state.host && row.host !== state.host) return false;
+    if (state.device && row.device !== state.device) return false;
+    return state.view === "best" ? row.best : row.num_envs === state.env;
+  });
+}
+
+function renderDetail() {
+  const row = visibleRows.find(item => item.id === state.selected);
+  if (!row) {
+    $("detail").innerHTML = '<div class="eyebrow">SEED DETAIL</div><p class="empty">표에서 조건을 선택하세요.</p>';
+    return;
+  }
+  const head = '<div class="eyebrow">SEED DETAIL</div><h3>' + markup(shortName(row)) + '</h3><p>' +
+    markup(hostName(row.host)) + ' · 환경 ' + format(row.num_envs) + '개</p>';
+  if (row.status !== "passed") {
+    $("detail").innerHTML = head + '<p class="empty">용량 검사 미통과 · ' +
+      markup(row.capacity_error || row.error_type || "자세한 내용은 용량 검사 CSV에 있습니다.") + '</p>';
+    return;
+  }
+  const rows = row.seeds.map(seed => {
+    const finished = seed.status === "reached";
+    return '<tr><td>' + format(seed.seed) + '</td><td>' + markup(seedStatus[seed.status] || seed.status) +
+      '</td><td>' + (finished ? format(seed.target_transitions) : "—") +
+      '</td><td>' + (finished ? format(seed.target_training_seconds, decimal) : "—") + '</td></tr>';
+  }).join("");
+  const origin = row.sources?.split(",").map(value => value === "legacy_json" ? "기존 JSON 변환" : "TensorBoard 기록").join(" · ");
+  $("detail").innerHTML = head + '<dl><dt>평가 간격</dt><dd>' + format(row.evaluation_spacing_transitions) +
+    ' 트랜지션</dd><dt>완료 시드</dt><dd>' + format(row.completed_seeds) + ' / ' + format(row.expected_seeds) +
+    '</dd></dl><div class="table-wrap"><table><thead><tr><th>시드</th><th>상태</th><th>도달 트랜지션</th>' +
+    '<th>학습 초</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    (origin ? '<p>' + markup(origin) + '</p>' : '');
+}
+
+const sortKey = {
+  condition: shortName, count: row => row.num_envs, coverage: row => row.completed_seeds,
+  reach: row => row.reach_rate, transitions: row => row.mean_target_transitions,
+  time: row => row.mean_target_training_seconds
+};
+
+function renderTable() {
+  const rows = visibleRows.slice().sort((a, b) => {
+    const x = sortKey[state.sort](a);
+    const y = sortKey[state.sort](b);
+    if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+    const cmp = typeof x === "string" ? x.localeCompare(y) : x - y;
+    return state.desc ? -cmp : cmp;
+  });
+  const columns = [
+    ["condition", "백엔드 / 호스트"], ["count", "환경 수"], [null, "평가 간격"], ["coverage", "완료"],
+    ["reach", "도달"], ["transitions", "도달 트랜지션"], ["time", "도달 학습 시간 (초)"]
+  ];
+  const heads = columns.map(([key, title]) => key ?
+    '<th><button data-sort="' + key + '" aria-pressed="' + (state.sort === key) + '">' +
+    title + (state.sort === key ? (state.desc ? " ↓" : " ↑") : "") + '</button></th>' :
+    '<th>' + title + '</th>').join("");
+  const body = rows.map(row => {
+    const passed = row.status === "passed";
+    const reached = row.completed_seeds ? format(row.reached_seeds) + " / " + format(row.completed_seeds) : "—";
+    return '<tr class="' + (row.id === state.selected ? "is-selected" : "") + '"><td><button class="condition-btn" data-id="' +
+      markup(row.id) + '" aria-pressed="' + (row.id === state.selected) + '">' + markup(shortName(row)) + '<span>' +
+      markup(hostName(row.host)) + '</span></button></td><td>' + format(row.num_envs) + '</td><td>' +
+      format(row.evaluation_spacing_transitions) + '</td><td>' +
+      (passed ? format(row.completed_seeds) + " / " + format(row.expected_seeds) : "용량 미통과") + '</td><td>' +
+      reached + '</td><td>' + estimate(row.mean_target_transitions, row.sd_target_transitions, integer) +
+      '</td><td>' + estimate(row.mean_target_training_seconds, row.sd_target_training_seconds, decimal) + '</td></tr>';
+  }).join("");
+  $("results").innerHTML = '<thead><tr>' + heads + '</tr></thead><tbody>' + body + '</tbody>';
+  $("table-empty").hidden = rows.length > 0;
+  $("table-scope").textContent = format(rows.length) + "개 조건";
+}
+
+function renderMatrix() {
+  const counts = distinct(data.conditions.map(row => row.num_envs)).sort((a, b) => a - b);
+  const grouped = new Map();
+  for (const row of data.conditions) {
+    const key = variant(row);
+    if (!grouped.has(key)) grouped.set(key, new Map());
+    grouped.get(key).set(row.num_envs, row);
+  }
+  const metric = state.matrix;
+  const metricField = {
+    reach: "reach_rate", time: "mean_target_training_seconds", transitions: "mean_target_transitions"
+  }[metric];
+  const measured = data.conditions.map(row => row[metricField]).filter(Number.isFinite);
+  const lo = Math.min(...measured);
+  const hi = Math.max(...measured);
+  $("matrix-caption").textContent = metric === "coverage" ?
+    "완료 / 예정 시드 · 셀을 누르면 조건을 엽니다." :
+    "완료된 시드로 계산한 스냅샷입니다. 셀을 누르면 시드 수와 개별 결과를 볼 수 있습니다.";
+  const body = Array.from(grouped.values(), group => {
+    const first = group.values().next().value;
+    const cells = counts.map(count => {
+      const row = group.get(count);
+      if (!row) return '<td class="matrix-cell muted">—</td>';
+      const failed = row.status !== "passed";
+      const value = row[metricField];
+      const hasValue = !failed && Number.isFinite(value);
+      const heat = !hasValue ? 0 : metric === "reach" ? value : hi === lo ? 1 : (hi - value) / (hi - lo);
+      let stateClass = failed ? "failed" : row.completed_seeds === row.expected_seeds ? "full" : "pending";
+      if (hasValue) stateClass += " measured";
+      let text = "—";
+      if (failed) text = "미통과";
+      else if (metric === "coverage") text = format(row.completed_seeds) + "/" + format(row.expected_seeds);
+      else if (hasValue && metric === "reach") text = format(value * 100, decimal) + "%";
+      else if (hasValue && metric === "time") text = format(value, decimal) + "초";
+      else if (hasValue) text = format(value);
+      return '<td class="matrix-cell"><button class="' + stateClass + '" style="--heat:' +
+        Math.round(10 + heat * 65) + '%" data-id="' + markup(row.id) +
+        '" aria-label="' + markup(shortName(row) + ", 환경 " + format(count) + ", " + text) + '">' +
+        text + '</button></td>';
+    }).join("");
+    return '<tr><td>' + markup(shortName(first)) + ' <span class="muted">· ' +
+      markup(hostName(first.host)) + '</span></td>' + cells + '</tr>';
+  }).join("");
+  $("matrix").innerHTML = '<thead><tr><th>백엔드 / 호스트</th>' +
+    counts.map(count => '<th class="matrix-cell">' + format(count) + '</th>').join("") +
+    '</tr></thead><tbody>' + body + '</tbody>';
+}
+
+function renderChart() {
+  $("tooltip").hidden = true;
+  const available = visibleRows.filter(row => row.curve && row.completed_seeds > 0);
+  $("legend").innerHTML = available.map(row => '<button type="button" data-id="' + markup(row.id) +
+    '" aria-pressed="' + !state.hidden.has(row.id) + '"><span class="swatch" style="background:' +
+    colors.get(variant(row)) + '"></span>' + markup(shortName(row)) + ' · ' + format(row.num_envs) + '</button>').join("");
+  series = available.filter(row => !state.hidden.has(row.id));
+  $("chart-empty").hidden = series.length > 0;
+  $("chart-empty").textContent = available.length ? "범례에서 표시할 곡선을 선택하세요." : "선택한 조건에 완료된 시드가 없습니다.";
+  const chart = $("curve-chart");
+  chart.replaceChildren();
+  if (!series.length) return;
+
+  const {left, right, top, bottom} = chartBounds;
+  const axes = series.map(row => row.curve[state.axis]);
+  const maximum = state.axis === "x" ? data.budget : Math.max(...axes.map(values => values.at(-1)), 1);
+  chartMaximum = maximum * (state.zoom ? .1 : 1);
+  plottedHeight = bottom - top;
+  const xp = x => left + x * (right - left) / chartMaximum;
+  const yp = y => bottom - y * plottedHeight / 520;
+  const yGrid = [0, 100, 200, 300, 400, 500].map(y =>
+    '<path class="grid-line" d="M' + left + ' ' + yp(y) + 'H' + right + '"/>' +
+    '<text class="tick" x="' + (left - 9) + '" y="' + (yp(y) + 3) + '" text-anchor="end">' + y + '</text>').join("");
+  const xGrid = [0, .25, .5, .75, 1].map(fraction => {
+    const x = chartMaximum * fraction;
+    const label = state.axis === "x" ? compact.format(x) : format(x, decimal);
+    return '<path class="grid-line" d="M' + xp(x) + ' ' + top + 'V' + bottom + '"/>' +
+      '<text class="tick" x="' + xp(x) + '" y="' + (bottom + 16) + '" text-anchor="middle">' + label + '</text>';
+  }).join("");
+  const graph = series.map((row, index) => {
+    const {mean, sd} = row.curve;
+    const values = axes[index];
+    const end = values.findIndex(value => value > chartMaximum);
+    const count = end < 0 ? values.length : end + 1;
+    if (count === 1 && values[0] > chartMaximum) return "";
+    const coords = (i, score) => xp(values[i]).toFixed(2) + " " + yp(score).toFixed(2);
+    const center = [];
+    const upper = [];
+    const lower = [];
+    for (let i = 0; i < count; i++) {
+      center.push(coords(i, mean[i]));
+      if (state.spread && row.completed_seeds > 1) {
+        upper.push(coords(i, Math.min(500, mean[i] + sd[i])));
+        lower.push(coords(i, Math.max(0, mean[i] - sd[i])));
+      }
+    }
+    const color = colors.get(variant(row));
+    const band = upper.length ? '<path fill="' + color + '" opacity=".13" d="M' + upper.join("L") +
+      "L" + lower.reverse().join("L") + 'Z"/>' : "";
+    return band + '<path class="series" stroke="' + color + '" d="M' + center.join("L") + '"/>';
+  }).join("");
+  const axisLabel = state.axis === "x" ? "유효 트랜지션" : "평가 제외 학습 시간 (초)";
+  chart.innerHTML = '<defs><clipPath id="chart-clip"><rect x="' + left + '" y="' + top + '" width="' +
+    (right-left) + '" height="' + (bottom-top) + '"/></clipPath></defs>' + yGrid + xGrid +
+    '<text class="axis-label" transform="translate(16 148) rotate(-90)" text-anchor="middle">평가 평균 보상</text>' +
+    '<text class="axis-label" x="' + (left + right) / 2 + '" y="323" text-anchor="middle">' + axisLabel +
+    '</text><path class="target-line" d="M' + left + ' ' + yp(data.target) + 'H' + right +
+    '"/><text class="tick" x="' + (right-3) + '" y="' + (yp(data.target)-4) +
+    '" text-anchor="end">' + format(data.target) + '</text><g clip-path="url(#chart-clip)">' + graph +
+    '</g><path id="cursor-line" stroke="#bcc7cb" stroke-dasharray="3 3" vector-effect="non-scaling-stroke" visibility="hidden"/>';
+}
+
+function closest(values, value) {
+  let lo = 0;
+  let hi = values.length - 1;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (values[mid] < value) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo && Math.abs(values[lo - 1] - value) < Math.abs(values[lo] - value) ? lo - 1 : lo;
+}
+
+function showTooltip(fraction, position) {
+  if (!series.length) return;
+  state.cursor = Math.min(1, Math.max(0, fraction));
+  const x = state.cursor * chartMaximum;
+  const {left, right, top, bottom} = chartBounds;
+  const line = $("cursor-line");
+  line.setAttribute("d", "M" + (left + state.cursor * (right - left)) + " " + top + "V" + bottom);
+  line.setAttribute("visibility", "visible");
+  const tooltip = $("tooltip");
+  tooltip.innerHTML = '<strong>' + (state.axis === "x" ? format(x) + " 트랜지션" : format(x, decimal) + "초") +
+    '</strong>' + series.map(row => {
+      const values = row.curve[state.axis];
+      if (x < values[0] || x > values.at(-1)) return "";
+      const index = closest(values, x);
+      return '<div><span><i class="swatch" style="background:' + colors.get(variant(row)) + '"></i>' +
+        markup(shortName(row)) + ' · ' + format(row.num_envs) + '</span><span>' +
+        format(row.curve.mean[index], decimal) + '</span></div>';
+    }).join("");
+  tooltip.hidden = false;
+  tooltip.style.left = Math.max(0, Math.min(position + 11, $("plot").clientWidth - tooltip.offsetWidth)) + "px";
+  tooltip.style.top = "16px";
+}
+
+function hideTooltip() {
+  $("tooltip").hidden = true;
+  $("cursor-line")?.setAttribute("visibility", "hidden");
+}
+
+function render() {
+  visibleRows = filterRows();
+  if (!visibleRows.some(row => row.id === state.selected)) {
+    state.selected = (visibleRows.find(row => row.completed_seeds) || visibleRows[0])?.id;
+  }
+  $("env-filter").disabled = state.view === "best";
+  $("curve-scope").textContent = state.view === "best" ? "5개 시드를 완료한 조건에서 백엔드별 선택" :
+    "환경 " + format(state.env) + "개 · 평가 간격 " + format(state.env * data.horizon) + " 트랜지션";
+  renderChart();
+  renderTable();
+  renderDetail();
+}
+
+function switchGroup(id, attribute, action) {
+  $(id).addEventListener("click", event => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    for (const sibling of $(id).querySelectorAll("button")) {
+      sibling.setAttribute("aria-pressed", String(sibling === button));
+    }
+    action(button.dataset[attribute]);
+  });
+}
+
+if (data) {
+  const counts = distinct(data.conditions.map(row => row.num_envs)).sort((a, b) => a - b);
+  if (!counts.includes(state.env)) state.env = counts[0];
+  distinct(data.conditions.map(variant)).forEach((key, index) => colors.set(key, palette[index % palette.length]));
+  setOptions("env-filter", counts, "", format);
+  setOptions("host-filter", distinct(data.conditions.map(row => row.host)), "전체 호스트", hostName);
+  setOptions("device-filter", distinct(data.conditions.map(row => row.device)), "전체 장치", deviceName);
+  $("env-filter").value = String(state.env);
+  $("env-filter").addEventListener("change", event => { state.env = Number(event.target.value); render(); });
+  $("host-filter").addEventListener("change", event => { state.host = event.target.value; render(); });
+  $("device-filter").addEventListener("change", event => { state.device = event.target.value; render(); });
+  $("zoom").addEventListener("change", event => { state.zoom = event.target.checked; renderChart(); });
+  $("spread").addEventListener("change", event => { state.spread = event.target.checked; renderChart(); });
+  switchGroup("view-switch", "view", value => { state.view = value; render(); });
+  switchGroup("axis-switch", "axis", value => { state.axis = value; renderChart(); });
+  switchGroup("matrix-switch", "metric", value => { state.matrix = value; renderMatrix(); });
+  $("results").addEventListener("click", event => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    if (button.dataset.sort) {
+      state.desc = state.sort === button.dataset.sort ? !state.desc : ["reach", "coverage"].includes(button.dataset.sort);
+      state.sort = button.dataset.sort;
+      renderTable();
+      $("results").querySelector('[data-sort="' + state.sort + '"]')?.focus();
+    } else {
+      state.selected = button.dataset.id;
+      renderTable();
+      renderDetail();
+      Array.from($("results").querySelectorAll("[data-id]")).find(item => item.dataset.id === state.selected)?.focus();
+    }
+  });
+  $("legend").addEventListener("click", event => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    const id = button.dataset.id;
+    if (state.hidden.has(id)) state.hidden.delete(id);
+    else state.hidden.add(id);
+    renderChart();
+    Array.from($("legend").querySelectorAll("button")).find(item => item.dataset.id === id)?.focus();
+  });
+  $("matrix").addEventListener("click", event => {
+    const row = data.conditions.find(item => item.id === event.target.closest("button")?.dataset.id);
+    if (!row) return;
+    Object.assign(state, {view: "same", env: row.num_envs, host: row.host, device: row.device, selected: row.id});
+    $("env-filter").value = String(state.env);
+    $("host-filter").value = state.host;
+    $("device-filter").value = state.device;
+    $("view-switch").querySelector('[data-view="same"]').click();
+    $("curves-title").scrollIntoView({block: "start"});
+  });
+  $("curve-chart").addEventListener("pointermove", event => {
+    const box = $("curve-chart").getBoundingClientRect();
+    const offset = event.clientX - box.left;
+    showTooltip((offset * 860 / box.width - chartBounds.left) / (chartBounds.right - chartBounds.left), offset);
+  });
+  $("curve-chart").addEventListener("pointerleave", hideTooltip);
+  $("curve-chart").addEventListener("blur", hideTooltip);
+  $("curve-chart").addEventListener("keydown", event => {
+    if (event.key === "Escape") hideTooltip();
+    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    event.preventDefault();
+    const fraction = state.cursor + (event.key === "ArrowRight" ? .025 : -.025);
+    showTooltip(fraction, Math.max(0, fraction) * $("plot").clientWidth);
+  });
+  renderSummary();
+  renderMatrix();
+  render();
+}
+</script>
+</body>
+</html>
