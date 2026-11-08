@@ -6,6 +6,7 @@ import math
 import platform
 import time
 from dataclasses import asdict, dataclass, field
+from functools import partial
 
 import gymnasium as gym
 import torch
@@ -146,6 +147,27 @@ class Recorder:
         self.stats.zero_()
 
 
+def _ppo_diagnostics(minibatches, clip_coef, learning_rate, metrics):
+    entropy, policy_loss, value_loss, log_ratio = zip(*minibatches, strict=True)
+    log_ratio = torch.cat(log_ratio)
+    ratio_delta = log_ratio.exp() - 1
+    means = (
+        torch.stack(
+            (
+                torch.stack(entropy).mean(),
+                torch.stack(policy_loss).mean(),
+                torch.stack(value_loss).mean(),
+                (ratio_delta - log_ratio).mean(),
+                (ratio_delta.abs() > clip_coef).float().mean(),
+            )
+        )
+        .cpu()
+        .tolist()
+    )
+    names = ("entropy", "policy_loss", "value_loss", "approx_kl", "clip_fraction")
+    return {**metrics, "learning_rate": learning_rate, **dict(zip(names, means, strict=True))}
+
+
 def _ppo(
     config, env, obs, obs_dim, action_dim, continuous, rate, evaluator=None, *, startup_seconds=0
 ):
@@ -194,6 +216,8 @@ def _ppo(
     planned_updates = config.total_timesteps // minibatch_size * config.update_epochs
     timesteps = 0
     valid_transitions = torch.zeros((), dtype=torch.long, device=device)
+    log_updates = evaluator is not None and evaluator.on_checkpoint is not None
+    completed_episodes = 0
     stop = evaluator is not None and evaluator.check(
         agent, 0, config.algorithm, valid_transitions=0, gradient_updates=0
     )
@@ -240,10 +264,13 @@ def _ppo(
                 raise TimeoutError(
                     "environment setup and rollout collection exceeded the time limit"
                 )
-        if config.rollout_timeout_seconds is not None:
+        if config.rollout_timeout_seconds is not None or log_updates:
             synchronize(device)
             collected = time.perf_counter() - collection_start
-            if collected + initial_seconds >= config.rollout_timeout_seconds:
+            if (
+                config.rollout_timeout_seconds is not None
+                and collected + initial_seconds >= config.rollout_timeout_seconds
+            ):
                 raise TimeoutError(
                     "environment setup and rollout collection exceeded the time limit"
                 )
@@ -260,6 +287,7 @@ def _ppo(
         eligible = valid.flatten().nonzero().flatten() if masked_resets else None
         valid_transitions += valid.sum()
         loss = torch.zeros((), device=device)
+        diagnostics = []
         for _ in range(config.update_epochs):
             indices = (
                 eligible[torch.randperm(eligible.numel(), device=device)]
@@ -272,7 +300,8 @@ def _ppo(
                 _, new_log_prob, entropy, new_value = agent.evaluate(
                     flat_obs[index], flat_actions[index]
                 )
-                ratio = (new_log_prob - flat_log_probs[index]).exp()
+                log_ratio = new_log_prob - flat_log_probs[index]
+                ratio = log_ratio.exp()
                 advantage = flat_advantages[index]
                 advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
                 raw_policy_loss = -advantage * ratio
@@ -290,11 +319,21 @@ def _ppo(
                         (clipped_value - flat_returns[index]).square(),
                     ).mean()
                 )
+                entropy_mean = entropy.mean()
                 loss = (
                     policy_loss
                     + config.value_coef * value_loss
-                    - config.entropy_coef * entropy.mean()
+                    - config.entropy_coef * entropy_mean
                 )
+                if log_updates:
+                    diagnostics.append(
+                        (
+                            entropy_mean.detach(),
+                            policy_loss.detach(),
+                            value_loss.detach(),
+                            log_ratio.detach(),
+                        )
+                    )
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 nn.utils.clip_grad_norm_(agent.parameters(), config.max_grad_norm)
@@ -306,11 +345,27 @@ def _ppo(
         recorder.record(timesteps, loss)
         update_seconds += time.perf_counter() - update_start
         if evaluator is not None:
+            telemetry = None
+            if log_updates:
+                completed_episodes += recorder.checkpoints[-1]["episodes"]
+                telemetry = partial(
+                    _ppo_diagnostics,
+                    diagnostics,
+                    config.clip_coef,
+                    optimizer.param_groups[0]["lr"],
+                    {
+                        "ppo_update": iteration + 1,
+                        "completed_episodes": completed_episodes,
+                        "collection_seconds": collection_seconds,
+                        "update_seconds": update_seconds,
+                    },
+                )
             stop = evaluator.check(
                 agent,
                 timesteps,
                 config.algorithm,
                 force=timesteps == config.total_timesteps,
+                telemetry=telemetry,
                 valid_transitions=valid_transitions,
                 gradient_updates=updates,
             )
@@ -414,7 +469,7 @@ def _off_policy(
     return elapsed, recorder.checkpoints, learner.updates, delta, timesteps, timesteps, {}
 
 
-def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
+def train(config: TrainConfig, *, evaluation=None, on_progress=None, on_checkpoint=None) -> dict:
     from gymtosha.benchmarks.evaluation import TargetEvaluator
 
     config.validate()
@@ -422,12 +477,27 @@ def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
         raise ValueError("the native vector backend currently supports PPO only")
     if evaluation is not None:
         evaluation.validate(config)
+    if on_checkpoint is not None and (
+        config.algorithm != "ppo"
+        or evaluation is None
+        or not evaluation.training_time_only
+        or evaluation.evaluate_at_start
+        or evaluation.stop_on_target
+        or evaluation.interval != config.num_envs * config.rollout_steps
+    ):
+        raise ValueError("checkpoint logging requires fixed-length PPO with post-update evaluation")
     torch.set_num_threads(config.num_threads)
     torch.manual_seed(config.seed)
     torch.backends.cudnn.deterministic = True
     setup_start = time.perf_counter()
     evaluator = (
-        TargetEvaluator(config.env_id, evaluation, started=setup_start, on_progress=on_progress)
+        TargetEvaluator(
+            config.env_id,
+            evaluation,
+            started=setup_start,
+            on_progress=on_progress,
+            on_checkpoint=on_checkpoint,
+        )
         if evaluation is not None
         else None
     )
@@ -458,6 +528,11 @@ def train(config: TrainConfig, *, evaluation=None, on_progress=None) -> dict:
             env.step(zeros)
         synchronize(env.device)
         warmup_seconds = time.perf_counter() - warmup_start
+        if on_checkpoint is not None:
+            evaluator.setup_metrics = {
+                "setup_seconds": setup_seconds,
+                "warmup_seconds": warmup_seconds,
+            }
         obs = encode(env.reset(config.seed), env.observation_space)
         rate = config.learning_rate or (2.5e-4 if config.algorithm in ("ppo", "dqn") else 3e-4)
         loop = _ppo if config.algorithm == "ppo" else _off_policy

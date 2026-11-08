@@ -107,12 +107,14 @@ def _evaluate_native_cartpole(policy, env, episodes, seed):
 
 
 class TargetEvaluator:
-    def __init__(self, env_id, config, *, started=None, on_progress=None):
+    def __init__(self, env_id, config, *, started=None, on_progress=None, on_checkpoint=None):
         self.env_id = env_id
         self.config = config
         self.target = config.resolved_target(env_id)
         self.started = time.perf_counter() if started is None else started
         self.on_progress = on_progress
+        self.on_checkpoint = on_checkpoint
+        self.setup_metrics = {}
         self.checkpoints = []
         self.streak = 0
         self.reached = False
@@ -146,7 +148,7 @@ class TargetEvaluator:
             self.on_progress(self.summary())
         return self.reached and self.config.stop_on_target
 
-    def check(self, model, timesteps, algorithm, *, force=False, **counts):
+    def check(self, model, timesteps, algorithm, *, force=False, telemetry=None, **counts):
         if timesteps < self.next_checkpoint and not force:
             return False
         counts = {key: int(value) for key, value in counts.items()}
@@ -184,12 +186,32 @@ class TargetEvaluator:
         )
         self.evaluation_seconds += evaluated - evaluation_started
         try:
+            if self.on_checkpoint is not None:
+                self.on_checkpoint(
+                    {
+                        "timesteps": timesteps,
+                        "wall_seconds": elapsed,
+                        "episode_returns": scores,
+                        **counts,
+                        **self.setup_metrics,
+                        **telemetry(),
+                    }
+                )
+                self.next_checkpoint = timesteps + self.config.interval
+                return False
             return self.record(timesteps, scores, elapsed=elapsed, **counts)
         finally:
             if self.config.training_time_only:
                 self.evaluation_seconds += time.perf_counter() - evaluated
 
     def summary(self):
+        if self.on_checkpoint is not None:
+            return {
+                "environment": "gymnasium",
+                "evaluation_seconds": self.evaluation_seconds,
+                "env_id": self.env_id,
+                "config": asdict(self.config),
+            }
         final = self.checkpoints[-1] if self.checkpoints else None
         return {
             "environment": "gymnasium",
