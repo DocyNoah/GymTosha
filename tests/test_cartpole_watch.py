@@ -19,6 +19,16 @@ def test_terminal_state_includes_failed_and_completed_seeds(tmp_path):
     assert [row[1] for row in cartpole_watch.terminal_state(tmp_path)] == ["completed"]
 
 
+def test_terminal_state_includes_a_completed_replacement(tmp_path):
+    replacement = tmp_path / "replacements/condition/seed-1021/metadata.json"
+    replacement.parent.mkdir(parents=True)
+    replacement.write_text(json.dumps({"status": "completed"}))
+    assert cartpole_watch.terminal_state(tmp_path)[0][:2] == [
+        "replacements/condition/seed-1021/metadata.json",
+        "completed",
+    ]
+
+
 def test_watcher_publishes_each_terminal_seed_without_waiting_for_a_condition(
     tmp_path, monkeypatch
 ):

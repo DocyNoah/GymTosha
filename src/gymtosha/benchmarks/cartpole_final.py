@@ -72,6 +72,35 @@ def _read_record(path):
     return record if isinstance(record, dict) else {}
 
 
+def read_seed_replacements(root, seeds):
+    path = root / "seed-replacements.json"
+    try:
+        replacements = json.loads(path.read_text())
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as error:
+        raise ValueError(f"{path}: {error}") from error
+    if not isinstance(replacements, dict):
+        raise ValueError(f"{path}: expected a JSON object")
+    declared = {str(seed) for seed in seeds}
+    for condition, substituted in replacements.items():
+        if (
+            not isinstance(substituted, dict)
+            or not substituted.keys() <= declared
+            or any(type(seed) is not int or seed < 0 for seed in substituted.values())
+            or len(set(substituted.values()).union(seeds)) != len(seeds) + len(substituted)
+        ):
+            raise ValueError(f"{path}: invalid replacements for {condition}")
+    return replacements
+
+
+def seed_locations(root, condition, seeds, replacements):
+    for seed in seeds:
+        actual = replacements.get(str(seed), seed)
+        directory = "events" if seed == actual else "replacements"
+        yield seed, actual, root / directory / condition / f"seed-{actual}"
+
+
 def _condition_config(preset, backend, device, compile_env):
     return replace(
         TrainConfig(**preset["config"]), backend=backend, device=device, compile_env=compile_env
@@ -675,6 +704,10 @@ def run_final(baseline, output, devices, legacy, *, prefix_from=None, seed_start
         matrix = verify_matrix(
             selected, output, devices, legacy, runtime, prefix_from=prefix_from, seeds=seeds
         )
+        replacements = read_seed_replacements(output, seeds)
+        eligible = {row["id"] for row in matrix["conditions"] if row["status"] == "passed"}
+        if replacements.keys() - eligible:
+            raise ValueError(f"{output}: replacements require an eligible condition")
         previous = _read_record(legacy / "protocol.json") if legacy else {}
         pending = []
         for row in sorted(matrix["conditions"], key=_execution_key):
@@ -684,9 +717,8 @@ def run_final(baseline, output, devices, legacy, *, prefix_from=None, seed_start
             config = _condition_config(
                 selected[str(row["num_envs"])], row["backend"], row["device"], row["compile_env"]
             )
-            for seed in matrix["seeds"]:
+            for _, seed, path in seed_locations(output, name, seeds, replacements.get(name, {})):
                 trial = replace(config, seed=seed)
-                path = output / "events" / name / f"seed-{seed}"
                 if _completed(path, trial, runtime):
                     continue
                 if prefix_from is not None and _migrate_prefix(

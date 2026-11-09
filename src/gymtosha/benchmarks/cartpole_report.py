@@ -16,7 +16,7 @@ from uuid import uuid4
 
 import numpy as np
 
-from gymtosha.benchmarks.cartpole_final import SEED_BLOCKS
+from gymtosha.benchmarks.cartpole_final import SEED_BLOCKS, read_seed_replacements, seed_locations
 
 HORIZON = 64
 BUDGET = 2_097_152
@@ -451,8 +451,7 @@ def analyze(roots, *, partial=False, cache=None, follow_up=()):
         expected_seeds = seeds
         if not manifest.get("conditions"):
             raise ValueError(f"{root}: matrix has no capacity outcomes")
-        replacement_path = root / "seed-replacements.json"
-        replacements = _read_json(replacement_path) if replacement_path.exists() else {}
+        replacements = read_seed_replacements(root, seeds)
         for entry in manifest["conditions"]:
             try:
                 condition = Condition(**{name: entry[name] for name in CONDITION_FIELDS[:-1]})
@@ -479,33 +478,21 @@ def analyze(roots, *, partial=False, cache=None, follow_up=()):
             if status == "failed":
                 continue
             substituted = replacements.pop(condition.folder, {})
-            if (
-                not isinstance(substituted, dict)
-                or set(substituted).difference(map(str, seeds))
-                or any(type(seed) is not int or seed < 0 for seed in substituted.values())
-                or len(set(substituted.values()).union(seeds)) != len(seeds) + len(substituted)
-            ):
-                raise ValueError(f"{replacement_path}: invalid replacements for {condition.folder}")
             folder = root / "events" / condition.folder
             known_folders = {f"seed-{seed}" for seed in seeds}
             for seed_folder in folder.glob("seed-*"):
                 if seed_folder.name not in known_folders:
                     raise ValueError(f"{root}: undeclared seed directory {seed_folder}")
             runs = []
-            for seed in seeds:
-                replacement = substituted.get(str(seed))
-                if replacement is None:
-                    path = folder / f"seed-{seed}"
-                    actual_seed = seed
-                else:
-                    path = root / "replacements" / condition.folder / f"seed-{replacement}"
-                    actual_seed = replacement
+            for seed, actual_seed, path in seed_locations(
+                root, condition.folder, seeds, substituted
+            ):
                 run = (
                     _read_cached_seed(path, condition, actual_seed, cache)
                     if partial and cache is not None
                     else _read_seed(path, condition, actual_seed, partial=partial)
                 )
-                runs.append(replace(run, replaces_seed=seed) if replacement is not None else run)
+                runs.append(replace(run, replaces_seed=seed) if actual_seed != seed else run)
             results[condition] = runs
             if not partial:
                 incomplete.extend(
@@ -514,7 +501,7 @@ def analyze(roots, *, partial=False, cache=None, follow_up=()):
                     if result.status not in COMPLETED_STATUSES
                 )
         if replacements:
-            raise ValueError(f"{replacement_path}: replacements require an eligible condition")
+            raise ValueError(f"{root}: replacements require an eligible condition")
     if incomplete:
         examples = ", ".join(incomplete[:8])
         raise ValueError(f"{len(incomplete)} missing or incomplete eligible runs: {examples}")

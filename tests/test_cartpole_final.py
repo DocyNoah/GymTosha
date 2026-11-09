@@ -14,6 +14,44 @@ BASELINE = (
 RUNTIME = {"node": "test-host", "platform": "test-platform", "torch": "2.15", "gymnasium": "1.4"}
 
 
+def test_final_worker_uses_the_declared_replacement_seed(tmp_path, monkeypatch):
+    from gymtosha.benchmarks import cartpole_final as final
+
+    root = tmp_path / "final"
+    root.mkdir()
+    condition = "gymtosha-cuda-1-256"
+    (root / "seed-replacements.json").write_text(json.dumps({condition: {"1006": 1021}}))
+    monkeypatch.setattr(final, "runtime_fingerprint", lambda: RUNTIME)
+    monkeypatch.setattr(
+        final,
+        "verify_matrix",
+        lambda *args, seeds, **kwargs: {
+            "seeds": seeds,
+            "conditions": [
+                {
+                    "id": condition,
+                    "backend": "gymtosha",
+                    "device": "cuda",
+                    "compile_env": True,
+                    "num_envs": 256,
+                    "status": "passed",
+                }
+            ],
+        },
+    )
+    workers = []
+    monkeypatch.setattr(
+        final,
+        "_run_worker",
+        lambda config, runtime, version, path, *args: workers.append(
+            (config.seed, path.relative_to(root).as_posix())
+        ),
+    )
+    final.run_final(BASELINE, root, ["cuda"], None, seed_start=1006)
+    assert workers[0] == (1021, f"replacements/{condition}/seed-1021")
+    assert [seed for seed, _ in workers] == [1021, 1007, 1008, 1009, 1010]
+
+
 def legacy_trial():
     config = TrainConfig(
         num_envs=32,

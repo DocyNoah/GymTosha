@@ -18,7 +18,12 @@ SSH_OPTIONS = ("-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-o", "ServerAl
 def terminal_state(root):
     """Identify individual terminal seeds, including status changes after retry."""
     entries = []
-    for path in sorted((root / "events").glob("*/*/metadata.json")):
+    paths = [
+        path
+        for name in ("events", "replacements")
+        for path in (root / name).glob("*/*/metadata.json")
+    ]
+    for path in sorted(paths):
         try:
             with path.open() as file:
                 record = json.load(file)
@@ -32,12 +37,13 @@ def terminal_state(root):
 
 
 def _snapshot(root):
-    matrix = root / "matrix.json"
-    try:
-        revision = matrix.stat().st_mtime_ns
-    except FileNotFoundError:
-        revision = None
-    return [revision, terminal_state(root)]
+    revisions = []
+    for name in ("matrix.json", "seed-replacements.json"):
+        try:
+            revisions.append((root / name).stat().st_mtime_ns)
+        except FileNotFoundError:
+            revisions.append(None)
+    return [revisions, terminal_state(root)]
 
 
 def _signal(root, interval):
@@ -59,9 +65,11 @@ def _sync(host, repo, root, mirror):
             "--delete-delay",
             "--include=/matrix.json",
             "--include=/protocol.json",
+            "--include=/seed-replacements.json",
             "--include=/capacity-selected/",
             "--include=/capacity-selected/*.json",
             "--include=/events/***",
+            "--include=/replacements/***",
             "--exclude=*",
             f"{host}:{PurePosixPath(repo) / root}/",
             f"{mirror}/",
