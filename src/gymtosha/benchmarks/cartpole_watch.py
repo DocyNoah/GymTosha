@@ -31,10 +31,19 @@ def terminal_state(root):
     return entries
 
 
+def _snapshot(root):
+    matrix = root / "matrix.json"
+    try:
+        revision = matrix.stat().st_mtime_ns
+    except FileNotFoundError:
+        revision = None
+    return [revision, terminal_state(root)]
+
+
 def _signal(root, interval):
     last = None
     while True:
-        state = terminal_state(root)
+        state = _snapshot(root)
         if state != last:
             print(json.dumps(state), flush=True)
             last = state
@@ -124,7 +133,7 @@ def watch(args):
                         time.sleep(args.interval)
                     if args.ssh_host and remote is None:
                         continue
-                    state = [terminal_state(root) for root in args.inputs], remote
+                    state = [_snapshot(root) for root in args.inputs], remote
                     if state == last:
                         continue
                     if args.ssh_host and remote != mirrored:

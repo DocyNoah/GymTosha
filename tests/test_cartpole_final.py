@@ -135,7 +135,7 @@ def test_capacity_matrix_reuses_only_exact_host_probes_and_includes_failures(tmp
     (legacy / "protocol.json").write_text(json.dumps({"runtime": RUNTIME}))
     base, _ = load_baseline(BASELINE)
     selected = final.final_presets(base)
-    assert len(selected) == 7
+    assert set(selected) == {"32", "256", "512", "1024"}
     assert {row["config"]["total_timesteps"] for row in selected.values()} == {8_388_608}
     config = TrainConfig(**selected["32"]["config"])
     assert (config.update_epochs, config.ppo_minibatch_size, config.rollout_steps) == (4, 512, 64)
@@ -243,3 +243,28 @@ def test_execution_order_finishes_accelerator_variants_before_cpu():
     assert [
         (row["backend"], row["device"], row["compile_env"], row["num_envs"]) for row in order
     ] == [(*variant, count) for variant in priority for count in (32, 256)]
+
+
+def test_existing_matrix_can_narrow_without_retesting_capacity(tmp_path, monkeypatch):
+    from gymtosha.benchmarks import cartpole_final as final
+    from gymtosha.benchmarks import study_grouped
+
+    probes = []
+
+    def isolate(args, count):
+        probes.append(count)
+        return {"status": "passed", "observed_seconds": 1.0, "limit_seconds": 60}
+
+    monkeypatch.setattr(study_grouped, "_isolated_probe", isolate)
+    base, _ = load_baseline(BASELINE)
+    original_budget = final.Budget((32, 256, 512, 1024, 4096), (64,), final.BUDGET, 512)
+    original = final.expected_presets(base, original_budget, 64, each_update=True)
+    old_matrix = final.verify_matrix(original, tmp_path, ["mps"], None, RUNTIME)
+    assert len(probes) == 10
+    selected = final.final_presets(base)
+    matrix = final.verify_matrix(selected, tmp_path, ["mps"], None, RUNTIME)
+    assert len(probes) == 10
+    assert len(matrix["conditions"]) == 8
+    assert max(row["num_envs"] for row in matrix["conditions"]) == 1024
+    assert json.loads((tmp_path / "matrix-before-env-cap.json").read_text()) == old_matrix
+    assert (tmp_path / "capacity-selected/gymtosha-mps-1-4096.json").exists()

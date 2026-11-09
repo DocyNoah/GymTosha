@@ -296,8 +296,28 @@ function renderSummary() {
 
 function setOptions(id, values, defaultLabel, labeler) {
   const select = $(id);
+  select.replaceChildren();
   if (defaultLabel) select.add(new Option(defaultLabel, ""));
   for (const value of values) select.add(new Option(labeler(value), String(value)));
+}
+
+let filterShape;
+function renderFilters() {
+  const counts = distinct(data.conditions.map(row => row.num_envs)).sort((a, b) => a - b);
+  const hosts = distinct(data.conditions.map(row => row.host));
+  const devices = distinct(data.conditions.map(row => row.device));
+  const shape = JSON.stringify([counts, hosts, devices]);
+  if (shape === filterShape) return;
+  filterShape = shape;
+  if (!counts.includes(state.env)) state.env = counts[0];
+  if (!hosts.includes(state.host)) state.host = "";
+  if (!devices.includes(state.device)) state.device = "";
+  setOptions("env-filter", counts, "", format);
+  setOptions("host-filter", hosts, "전체 호스트", hostName);
+  setOptions("device-filter", devices, "전체 장치", deviceName);
+  $("env-filter").value = String(state.env);
+  $("host-filter").value = state.host;
+  $("device-filter").value = state.device;
 }
 
 function filterRows() {
@@ -569,6 +589,7 @@ async function refreshSnapshot() {
     const snapshot = await response.json();
     if (snapshot.revision !== revision || !Array.isArray(snapshot.conditions)) return;
     data = snapshot;
+    renderFilters();
     renderSummary();
     renderMatrix();
     render();
@@ -580,13 +601,8 @@ async function refreshSnapshot() {
 }
 
 if (data) {
-  const counts = distinct(data.conditions.map(row => row.num_envs)).sort((a, b) => a - b);
-  if (!counts.includes(state.env)) state.env = counts[0];
   distinct(data.conditions.map(variant)).forEach((key, index) => colors.set(key, palette[index % palette.length]));
-  setOptions("env-filter", counts, "", format);
-  setOptions("host-filter", distinct(data.conditions.map(row => row.host)), "전체 호스트", hostName);
-  setOptions("device-filter", distinct(data.conditions.map(row => row.device)), "전체 장치", deviceName);
-  $("env-filter").value = String(state.env);
+  renderFilters();
   $("env-filter").addEventListener("change", event => { state.env = Number(event.target.value); render(); });
   $("host-filter").addEventListener("change", event => { state.host = event.target.value; render(); });
   $("device-filter").addEventListener("change", event => { state.device = event.target.value; render(); });

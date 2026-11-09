@@ -20,17 +20,15 @@ from gymtosha.benchmarks.study import (
 )
 from gymtosha.benchmarks.study_fixed_budget import (
     CPU_LIMIT,
-    HORIZONS,
-    TUNING_TIMESTEPS,
     Budget,
     expected_presets,
-    final_budget,
 )
 from gymtosha.benchmarks.study_grouped import conditions, load_baseline, verify_selected
 from gymtosha.benchmarks.train import TrainConfig, train
 
 HORIZON = 64
 BUDGET = 8_388_608
+ENV_COUNTS = (32, 256, 512, 1024)
 CAPACITY_SECONDS = 60
 SEEDS = (1001, 1002, 1003, 1004, 1005)
 EXECUTION_ORDER = (
@@ -59,10 +57,7 @@ LEGACY_MISSING = (
 def final_presets(base):
     if base.update_epochs != 4 or base.num_threads != 1:
         raise ValueError("the final CartPole baseline requires four PPO epochs and one thread")
-    tuning = Budget((1024,), HORIZONS, TUNING_TIMESTEPS, 512)
-    final = final_budget(tuning, HORIZON)
-    if final.total_timesteps != BUDGET:
-        raise ValueError("the final CartPole preset has an unexpected transition budget")
+    final = Budget(ENV_COUNTS, (HORIZON,), BUDGET, 512)
     return expected_presets(base, final, HORIZON, each_update=True)
 
 
@@ -147,10 +142,22 @@ def verify_matrix(selected, output, devices, legacy, runtime):
         )
     matrix = {"conditions": rows, "seeds": list(SEEDS), "budget": BUDGET, "horizon": HORIZON}
     if published:
-        if matrix != _read_record(matrix_path):
+        previous = _read_record(matrix_path)
+        if matrix == previous:
+            return matrix
+        narrowed = {
+            **previous,
+            "conditions": [
+                row for row in previous.get("conditions", ()) if row["num_envs"] <= ENV_COUNTS[-1]
+            ],
+        }
+        if narrowed != matrix:
             raise RuntimeError("final CartPole matrix differs from its capacity evidence")
-    else:
-        _write(matrix, matrix_path)
+        archive = output / "matrix-before-env-cap.json"
+        if archive.exists() and _read_record(archive) != previous:
+            raise RuntimeError("the archived CartPole matrix differs from the previous scope")
+        _write(previous, archive)
+    _write(matrix, matrix_path)
     return matrix
 
 
