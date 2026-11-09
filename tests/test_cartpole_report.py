@@ -1,6 +1,7 @@
 import csv
 import json
 import re
+import shutil
 
 import pytest
 
@@ -51,6 +52,7 @@ def write_seed(
     device="cuda",
     duplicate_update=None,
     config_overrides=None,
+    error=None,
 ):
     from tensorboard.compat.proto.event_pb2 import Event
     from tensorboard.compat.proto.summary_pb2 import Summary
@@ -138,6 +140,7 @@ def write_seed(
                 "timing_scope": "isolated",
                 "missing_fields": missing_fields,
                 "code_version": "test",
+                **({"error": error} if error is not None else {}),
             }
         )
     )
@@ -307,6 +310,103 @@ def test_dashboard_preserves_capacity_errors_without_closing_data_script(tmp_pat
     assert failed["capacity_error"] == error
     assert failed["expected_seeds"] == 0
     assert failed["coverage"] is None
+
+
+def test_live_dashboard_publishes_terminal_status_and_provisional_statistics(tmp_path):
+    from gymtosha.benchmarks import cartpole_report as report
+
+    root = tmp_path / "input"
+    output = tmp_path / "report"
+    write_matrix(root)
+    write_seed(root, 1001)
+    write_seed(root, 1002, scores=(480,), status="failed", error="worker exited")
+    write_seed(root, 1003, scores=(480,), status="interrupted")
+    write_seed(root, 1004, scores=(480,), status="running")
+
+    capacity, results = report.analyze([root], partial=True)
+    assert [seed.status for seed in next(iter(results.values()))] == [
+        "reached",
+        "failed",
+        "interrupted",
+        "incomplete",
+        "missing",
+    ]
+    with pytest.raises(ValueError, match=r"seed-1002 \(failed\).*seed-1003 \(interrupted\)"):
+        report.analyze([root])
+
+    report.write_dashboard(output, capacity, results, partial=True)
+
+    first_revision = json.loads((output / "revision.json").read_text())
+    payload = json.loads((output / "dashboard-data.json").read_text())
+    assert {"revision": payload["revision"]} == first_revision
+    assert dashboard_data(output / "index.html") == payload
+    passed, failed = payload["conditions"]
+    assert passed["expected_seeds"] == 5
+    assert passed["finished_seeds"] == 3
+    assert passed["completed_seeds"] == 1
+    assert passed["failed_seeds"] == 1
+    assert passed["interrupted_seeds"] == 1
+    assert passed["statistics_final"] is False
+    assert passed["mean_target_training_seconds"] == 5
+    assert passed["seeds"][1]["issue"] == "worker exited"
+    assert passed["curve"]["mean"][:2] == [474, 475]
+    assert failed["statistics_final"] is False
+    assert rows(output / "seeds.csv")[1]["status"] == "failed"
+    assert rows(output / "conditions.csv")[0]["finished_seeds"] == "3"
+    assert rows(output / "same-n.csv")[0]["completed_seeds"] == "1"
+    assert rows(output / "best-n.csv") == []
+    assert not list(output.glob("*.png"))
+    assert not (output / "checkpoints.csv").exists()
+
+    for seed in (1002, 1003, 1004):
+        shutil.rmtree(root / "events" / "gymtosha-cuda-0-16384" / f"seed-{seed}")
+    for seed in (1002, 1003, 1004, 1005):
+        write_seed(root, seed, scores=(474,) * 8)
+    capacity, results = report.analyze([root], partial=True)
+    report.write_dashboard(output, capacity, results, partial=True)
+
+    payload = json.loads((output / "dashboard-data.json").read_text())
+    assert payload["revision"] != first_revision["revision"]
+    assert payload["conditions"][0]["statistics_final"] is True
+    assert payload["conditions"][0]["completed_seeds"] == 5
+    assert rows(output / "best-n.csv")[0]["completed_seeds"] == "5"
+
+
+def test_live_analysis_reuses_only_unchanged_validated_seeds(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    root = tmp_path / "input"
+    write_matrix(root)
+    for seed in range(1001, 1005):
+        write_seed(root, seed)
+    write_seed(root, 1005, status="running")
+    cache = {}
+
+    _, first_results = analyze([root], partial=True, cache=cache)
+    first = next(iter(first_results.values()))
+    _, same_results = analyze([root], partial=True, cache=cache)
+    same = next(iter(same_results.values()))
+    assert same[0] is first[0]
+    assert same[4] is not first[4]
+
+    seed_folder = root / "events" / "gymtosha-cuda-0-16384" / "seed-1005"
+    metadata_path = seed_folder / "metadata.json"
+    metadata = json.loads(metadata_path.read_text())
+    metadata_path.write_text(json.dumps({**metadata, "status": "completed"}))
+    _, changed_results = analyze([root], partial=True, cache=cache)
+    changed = next(iter(changed_results.values()))
+    assert changed[4].status == "reached"
+    _, strict_results = analyze([root], cache=cache)
+    strict = next(iter(strict_results.values()))
+    assert strict[0] == first[0]
+    assert strict[0] is not first[0]
+
+    events = next(seed_folder.glob("events.out.tfevents.*"))
+    shutil.copyfile(events, seed_folder / "events.out.tfevents.duplicate")
+    _, invalid_results = analyze([root], partial=True, cache=cache)
+    invalid = next(iter(invalid_results.values()))
+    assert invalid[4].status == "invalid"
+    assert "duplicate" in invalid[4].issue
 
 
 @pytest.mark.parametrize(

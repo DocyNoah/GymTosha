@@ -78,4 +78,18 @@ uv run --no-sync python -m gymtosha.benchmarks.cartpole_report \
 
 생성된 `index.html`을 브라우저에서 열면 호스트·장치·환경 수 필터, 같은 환경 수와 백엔드별 최적 환경 수 비교, 시드 상세를 사용할 수 있습니다. 학습 곡선은 유효 트랜지션과 학습 시간 축을 전환할 수 있고, 실행 매트릭스는 완료·도달률·도달 시간·도달 트랜지션을 표시합니다. `static.html`과 CSV도 함께 생성합니다.
 
-최종 보고서는 통과 조건마다 다섯 시드가 완료되어야 생성됩니다. 실행 중간에는 `--partial`을 사용합니다. 대시보드는 마지막으로 읽은 이벤트의 스냅샷이며, 이벤트를 동기화한 뒤 보고서 명령을 다시 실행하면 갱신됩니다. 같은 실행 출력 경로에서는 검증된 완료 기록을 재사용합니다. 이전 그룹별 비교는 [기존 CartPole 실험 명세](CARTPOLE_STUDY.md)에 있습니다.
+## 6. 실행 중 대시보드 갱신
+
+Mac에서 감시기를 실행하면 로컬 또는 RTX에서 시드가 종료될 때마다 TensorBoard 기록을 읽어 대시보드를 갱신합니다. RTX 호스트와 Mac 모두 감시 모듈이 포함된 브랜치를 사용합니다. 진행률은 종료 시드 수로, 평균·표준편차와 학습 곡선의 표본 수는 검증된 완료 시드 수로 표시합니다. 조건 통계는 다섯 시드를 모두 검증한 뒤 확정합니다.
+
+```bash
+uv run --no-sync python -m gymtosha.benchmarks.cartpole_watch \
+  --inputs outputs/cartpole-t64-tb-mps \
+  --ssh-host link-3090v2-x --remote-root outputs/cartpole-t64-tb-3090 \
+  --mirror outputs/cartpole-t64-tb-3090 --output outputs/cartpole-t64-tb-report
+
+uv run --no-sync python -m http.server 8782 --bind 127.0.0.1 \
+  --directory outputs/cartpole-t64-tb-report
+```
+
+브라우저에서 `http://127.0.0.1:8782/`를 열면 현재 필터를 유지한 채 새 스냅샷을 표시합니다. 모든 시드가 완료되면 원시 이벤트를 다시 읽어 최종 CSV와 학습 곡선을 생성합니다. 수동 중간 집계에는 보고서 명령의 `--partial` 옵션을 사용합니다. 이전 그룹별 비교는 [기존 CartPole 실험 명세](CARTPOLE_STUDY.md)에 있습니다.

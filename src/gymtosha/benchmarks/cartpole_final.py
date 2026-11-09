@@ -400,7 +400,11 @@ def _run_worker(config, runtime, version, output, root, condition):
             if process.poll() is None:
                 terminate_probe(process)
     if returncode != 0 or not _completed(output, config, runtime):
-        raise RuntimeError(f"CartPole worker exited with code {returncode}: {log_path}")
+        message = f"CartPole worker exited with code {returncode}: {log_path}"
+        metadata_path = output / "metadata.json"
+        if _read_record(metadata_path).get("status") not in ("failed", "interrupted"):
+            _write({**metadata, "status": "failed", "error": message}, metadata_path)
+        raise RuntimeError(message)
 
 
 def _execution_key(row):

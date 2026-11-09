@@ -93,6 +93,11 @@ input[type=checkbox] { accent-color: var(--gold); }
 .detail td, .detail th { padding: 6px 3px; white-space: nowrap; }
 .detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; margin: 11px 0; font-size: 12px; }
 .detail dt { color: var(--muted); } .detail dd { margin: 0; text-align: right; }
+.seed-error { color: #f3a9a4; }
+.seed-error summary { cursor: pointer; }
+.seed-error p { max-width: 36ch; overflow-wrap: anywhere; white-space: normal; }
+.stats-state { margin-left: 6px; color: var(--gold); font-size: 10px; }
+.stats-state.final { color: var(--green); }
 section.result { margin-top: 19px; }
 .section-head { display: flex; justify-content: space-between; gap: 8px 14px; align-items: baseline; flex-wrap: wrap; margin-bottom: 7px; }
 .table-wrap { overflow-x: auto; }
@@ -202,7 +207,7 @@ footer a { display: inline-block; margin: 6px 12px 0 0; }
     <p class="caption" id="matrix-caption">완료 / 예정 시드 · 셀을 누르면 조건을 엽니다.</p>
   </section>
   <footer>
-    <p id="report-date"></p>
+    <p id="report-date" aria-live="polite"></p>
     <a href="seeds.csv" download>시드별 CSV</a><a href="checkpoints.csv" download>체크포인트 CSV</a>
     <a href="capacity.csv" download>용량 검사 CSV</a><a href="static.html">정적 보고서</a>
   </footer>
@@ -223,7 +228,8 @@ const labels = {
   "gymnasium-native": "Gymnasium NumPy", "gymtosha": "GymTosha"
 };
 const seedStatus = {
-  reached: "도달", censored: "미도달", incomplete: "진행 중", missing: "대기", invalid: "검증 오류"
+  reached: "도달", censored: "미도달", incomplete: "진행 중", missing: "대기",
+  failed: "실패", interrupted: "중단", invalid: "검증 오류"
 };
 const palette = ["#f1bf75", "#88bdd8", "#b6a4ed", "#8ed0ae", "#e68f90", "#d1cb83",
   "#8ac7cb", "#dbb0d0", "#c9aa89", "#b5bfd1"];
@@ -251,18 +257,25 @@ let plottedHeight = 0;
 const distinct = values => [...new Set(values)];
 const estimate = (mean, sd, fmt) => mean == null ? "—" :
   format(mean, fmt) + (sd == null ? "" : " ± " + format(sd, fmt));
+const ended = row => row.finished_seeds ?? row.completed_seeds;
+const finalStats = row => row.statistics_final ?? row.completed_seeds === row.expected_seeds;
+const failures = row => (row.failed_seeds || 0) + (row.interrupted_seeds || 0) + (row.invalid_seeds || 0);
+const progressText = row => format(ended(row)) + "/" + format(row.expected_seeds);
 
 function renderSummary() {
   const passed = data.conditions.filter(row => row.status === "passed");
   const expected = passed.reduce((sum, row) => sum + row.expected_seeds, 0);
   const done = passed.reduce((sum, row) => sum + row.completed_seeds, 0);
+  const finished = passed.reduce((sum, row) => sum + ended(row), 0);
+  const failed = passed.reduce((sum, row) => sum + failures(row), 0);
   const hits = passed.reduce((sum, row) => sum + row.reached_seeds, 0);
-  const ready = passed.filter(row => row.completed_seeds === row.expected_seeds).length;
+  const ready = passed.filter(finalStats).length;
   const rate = done ? Math.round(hits * 100 / done) : null;
   const cells = [
-    ["완료 시드", format(done) + " / " + format(expected),
+    ["종료 시드", format(finished) + " / " + format(expected),
+      "완료 " + format(done) + " · 실패·중단·오류 " + format(failed) +
       '<div class="progress" aria-hidden="true"><span style="width:' +
-      (expected ? Math.round(done * 100 / expected) : 0) + '%"></span></div>'],
+      (expected ? Math.round(finished * 100 / expected) : 0) + '%"></span></div>'],
     ["완료 조건", format(ready) + " / " + format(passed.length), "용량 검사를 통과한 조건"],
     ["목표 도달률", rate == null ? "—" : rate + "%", format(hits) + " / " + format(done) + " 완료 시드"],
     ["대상 백엔드", format(distinct(data.conditions.map(variant)).length),
@@ -310,20 +323,24 @@ function renderDetail() {
   }
   const rows = row.seeds.map(seed => {
     const finished = seed.status === "reached";
-    return '<tr><td>' + format(seed.seed) + '</td><td>' + markup(seedStatus[seed.status] || seed.status) +
+    const label = markup(seedStatus[seed.status] || seed.status);
+    const status = seed.issue ? '<details class="seed-error"><summary>' + label +
+      '</summary><p>' + markup(seed.issue) + '</p></details>' : label;
+    return '<tr><td>' + format(seed.seed) + '</td><td>' + status +
       '</td><td>' + (finished ? format(seed.target_transitions) : "—") +
       '</td><td>' + (finished ? format(seed.target_training_seconds, decimal) : "—") + '</td></tr>';
   }).join("");
   const origin = row.sources?.split(",").map(value => value === "legacy_json" ? "기존 JSON 변환" : "TensorBoard 기록").join(" · ");
   $("detail").innerHTML = head + '<dl><dt>평가 간격</dt><dd>' + format(row.evaluation_spacing_transitions) +
-    ' 트랜지션</dd><dt>완료 시드</dt><dd>' + format(row.completed_seeds) + ' / ' + format(row.expected_seeds) +
+    ' 트랜지션</dd><dt>종료 시드</dt><dd>' + progressText(row) +
+    '</dd><dt>실패·중단·오류</dt><dd>' + format(failures(row)) +
     '</dd></dl><div class="table-wrap"><table><thead><tr><th>시드</th><th>상태</th><th>도달 트랜지션</th>' +
     '<th>학습 초</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     (origin ? '<p>' + markup(origin) + '</p>' : '');
 }
 
 const sortKey = {
-  condition: shortName, count: row => row.num_envs, coverage: row => row.completed_seeds,
+  condition: shortName, count: row => row.num_envs, coverage: ended,
   reach: row => row.reach_rate, transitions: row => row.mean_target_transitions,
   time: row => row.mean_target_training_seconds
 };
@@ -337,7 +354,7 @@ function renderTable() {
     return state.desc ? -cmp : cmp;
   });
   const columns = [
-    ["condition", "백엔드 / 호스트"], ["count", "환경 수"], [null, "평가 간격"], ["coverage", "완료"],
+    ["condition", "백엔드 / 호스트"], ["count", "환경 수"], [null, "평가 간격"], ["coverage", "진행률"],
     ["reach", "도달"], ["transitions", "도달 트랜지션"], ["time", "도달 학습 시간 (초)"]
   ];
   const heads = columns.map(([key, title]) => key ?
@@ -347,11 +364,15 @@ function renderTable() {
   const body = rows.map(row => {
     const passed = row.status === "passed";
     const reached = row.completed_seeds ? format(row.reached_seeds) + " / " + format(row.completed_seeds) : "—";
+    const stats = finalStats(row) ? '<span class="stats-state final">확정</span>' :
+      row.completed_seeds ? '<span class="stats-state">잠정</span>' : "";
+    const issue = failures(row) ? '<span class="stats-state seed-error">오류 ' +
+      format(failures(row)) + '</span>' : "";
     return '<tr class="' + (row.id === state.selected ? "is-selected" : "") + '"><td><button class="condition-btn" data-id="' +
       markup(row.id) + '" aria-pressed="' + (row.id === state.selected) + '">' + markup(shortName(row)) + '<span>' +
       markup(hostName(row.host)) + '</span></button></td><td>' + format(row.num_envs) + '</td><td>' +
       format(row.evaluation_spacing_transitions) + '</td><td>' +
-      (passed ? format(row.completed_seeds) + " / " + format(row.expected_seeds) : "용량 미통과") + '</td><td>' +
+      (passed ? progressText(row) + stats + issue : "용량 미통과") + '</td><td>' +
       reached + '</td><td>' + estimate(row.mean_target_transitions, row.sd_target_transitions, integer) +
       '</td><td>' + estimate(row.mean_target_training_seconds, row.sd_target_training_seconds, decimal) + '</td></tr>';
   }).join("");
@@ -376,7 +397,7 @@ function renderMatrix() {
   const lo = Math.min(...measured);
   const hi = Math.max(...measured);
   $("matrix-caption").textContent = metric === "coverage" ?
-    "완료 / 예정 시드 · 셀을 누르면 조건을 엽니다." :
+    "종료 / 예정 시드 · 셀을 누르면 조건을 엽니다." :
     "완료된 시드로 계산한 스냅샷입니다. 셀을 누르면 시드 수와 개별 결과를 볼 수 있습니다.";
   const body = Array.from(grouped.values(), group => {
     const first = group.values().next().value;
@@ -387,11 +408,11 @@ function renderMatrix() {
       const value = row[metricField];
       const hasValue = !failed && Number.isFinite(value);
       const heat = !hasValue ? 0 : metric === "reach" ? value : hi === lo ? 1 : (hi - value) / (hi - lo);
-      let stateClass = failed ? "failed" : row.completed_seeds === row.expected_seeds ? "full" : "pending";
+      let stateClass = failed || failures(row) ? "failed" : finalStats(row) ? "full" : "pending";
       if (hasValue) stateClass += " measured";
       let text = "—";
       if (failed) text = "미통과";
-      else if (metric === "coverage") text = format(row.completed_seeds) + "/" + format(row.expected_seeds);
+      else if (metric === "coverage") text = progressText(row);
       else if (hasValue && metric === "reach") text = format(value * 100, decimal) + "%";
       else if (hasValue && metric === "time") text = format(value, decimal) + "초";
       else if (hasValue) text = format(value);
@@ -413,7 +434,8 @@ function renderChart() {
   const available = visibleRows.filter(row => row.curve && row.completed_seeds > 0);
   $("legend").innerHTML = available.map(row => '<button type="button" data-id="' + markup(row.id) +
     '" aria-pressed="' + !state.hidden.has(row.id) + '"><span class="swatch" style="background:' +
-    colors.get(variant(row)) + '"></span>' + markup(shortName(row)) + ' · ' + format(row.num_envs) + '</button>').join("");
+    colors.get(variant(row)) + '"></span>' + markup(shortName(row)) + ' · ' + format(row.num_envs) +
+    ' · n=' + format(row.completed_seeds) + '</button>').join("");
   series = available.filter(row => !state.hidden.has(row.id));
   $("chart-empty").hidden = series.length > 0;
   $("chart-empty").textContent = available.length ? "범례에서 표시할 곡선을 선택하세요." : "선택한 조건에 완료된 시드가 없습니다.";
@@ -533,6 +555,30 @@ function switchGroup(id, attribute, action) {
   });
 }
 
+let refreshing = false;
+async function refreshSnapshot() {
+  if (refreshing) return;
+  refreshing = true;
+  try {
+    const version = await fetch("revision.json", {cache: "no-store"});
+    if (!version.ok) return;
+    const {revision} = await version.json();
+    if (!revision || revision === data.revision) return;
+    const response = await fetch("dashboard-data.json", {cache: "no-store"});
+    if (!response.ok) return;
+    const snapshot = await response.json();
+    if (snapshot.revision !== revision || !Array.isArray(snapshot.conditions)) return;
+    data = snapshot;
+    renderSummary();
+    renderMatrix();
+    render();
+  } catch {
+    // The current verified snapshot stays visible until the next successful fetch.
+  } finally {
+    refreshing = false;
+  }
+}
+
 if (data) {
   const counts = distinct(data.conditions.map(row => row.num_envs)).sort((a, b) => a - b);
   if (!counts.includes(state.env)) state.env = counts[0];
@@ -600,6 +646,9 @@ if (data) {
   renderSummary();
   renderMatrix();
   render();
+  if (location.protocol === "http:" || location.protocol === "https:") {
+    window.setInterval(refreshSnapshot, 4000);
+  }
 }
 </script>
 </body>

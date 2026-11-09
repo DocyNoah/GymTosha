@@ -6,11 +6,13 @@ import json
 import math
 import re
 from collections import defaultdict
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
 from statistics import mean, stdev
+from uuid import uuid4
 
 import numpy as np
 
@@ -24,6 +26,8 @@ TRAINING_SECONDS = "time/training_seconds"
 OPTIMIZER_CALLS = "train/optimizer_calls"
 UPDATE = "train/ppo_update"
 REQUIRED_TAGS = {RETURNS, TRANSITIONS, TRAINING_SECONDS, OPTIMIZER_CALLS, UPDATE}
+COMPLETED_STATUSES = ("reached", "censored")
+TERMINAL_ERRORS = ("failed", "interrupted")
 FIXED_CONFIG = {
     "env_id": "CartPole-v1",
     "algorithm": "ppo",
@@ -83,9 +87,13 @@ SUMMARY_FIELDS = (
     "expected_seeds",
     "completed_seeds",
     "coverage",
+    "finished_seeds",
+    "statistics_final",
     "incomplete_seeds",
     "missing_seeds",
     "invalid_seeds",
+    "failed_seeds",
+    "interrupted_seeds",
     "reached_seeds",
     "censored_seeds",
     "reach_rate",
@@ -161,6 +169,7 @@ class SeedResult:
     code_version: str = ""
     missing_fields: tuple[str, ...] = ()
     issue: str = ""
+    terminal: bool = False
 
     @property
     def first_target(self):
@@ -284,9 +293,15 @@ def _read_seed(folder, condition, seed, *, partial):
     if not metadata_path.exists():
         return SeedResult(seed, "incomplete", issue="missing metadata.json")
 
+    status, terminal, issue = "incomplete", False, ""
     provenance = {}
     try:
         metadata = _read_json(metadata_path)
+        complete = metadata["status"] == "completed"
+        if metadata["status"] in TERMINAL_ERRORS:
+            status = metadata["status"]
+        terminal = complete or status in TERMINAL_ERRORS
+        issue = str(metadata.get("error") or "")
         source, code_version = metadata["source"], metadata["code_version"]
         missing_fields = metadata["missing_fields"]
         if (
@@ -329,23 +344,56 @@ def _read_seed(folder, condition, seed, *, partial):
                 raise ValueError(f"seed config {name} differs from matrix protocol")
         if metadata.get("evaluation") != {**FIXED_EVALUATION, "interval": condition.spacing}:
             raise ValueError("seed evaluation differs from matrix protocol")
-        complete = metadata["status"] == "completed"
         if not complete and not partial:
-            return SeedResult(seed, "incomplete", **provenance)
+            return SeedResult(seed, status, issue=issue, terminal=terminal, **provenance)
         points = _read_checkpoints(folder, condition, complete=complete, optional=optional)
     except (KeyError, TypeError, ValueError) as error:
         if not partial:
             raise ValueError(f"{folder}: {error}") from error
-        return SeedResult(seed, "invalid", issue=str(error), **provenance)
+        if status not in TERMINAL_ERRORS:
+            status = "invalid"
+        issue = "\n".join(filter(None, (issue, str(error))))
+        return SeedResult(seed, status, issue=issue, terminal=terminal, **provenance)
 
-    status = "incomplete"
     if complete:
         status = "reached" if any(point.mean_return >= TARGET for point in points) else "censored"
-    return SeedResult(seed, status, points, issue=metadata.get("error", ""), **provenance)
+    return SeedResult(seed, status, points, issue=issue, terminal=terminal, **provenance)
 
 
-def analyze(roots, *, partial=False):
-    """Load the declared comparison matrix and verify every eligible seed."""
+def _seed_signature(folder):
+    signature = []
+    paths = [folder / "metadata.json", *sorted(folder.glob("events.out.tfevents.*"))]
+    for path in paths:
+        try:
+            stat = path.stat()
+        except OSError:
+            return None
+        signature.append(
+            (path.name, stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+        )
+    return tuple(signature)
+
+
+def _read_cached_seed(folder, condition, seed, cache):
+    key = (folder.absolute(), condition, seed)
+    signature = _seed_signature(folder)
+    cached = cache.get(key)
+    if signature is not None and cached is not None and cached[0] == signature:
+        return cached[1]
+
+    cache.pop(key, None)
+    result = _read_seed(folder, condition, seed, partial=True)
+    if (
+        result.status in COMPLETED_STATUSES
+        and signature is not None
+        and signature == _seed_signature(folder)
+    ):
+        cache[key] = (signature, result)
+    return result
+
+
+def analyze(roots, *, partial=False, cache=None):
+    """Verify the declared matrix, reusing unchanged validated seeds in partial mode."""
     capacity = []
     results = {}
     seen_conditions = set()
@@ -397,13 +445,15 @@ def analyze(roots, *, partial=False):
                 if seed_folder.name not in known_folders:
                     raise ValueError(f"{root}: undeclared seed directory {seed_folder}")
             results[condition] = [
-                _read_seed(folder / f"seed-{seed}", condition, seed, partial=partial)
+                _read_cached_seed(folder / f"seed-{seed}", condition, seed, cache)
+                if partial and cache is not None
+                else _read_seed(folder / f"seed-{seed}", condition, seed, partial=partial)
                 for seed in sorted(seeds)
             ]
             incomplete.extend(
                 f"{condition.host}/{condition.folder}/seed-{result.seed} ({result.status})"
                 for result in results[condition]
-                if result.status in ("missing", "incomplete")
+                if result.status not in COMPLETED_STATUSES
             )
     if incomplete and not partial:
         examples = ", ".join(incomplete[:8])
@@ -412,18 +462,20 @@ def analyze(roots, *, partial=False):
 
 
 def _summarize(condition, runs):
-    completed = [run for run in runs if run.status in ("reached", "censored")]
+    completed = [run for run in runs if run.status in COMPLETED_STATUSES]
     hits = [run.first_target for run in completed if run.status == "reached"]
     row = {
         **condition.columns(),
         "expected_seeds": len(runs),
         "completed_seeds": len(completed),
         "coverage": len(completed) / len(runs) if runs else None,
+        "finished_seeds": sum(run.terminal for run in runs),
+        "statistics_final": bool(runs) and len(completed) == len(runs),
         "reached_seeds": len(hits),
         "reach_rate": len(hits) / len(completed) if completed else None,
         "sources": ",".join(sorted({run.source for run in completed})),
     }
-    for status in ("incomplete", "missing", "invalid", "censored"):
+    for status in ("incomplete", "missing", "invalid", "censored", *TERMINAL_ERRORS):
         row[f"{status}_seeds"] = sum(run.status == status for run in runs)
     for field in ("transitions", "training_seconds", "optimizer_calls"):
         values = [getattr(point, field) for point in hits]
@@ -438,7 +490,7 @@ def _summarize(condition, runs):
 def _best_rows(rows):
     by_variant = defaultdict(list)
     for condition, row in rows.items():
-        if row["coverage"] == 1:
+        if row["statistics_final"]:
             by_variant[condition.host, condition.label].append((condition, row))
 
     def rank(candidate):
@@ -455,8 +507,19 @@ def _best_rows(rows):
     return dict(min(candidates, key=rank) for candidates in by_variant.values())
 
 
+@contextmanager
+def _atomic_output(path):
+    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8", newline="") as file:
+            yield file
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def _write_csv(path, fields, rows):
-    with path.open("w", encoding="utf-8", newline="") as file:
+    with _atomic_output(path) as file:
         writer = csv.DictWriter(file, fields)
         writer.writeheader()
         writer.writerows(rows)
@@ -480,7 +543,7 @@ def _checkpoint_rows(results):
 
 
 def _learning_curve(runs):
-    completed = [run for run in runs if run.status in ("reached", "censored")]
+    completed = [run for run in runs if run.status in COMPLETED_STATUSES]
     if not completed:
         return None
     rewards = np.array([[point.mean_return for point in run.points] for run in completed])
@@ -599,12 +662,15 @@ def _comparison_table(conditions, summaries):
     )
 
 
-def write_report(output, capacity, results, *, partial=False):
-    output.mkdir(parents=True, exist_ok=True)
+def _comparison_data(results):
     summaries = {condition: _summarize(condition, runs) for condition, runs in results.items()}
     curves = {condition: _learning_curve(runs) for condition, runs in results.items()}
     best = _best_rows(summaries)
     ordered = sorted(results, key=lambda c: (c.host, c.num_envs, c.label))
+    return summaries, curves, best, ordered
+
+
+def _write_summary_tables(output, capacity, results, summaries, best, ordered):
     capacity_fields = (*CONDITION_FIELDS, "status")
     extra_fields = sorted({key for row in capacity for key in row} - set(capacity_fields))
     _write_csv(output / "capacity.csv", (*capacity_fields, *extra_fields), capacity)
@@ -620,6 +686,43 @@ def write_report(output, capacity, results, *, partial=False):
         (*CONDITION_FIELDS, *SEED_FIELDS),
         (run.columns(condition) for condition, runs in results.items() for run in runs),
     )
+
+
+def _publish_dashboard(output, capacity, results, summaries, curves, best, *, partial):
+    revision = uuid4().hex
+    payload = {
+        "revision": revision,
+        "partial": partial,
+        "target": TARGET,
+        "budget": BUDGET,
+        "horizon": HORIZON,
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "conditions": list(_dashboard_conditions(capacity, results, summaries, curves, best)),
+    }
+    # Prevent data from closing the application/json script element.
+    data = json.dumps(payload, separators=(",", ":"), allow_nan=False).replace("<", "\\u003c")
+    template = Path(__file__).with_name("cartpole_dashboard.html").read_text(encoding="utf-8")
+    for filename, contents in (
+        ("dashboard-data.json", data),
+        ("index.html", template.replace("__DASHBOARD_DATA__", data, 1)),
+        ("revision.json", json.dumps({"revision": revision})),
+    ):
+        with _atomic_output(output / filename) as file:
+            file.write(contents)
+
+
+def write_dashboard(output, capacity, results, *, partial=False):
+    """Publish a live dashboard and seed summary tables without regenerating plots."""
+    output.mkdir(parents=True, exist_ok=True)
+    summaries, curves, best, ordered = _comparison_data(results)
+    _write_summary_tables(output, capacity, results, summaries, best, ordered)
+    _publish_dashboard(output, capacity, results, summaries, curves, best, partial=partial)
+
+
+def write_report(output, capacity, results, *, partial=False):
+    output.mkdir(parents=True, exist_ok=True)
+    summaries, curves, best, ordered = _comparison_data(results)
+    _write_summary_tables(output, capacity, results, summaries, best, ordered)
     _write_csv(
         output / "checkpoints.csv",
         (
@@ -703,20 +806,7 @@ come from the original collector, before the diagnostic instrumentation used in 
         encoding="utf-8",
     )
 
-    payload = {
-        "partial": partial,
-        "target": TARGET,
-        "budget": BUDGET,
-        "horizon": HORIZON,
-        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "conditions": list(_dashboard_conditions(capacity, results, summaries, curves, best)),
-    }
-    # Prevent data from closing the application/json script element.
-    data = json.dumps(payload, separators=(",", ":"), allow_nan=False).replace("<", "\\u003c")
-    template = Path(__file__).with_name("cartpole_dashboard.html").read_text(encoding="utf-8")
-    (output / "index.html").write_text(
-        template.replace("__DASHBOARD_DATA__", data, 1), encoding="utf-8"
-    )
+    _publish_dashboard(output, capacity, results, summaries, curves, best, partial=partial)
 
 
 def main(argv=None):
