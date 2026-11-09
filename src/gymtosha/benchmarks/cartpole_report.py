@@ -7,7 +7,7 @@ import math
 import re
 from collections import defaultdict
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
@@ -75,6 +75,7 @@ CONDITION_FIELDS = (
 )
 SEED_FIELDS = (
     "seed",
+    "replaces_seed",
     "status",
     "source",
     "reused_prefix",
@@ -182,6 +183,7 @@ class SeedResult:
     issue: str = ""
     terminal: bool = False
     reused_prefix: dict | None = None
+    replaces_seed: int | None = None
 
     @property
     def first_target(self):
@@ -196,6 +198,7 @@ class SeedResult:
         return {
             **condition.columns(),
             "seed": self.seed,
+            "replaces_seed": self.replaces_seed,
             "status": self.status,
             "source": self.source,
             "reused_prefix": prefix,
@@ -448,6 +451,8 @@ def analyze(roots, *, partial=False, cache=None, follow_up=()):
         expected_seeds = seeds
         if not manifest.get("conditions"):
             raise ValueError(f"{root}: matrix has no capacity outcomes")
+        replacement_path = root / "seed-replacements.json"
+        replacements = _read_json(replacement_path) if replacement_path.exists() else {}
         for entry in manifest["conditions"]:
             try:
                 condition = Condition(**{name: entry[name] for name in CONDITION_FIELDS[:-1]})
@@ -473,23 +478,43 @@ def analyze(roots, *, partial=False, cache=None, follow_up=()):
             capacity.append({**entry, **condition.columns()})
             if status == "failed":
                 continue
+            substituted = replacements.pop(condition.folder, {})
+            if (
+                not isinstance(substituted, dict)
+                or set(substituted).difference(map(str, seeds))
+                or any(type(seed) is not int or seed < 0 for seed in substituted.values())
+                or len(set(substituted.values()).union(seeds)) != len(seeds) + len(substituted)
+            ):
+                raise ValueError(f"{replacement_path}: invalid replacements for {condition.folder}")
             folder = root / "events" / condition.folder
             known_folders = {f"seed-{seed}" for seed in seeds}
             for seed_folder in folder.glob("seed-*"):
                 if seed_folder.name not in known_folders:
                     raise ValueError(f"{root}: undeclared seed directory {seed_folder}")
-            results[condition] = [
-                _read_cached_seed(folder / f"seed-{seed}", condition, seed, cache)
-                if partial and cache is not None
-                else _read_seed(folder / f"seed-{seed}", condition, seed, partial=partial)
-                for seed in seeds
-            ]
+            runs = []
+            for seed in seeds:
+                replacement = substituted.get(str(seed))
+                if replacement is None:
+                    path = folder / f"seed-{seed}"
+                    actual_seed = seed
+                else:
+                    path = root / "replacements" / condition.folder / f"seed-{replacement}"
+                    actual_seed = replacement
+                run = (
+                    _read_cached_seed(path, condition, actual_seed, cache)
+                    if partial and cache is not None
+                    else _read_seed(path, condition, actual_seed, partial=partial)
+                )
+                runs.append(replace(run, replaces_seed=seed) if replacement is not None else run)
+            results[condition] = runs
             if not partial:
                 incomplete.extend(
                     f"{condition.host}/{condition.folder}/seed-{result.seed} ({result.status})"
                     for result in results[condition]
                     if result.status not in COMPLETED_STATUSES
                 )
+        if replacements:
+            raise ValueError(f"{replacement_path}: replacements require an eligible condition")
     if incomplete:
         examples = ", ".join(incomplete[:8])
         raise ValueError(f"{len(incomplete)} missing or incomplete eligible runs: {examples}")

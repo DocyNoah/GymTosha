@@ -363,7 +363,8 @@ function renderDetail() {
     const label = markup(seedStatus[seed.status] || seed.status);
     const status = seed.issue ? '<details class="seed-error"><summary>' + label +
       '</summary><p>' + markup(seed.issue) + '</p></details>' : label;
-    return '<tr><td>' + format(seed.seed) + (seed.reused_prefix ?
+    return '<tr><td>' + format(seed.seed) + (seed.replaces_seed != null ?
+      ' <span class="stats-state">' + format(seed.replaces_seed) + ' 대체</span>' : '') + (seed.reused_prefix ?
       '<span class="stats-state final">재사용</span>' : '') + '</td><td>' + status +
       '</td><td>' + (finished ? format(seed.target_transitions) : "—") +
       '</td><td>' + (finished ? format(seed.target_training_seconds, decimal) : "—") + '</td></tr>';

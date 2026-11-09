@@ -165,6 +165,31 @@ def dashboard_data(path):
     return json.loads(script[1])
 
 
+def test_report_replaces_one_seed_without_changing_the_declared_block(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import analyze, write_dashboard
+
+    root = tmp_path / "input"
+    output = tmp_path / "report"
+    write_matrix(root)
+    write_seed(root, 1005, scores=(9,) * 32)
+    write_seed(root, 1006, scores=(500,) * 32)
+    folder = "gymtosha-cuda-0-1024"
+    replacement = root / "replacements" / folder / "seed-1006"
+    replacement.parent.mkdir(parents=True)
+    (root / "events" / folder / "seed-1006").rename(replacement)
+    (root / "seed-replacements.json").write_text(json.dumps({folder: {"1005": 1006}}))
+
+    capacity, results = analyze([root], partial=True)
+    (runs,) = results.values()
+    assert [run.seed for run in runs] == [1001, 1002, 1003, 1004, 1006]
+    assert runs[-1].first_target.mean_return == 500
+    write_dashboard(output, capacity, results, partial=True)
+    assert (
+        dashboard_data(output / "index.html")["conditions"][0]["seeds"][-1]["replaces_seed"] == 1005
+    )
+    assert (root / "events" / folder / "seed-1005").is_dir()
+
+
 def test_report_uses_first_raw_mean_and_preserves_censoring(tmp_path):
     from gymtosha.benchmarks.cartpole_report import main
 
