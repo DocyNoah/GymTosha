@@ -52,6 +52,10 @@ h3 { font-size: 16px; }
 .protocol { padding-block: 10px; color: var(--muted); font-size: 12px; }
 .protocol span { display: inline-block; margin-right: 16px; }
 .protocol strong { color: var(--ink); font-family: var(--mono); }
+.follow-up { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 6px 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px;
+  background: var(--panel); }
+.follow-up p { color: var(--muted); font-size: 12px; }
 .explorer { padding-top: 11px; }
 .toolbar { display: flex; align-items: end; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 13px; }
 .group { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 5px; }
@@ -152,6 +156,10 @@ footer a { display: inline-block; margin: 6px 12px 0 0; }
   <p id="load-error" class="empty" role="alert" hidden>결과 데이터를 읽을 수 없습니다. <a href="static.html">정적 보고서</a>를 열어 보세요.</p>
   <div class="metrics" id="metrics" aria-label="전체 실험 요약"></div>
   <div class="protocol" id="protocol" aria-label="학습 설정"></div>
+  <aside class="follow-up" id="follow-up" aria-label="Mac 후속 비교" hidden>
+    <div><strong>Mac 후속 시드 <span id="follow-up-seeds"></span></strong><p id="follow-up-status"></p></div>
+    <a class="download" href="./mps-6-10/">후속 결과 열기</a>
+  </aside>
   <section class="explorer" aria-labelledby="curves-title">
     <div class="toolbar">
       <div class="group" id="view-switch" aria-label="비교 기준">
@@ -581,6 +589,25 @@ function switchGroup(id, attribute, action) {
 }
 
 let refreshing = false;
+async function showFollowUp() {
+  try {
+    const response = await fetch("./mps-6-10/dashboard-data.json", {cache: "no-store"});
+    if (!response.ok) return;
+    const followUp = await response.json();
+    if (!followUp.seeds?.length || !Array.isArray(followUp.conditions)) return;
+    const passed = followUp.conditions.filter(row => row.status === "passed");
+    const expected = passed.reduce((sum, row) => sum + row.expected_seeds, 0);
+    const completed = passed.reduce((sum, row) => sum + row.completed_seeds, 0);
+    const reached = passed.reduce((sum, row) => sum + row.reached_seeds, 0);
+    $("follow-up-seeds").textContent = followUp.seeds[0] + "–" + followUp.seeds.at(-1);
+    $("follow-up-status").textContent = format(completed) + "/" + format(expected) +
+      "회 완료 · " + format(reached) + "회 도달";
+    $("follow-up").hidden = false;
+  } catch {
+    // The follow-up report is optional on standalone dashboards.
+  }
+}
+
 async function refreshSnapshot() {
   if (refreshing) return;
   refreshing = true;
@@ -668,6 +695,7 @@ if (data) {
   renderMatrix();
   render();
   if (location.protocol === "http:" || location.protocol === "https:") {
+    if (!data.seeds?.length || data.seeds[0] === 1001) showFollowUp();
     window.setInterval(refreshSnapshot, 4000);
   }
 }

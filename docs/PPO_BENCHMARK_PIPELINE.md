@@ -107,3 +107,9 @@ uv run --no-sync python -m gymtosha.benchmarks.cartpole_final \
 uv run --no-sync python -m gymtosha.benchmarks.cartpole_watch \
   --inputs outputs/cartpole-t64-2m-mps-6-10 --output outputs/cartpole-t64-mps-6-10-report
 ```
+
+메인 대시보드에 후속 보고서를 표시하려면 두 보고서 폴더를 연결합니다. 메인 페이지에 후속 완료 수와 링크가 추가됩니다.
+
+```bash
+ln -s ../cartpole-t64-mps-6-10-report outputs/cartpole-t64-tb-report/mps-6-10
+```
