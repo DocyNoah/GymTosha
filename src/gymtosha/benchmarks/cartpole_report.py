@@ -426,7 +426,7 @@ def _read_cached_seed(folder, condition, seed, cache):
     return result
 
 
-def analyze(roots, *, partial=False, cache=None):
+def analyze(roots, *, partial=False, cache=None, follow_up=()):
     """Verify the declared matrix, reusing unchanged validated seeds in partial mode."""
     capacity = []
     results = {}
@@ -493,7 +493,27 @@ def analyze(roots, *, partial=False, cache=None):
     if incomplete:
         examples = ", ".join(incomplete[:8])
         raise ValueError(f"{len(incomplete)} missing or incomplete eligible runs: {examples}")
+    if follow_up:
+        _merge_follow_up(capacity, results, follow_up, partial=partial, cache=cache)
     return capacity, results
+
+
+def _merge_follow_up(capacity, results, roots, *, partial, cache):
+    def capacity_key(row):
+        return tuple(row[field] for field in CONDITION_FIELDS[:-1])
+
+    for root in roots:
+        extra_capacity, extra_results = analyze([root], partial=partial, cache=cache)
+        hosts = {row["host"] for row in extra_capacity}
+        expected = {capacity_key(r): r["status"] for r in capacity if r["host"] in hosts}
+        actual = {capacity_key(r): r["status"] for r in extra_capacity}
+        if actual != expected:
+            raise ValueError(f"{root}: follow-up capacity must match the original host conditions")
+        for condition, extra_runs in extra_results.items():
+            runs = results[condition]
+            if {run.seed for run in runs} & {run.seed for run in extra_runs}:
+                raise ValueError(f"{root}: duplicate follow-up seeds in {condition.folder}")
+            results[condition] = sorted((*runs, *extra_runs), key=lambda run: run.seed)
 
 
 def _summarize(condition, runs):
@@ -862,6 +882,7 @@ and code version for each reused prefix.</p>
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inputs", type=Path, nargs="+", required=True, help="host output roots")
+    parser.add_argument("--follow-up", type=Path, nargs="+", default=(), help="extra seed blocks")
     parser.add_argument(
         "--output", type=Path, required=True, help="directory for CSV, PNG and HTML"
     )
@@ -870,7 +891,7 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
     try:
-        capacity, results = analyze(args.inputs, partial=args.partial)
+        capacity, results = analyze(args.inputs, partial=args.partial, follow_up=args.follow_up)
     except ValueError as error:
         parser.exit(2, f"error: {error}\n")
     write_report(args.output, capacity, results, partial=args.partial)

@@ -71,14 +71,14 @@ def _sync(host, repo, root, mirror):
     )
 
 
-def _publish(roots, output, cache):
+def _publish(roots, output, cache, *, follow_up=()):
     from gymtosha.benchmarks.cartpole_report import analyze, write_dashboard, write_report
 
-    capacity, results = analyze(roots, partial=True, cache=cache)
+    capacity, results = analyze(roots, partial=True, cache=cache, follow_up=follow_up)
     seeds = [seed for runs in results.values() for seed in runs]
     complete = sum(seed.status in ("reached", "censored") for seed in seeds)
     if seeds and complete == len(seeds):
-        capacity, results = analyze(roots)
+        capacity, results = analyze(roots, follow_up=follow_up)
         write_report(output, capacity, results)
         print(f"Final dashboard: {complete}/{len(seeds)} seeds verified", flush=True)
         return True
@@ -133,13 +133,13 @@ def watch(args):
                         time.sleep(args.interval)
                     if args.ssh_host and remote is None:
                         continue
-                    state = [_snapshot(root) for root in args.inputs], remote
+                    state = [_snapshot(root) for root in (*args.inputs, *args.follow_up)], remote
                     if state == last:
                         continue
                     if args.ssh_host and remote != mirrored:
                         _sync(args.ssh_host, args.remote_repo, args.remote_root, args.mirror)
                         mirrored = remote
-                    if _publish(roots, args.output, cache):
+                    if _publish(roots, args.output, cache, follow_up=args.follow_up):
                         return
                     last = state
                 except (OSError, ValueError, subprocess.SubprocessError) as error:
@@ -154,6 +154,7 @@ def watch(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inputs", nargs="+", type=Path)
+    parser.add_argument("--follow-up", nargs="+", type=Path, default=())
     parser.add_argument("--output", type=Path)
     parser.add_argument("--ssh-host")
     parser.add_argument("--remote-repo", default="source/GymTosha")

@@ -495,6 +495,31 @@ def test_report_accepts_next_seed_block_but_rejects_mixing_blocks(tmp_path):
         analyze([first, second], partial=True)
 
 
+def test_follow_up_extends_only_matching_host_conditions(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import analyze, write_dashboard
+
+    rtx, mac, extra = (tmp_path / name for name in ("rtx", "mac", "extra"))
+    write_matrix(rtx)
+    write_matrix(mac, host="Mac", device="mps")
+    write_matrix(extra, host="Mac", device="mps", seeds=range(1006, 1011))
+    for folder, seeds in ((mac, range(1001, 1006)), (extra, range(1006, 1011))):
+        for seed in seeds:
+            write_seed(folder, seed, host="Mac", device="mps")
+
+    capacity, results = analyze([rtx, mac], partial=True, follow_up=[extra])
+    out = tmp_path / "report"
+    write_dashboard(out, capacity, results, partial=True)
+    dashboard = json.loads((out / "dashboard-data.json").read_text())
+    passed = {row["host"]: row for row in dashboard["conditions"] if row["status"] == "passed"}
+    assert passed["RTX 3090"]["expected_seeds"] == 5
+    assert passed["Mac"]["expected_seeds"] == passed["Mac"]["finished_seeds"] == 10
+    assert passed["Mac"]["completed_seeds"] == passed["Mac"]["reached_seeds"] == 10
+    assert [run["seed"] for run in passed["Mac"]["seeds"]] == list(range(1001, 1011))
+    assert passed["Mac"]["statistics_final"]
+    with pytest.raises(ValueError, match="duplicate follow-up seeds"):
+        analyze([rtx, mac], partial=True, follow_up=[mac])
+
+
 def test_matrix_rejects_capacity_condition_above_protocol_cap(tmp_path):
     from gymtosha.benchmarks.cartpole_report import analyze
 

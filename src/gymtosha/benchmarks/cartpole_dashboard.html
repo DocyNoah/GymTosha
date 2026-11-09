@@ -279,6 +279,10 @@ function renderSummary() {
   const hits = passed.reduce((sum, row) => sum + row.reached_seeds, 0);
   const ready = passed.filter(finalStats).length;
   const rate = done ? Math.round(hits * 100 / done) : null;
+  const sampleSizes = distinct(passed.map(row => row.expected_seeds));
+  const hostSamples = distinct(passed.map(row =>
+    markup(hostName(row.host)) + " " + format(row.expected_seeds) + "개"
+  )).join(" · ");
   const cells = [
     ["종료 시드", format(finished) + " / " + format(expected),
       "완료 " + format(done) + " · 실패·중단·오류 " + format(failed) +
@@ -298,7 +302,8 @@ function renderSummary() {
     '<span>시드당 예산 <strong>' + format(data.budget) + '</strong></span>' +
     (data.lr_schedule_timesteps ? '<span>학습률 감쇠 기준 <strong>' +
       format(data.lr_schedule_timesteps) + '</strong></span>' : '') +
-    (data.seeds?.length ? '<span>시드 <strong>' + data.seeds[0] + '–' +
+    (sampleSizes.length > 1 ? '<span>조건당 시드 <strong>' + hostSamples + '</strong></span>' :
+      data.seeds?.length ? '<span>시드 <strong>' + data.seeds[0] + '–' +
       data.seeds.at(-1) + '</strong></span>' : '') +
     '<span>업데이트당 평가 <strong>100</strong> 에피소드</span>' +
     '<span>목표 <strong>' + format(data.target) + '</strong>점</span>';
@@ -570,7 +575,7 @@ function render() {
     state.selected = (visibleRows.find(row => row.completed_seeds) || visibleRows[0])?.id;
   }
   $("env-filter").disabled = state.view === "best";
-  $("curve-scope").textContent = state.view === "best" ? "5개 시드를 완료한 조건에서 백엔드별 선택" :
+  $("curve-scope").textContent = state.view === "best" ? "예정된 시드를 모두 완료한 조건에서 백엔드별 선택" :
     "환경 " + format(state.env) + "개 · 평가 간격 " + format(state.env * data.horizon) + " 트랜지션";
   renderChart();
   renderTable();
