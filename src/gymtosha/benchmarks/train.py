@@ -59,6 +59,7 @@ class TrainConfig:
     anneal_by_optimizer_step: bool = False
     rollout_timeout_seconds: float | None = None
     native_same_step: bool = False
+    lr_schedule_timesteps: int | None = None
 
     def validate(self):
         if self.rollout_timeout_seconds is not None and (
@@ -78,6 +79,14 @@ class TrainConfig:
             raise ValueError("exploration_fraction must be in (0, 1]")
         if self.algorithm not in ("ppo", "dqn", "sac", "td3"):
             raise ValueError(f"unknown algorithm {self.algorithm!r}")
+        if self.lr_schedule_timesteps is not None and (
+            type(self.lr_schedule_timesteps) is not int
+            or self.lr_schedule_timesteps < self.total_timesteps
+            or self.algorithm != "ppo"
+            or not self.anneal_learning_rate
+            or not self.anneal_by_optimizer_step
+        ):
+            raise ValueError("the learning rate schedule requires optimizer-step PPO annealing")
         positive = (
             "num_envs",
             "total_timesteps",
@@ -108,6 +117,11 @@ class TrainConfig:
             minibatch_size = self.ppo_minibatch_size or rollout_size // self.num_minibatches
             if minibatch_size < 2:
                 raise ValueError("PPO minibatches require at least two samples")
+            if (
+                self.lr_schedule_timesteps is not None
+                and self.lr_schedule_timesteps % minibatch_size
+            ):
+                raise ValueError("the learning rate schedule must divide into whole minibatches")
         elif self.buffer_size < self.num_envs or self.train_every % self.num_envs:
             raise ValueError("replay must fit num_envs and train_every must divide vector steps")
         if self.algorithm != "ppo" and not 0 <= self.learning_starts < self.total_timesteps:
@@ -213,7 +227,8 @@ def _ppo(
     update_seconds = 0.0
     updates = 0
     iterations = config.total_timesteps // size
-    planned_updates = config.total_timesteps // minibatch_size * config.update_epochs
+    schedule_timesteps = config.lr_schedule_timesteps or config.total_timesteps
+    planned_updates = schedule_timesteps // minibatch_size * config.update_epochs
     timesteps = 0
     valid_transitions = torch.zeros((), dtype=torch.long, device=device)
     log_updates = evaluator is not None and evaluator.on_checkpoint is not None

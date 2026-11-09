@@ -188,7 +188,10 @@ def test_native_exact_budget_uses_all_slots_after_cartpole_resets():
     ]
 
 
-def test_optimizer_schedule_is_identical_at_different_horizons(monkeypatch):
+@pytest.mark.parametrize("schedule_timesteps, scheduled_updates", [(None, 16), (256, 64)])
+def test_optimizer_schedule_is_identical_at_different_horizons(
+    monkeypatch, schedule_timesteps, scheduled_updates
+):
     rates = []
     original_step = torch.optim.Adam.step
 
@@ -209,6 +212,7 @@ def test_optimizer_schedule_is_identical_at_different_horizons(monkeypatch):
                 hidden_sizes=[8],
                 learning_rate=0.003,
                 anneal_by_optimizer_step=True,
+                lr_schedule_timesteps=schedule_timesteps,
             )
         )
-        assert rates == pytest.approx([0.003 * (1 - i / 16) for i in range(16)])
+        assert rates == pytest.approx([0.003 * (1 - i / scheduled_updates) for i in range(16)])
