@@ -18,7 +18,7 @@ GymTosha와 Gymnasium에 같은 양의 학습 경험을 주고, 평가 목표에
 | rollout 길이 탐색 | $N,S_{\rm tune},M,E$, 학습률과 평가 시점 | $T$, $U=S_{\rm tune}/(NT)$ |
 | 환경 수와 백엔드 비교 | $T,S_{\rm final},M,E$, 학습률, 매 업데이트 후 평가 | $N$, $U=S_{\rm final}/(NT)$, 평가 간격 $NT$ |
 
-각 단계에서 총 수집 예산은 $S=UNT$로 고정합니다. $NT$는 $M$으로 나누어떨어져야 하며, 전체 optimizer 호출 수는 $ES/M$입니다. 학습률은 optimizer 호출 순서에 따라 같은 비율로 줄입니다. 같은 예산에서도 $N$이나 $T$가 달라지면 한 번에 모으는 양과 정책을 갱신하는 빈도가 달라집니다.
+각 단계에서 총 수집 예산은 $S=UNT$로 고정합니다. $NT$는 $M$으로 나누어떨어져야 하며, 전체 optimizer 호출 수는 $ES/M$입니다. 최종 비교는 학습 종료 예산과 학습률 감쇠 기준을 분리합니다. 초기 학습률은 0.003이며, optimizer 호출 순서에 따라 기존 8,388,608 트랜지션에 해당하는 65,536회 기준으로 선형 감쇠합니다.
 
 기존 탐색은 같은 누적 수집량에서 평가했습니다. 최종 비교는 업데이트마다 평가하므로 평가 시점의 트랜지션 간격이 $NT$입니다. 목표에 도달한 뒤에도 공통 예산까지 학습합니다.
 
@@ -43,7 +43,7 @@ $S_{\rm tune}$은 탐색에서 가장 큰 배치인 $1{,}024\times512$의 rollou
 ## 4. 백엔드 용량과 최종 비교
 
 - CPU·CUDA·MPS 후보는 **32, 256, 512, 1,024개**이고, Gymnasium Async는 **32개**만 비교합니다. 기존 1,024개 초과 결과와 이전 실행 매트릭스는 보존합니다.
-- 시드당 예산은 **8,388,608 트랜지션**입니다. $T=64$, $M=512$, $E=4$를 사용하므로 시드마다 optimizer를 65,536회 호출합니다. 가장 큰 환경 수인 1,024개에서는 PPO rollout과 평가를 각각 128회 수행합니다.
+- 시드당 예산은 **2,097,152 유효 트랜지션**입니다. $T=64$, $M=512$, $E=4$를 사용하므로 시드마다 optimizer를 16,384회 호출합니다. 가장 큰 환경 수인 1,024개에서는 PPO rollout과 평가를 각각 32회 수행합니다.
 - 동일한 호스트·런타임·학습 설정에서 완료된 T=64 용량 검사를 재사용합니다. 추가 검사는 환경 초기화부터 PPO 업데이트 한 번까지 60초 이내에 완료해야 통과입니다.
 - 통과한 조건마다 **시드 1001–1005**를 단독 실행합니다. 나머지 15개 시드는 후속 실행에 사용합니다. Gymnasium과 GymTosha CPU·CUDA는 RTX 3090 호스트에서, GymTosha MPS는 Mac에서 측정합니다.
 - RTX 3090의 실행 순서는 GymTosha CUDA compile, CUDA eager, GymTosha CPU compile과 eager, Gymnasium NumPy, Sync, Async입니다. Mac은 MPS compile, MPS eager 순입니다. 같은 구성에서는 작은 환경 수부터 실행하며, 완료된 시드는 재사용합니다.
@@ -53,26 +53,28 @@ $S_{\rm tune}$은 탐색에서 가장 큰 배치인 $1{,}024\times512$의 rollou
 
 TensorBoard 로그는 조건과 시드별로 분리합니다. 업데이트마다 평가 리턴 100개, 유효 트랜지션, 누적 학습 시간, 초기화·워밍업과 누적 수집·업데이트 시간, 업데이트 번호, optimizer 호출과 완료 에피소드 수를 기록합니다. PPO 진단은 학습률, 정책 엔트로피, policy loss, value loss, approx KL, clip fraction을 남깁니다. 실행 메타데이터에는 설정, 호스트, 장치, 코드 버전, 상태가 들어갑니다.
 
-완료된 기존 T=64 JSON을 변환할 때는 저장된 값만 이벤트에 넣고, 당시 측정하지 않은 항목은 메타데이터에 표시합니다. T=256 결과는 기존 출력 경로에 별도로 보존합니다.
+기존 T=64 실행의 학습 설정·평가 방식과 학습률 스케줄을 확인하고, 호환되면 2,097,152 트랜지션까지의 이벤트를 새 출력에 복사합니다. 기존 JSON은 저장된 값을 이벤트로 변환하고, 당시 측정하지 않은 항목은 메타데이터에 표시합니다. 재사용한 시드는 대시보드와 시드 CSV에 출처를 남깁니다. 기존 8,388,608 트랜지션의 원시 이벤트와 T=256 결과는 기존 경로에 보존합니다.
 
 ```bash
 uv sync --frozen --extra benchmark
 uv run --no-sync python -m gymtosha.benchmarks.cartpole_final \
   --baseline benchmarks/results/cartpole-study/scaling/selected.json \
-  --output outputs/cartpole-t64-tb-3090 --legacy outputs/cartpole-t64-3090 --devices cpu cuda
+  --output outputs/cartpole-t64-2m-3090 --prefix-from outputs/cartpole-t64-tb-3090 \
+  --legacy outputs/cartpole-t64-3090 --devices cpu cuda
 
 uv run --no-sync python -m gymtosha.benchmarks.cartpole_final \
   --baseline benchmarks/results/cartpole-study/scaling/selected.json \
-  --output outputs/cartpole-t64-tb-mps --legacy outputs/cartpole-t64-mps --devices mps
+  --output outputs/cartpole-t64-2m-mps --prefix-from outputs/cartpole-t64-tb-mps \
+  --legacy outputs/cartpole-t64-mps --devices mps
 
-uv run --no-sync tensorboard --logdir outputs/cartpole-t64-tb-mps/events
+uv run --no-sync tensorboard --logdir outputs/cartpole-t64-2m-mps/events
 ```
 
 두 호스트의 `matrix.json`과 `events/`를 한곳에 모아 후처리합니다. 스크립트는 이벤트에서 첫 도달, 조건별 통계, 트랜지션·학습 시간 기준 곡선, 환경 수별 평가 간격, 같은 환경 수의 비교와 백엔드별 최적 환경 수를 재생성합니다.
 
 ```bash
 uv run --no-sync python -m gymtosha.benchmarks.cartpole_report \
-  --inputs outputs/cartpole-t64-tb-3090 outputs/cartpole-t64-tb-mps \
+  --inputs outputs/cartpole-t64-2m-3090 outputs/cartpole-t64-2m-mps \
   --output outputs/cartpole-t64-tb-report
 ```
 
@@ -84,9 +86,9 @@ Mac에서 감시기를 실행하면 로컬 또는 RTX에서 시드가 종료될 
 
 ```bash
 uv run --no-sync python -m gymtosha.benchmarks.cartpole_watch \
-  --inputs outputs/cartpole-t64-tb-mps \
-  --ssh-host link-3090v2-x --remote-root outputs/cartpole-t64-tb-3090 \
-  --mirror outputs/cartpole-t64-tb-3090 --output outputs/cartpole-t64-tb-report
+  --inputs outputs/cartpole-t64-2m-mps \
+  --ssh-host link-3090v2-x --remote-root outputs/cartpole-t64-2m-3090 \
+  --mirror outputs/cartpole-t64-2m-3090 --output outputs/cartpole-t64-tb-report
 
 uv run --no-sync python -m http.server 8782 --bind 127.0.0.1 \
   --directory outputs/cartpole-t64-tb-report

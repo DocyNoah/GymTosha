@@ -7,7 +7,7 @@ import signal
 import subprocess
 import sys
 from dataclasses import asdict, replace
-from math import isfinite
+from math import isclose, isfinite
 from pathlib import Path
 
 from gymtosha.benchmarks.capacity import terminate_probe
@@ -23,11 +23,12 @@ from gymtosha.benchmarks.study_fixed_budget import (
     Budget,
     expected_presets,
 )
-from gymtosha.benchmarks.study_grouped import conditions, load_baseline, verify_selected
+from gymtosha.benchmarks.study_grouped import conditions, load_baseline, probe
 from gymtosha.benchmarks.train import TrainConfig, train
 
 HORIZON = 64
-BUDGET = 8_388_608
+BUDGET = 2_097_152
+LR_SCHEDULE_TIMESTEPS = 8_388_608
 ENV_COUNTS = (32, 256, 512, 1024)
 CAPACITY_SECONDS = 60
 SEEDS = (1001, 1002, 1003, 1004, 1005)
@@ -58,6 +59,7 @@ def final_presets(base):
     if base.update_epochs != 4 or base.num_threads != 1:
         raise ValueError("the final CartPole baseline requires four PPO epochs and one thread")
     final = Budget(ENV_COUNTS, (HORIZON,), BUDGET, 512)
+    base = replace(base, lr_schedule_timesteps=LR_SCHEDULE_TIMESTEPS)
     return expected_presets(base, final, HORIZON, each_update=True)
 
 
@@ -85,14 +87,23 @@ def _probe_configs(selected, devices):
                 continue
             condition = f"{backend}-{device}-{int(compile_env)}-{count}"
             config = _condition_config(preset, backend, device, compile_env)
-            yield condition, replace(config, total_timesteps=count * config.rollout_steps)
+            yield (
+                condition,
+                replace(
+                    config, total_timesteps=count * config.rollout_steps, lr_schedule_timesteps=None
+                ),
+            )
+
+
+def _same_config(saved, config):
+    return isinstance(saved, dict) and {"lr_schedule_timesteps": None, **saved} == asdict(config)
 
 
 def _valid_probe(record, config, runtime):
     elapsed = record.get("observed_seconds")
     status = record.get("status")
     return (
-        record.get("config") == asdict(config)
+        _same_config(record.get("config"), config)
         and record.get("runtime", runtime) == runtime
         and record.get("limit_seconds") == CAPACITY_SECONDS
         and _time(elapsed)
@@ -100,31 +111,37 @@ def _valid_probe(record, config, runtime):
     )
 
 
-def verify_matrix(selected, output, devices, legacy, runtime):
+def verify_matrix(selected, output, devices, legacy, runtime, *, prefix_from=None):
     capacity = output / "capacity-selected"
     matrix_path = output / "matrix.json"
     published = matrix_path.exists()
     configs = list(_probe_configs(selected, devices))
     if not published:
-        previous = _read_record(legacy / "protocol.json") if legacy else {}
+        sources = [
+            (root, marker)
+            for root, marker in ((prefix_from, "prefix_probe"), (legacy, "legacy_probe"))
+            if root is not None and _read_record(root / "protocol.json").get("runtime") == runtime
+        ]
         for name, config in configs:
             target = capacity / f"{name}.json"
             if target.exists():
                 if _valid_probe(_read_record(target), config, runtime):
                     continue
                 target.replace(target.with_suffix(".unverified.json"))
-            if previous.get("runtime") == runtime:
-                path = legacy / "capacity-selected" / target.name
+            for root, marker in sources:
+                path = root / "capacity-selected" / target.name
                 saved = _read_record(path)
                 if _valid_probe(saved, config, runtime):
-                    _write({**saved, "legacy_probe": str(path.resolve())}, target)
-        verify_selected(selected, output, devices, cpu_limit=CPU_LIMIT)
+                    _write({**saved, marker: str(path.resolve())}, target)
+                    break
+            else:
+                probe(config, capacity)
 
     rows = []
     for name, config in configs:
         path = capacity / f"{name}.json"
-        probe = _read_record(path)
-        if not _valid_probe(probe, config, runtime):
+        saved = _read_record(path)
+        if not _valid_probe(saved, config, runtime):
             raise RuntimeError(f"missing capacity evidence for {name}")
         rows.append(
             {
@@ -134,10 +151,16 @@ def verify_matrix(selected, output, devices, legacy, runtime):
                 "compile_env": config.compile_env,
                 "num_envs": config.num_envs,
                 "host": runtime["node"],
-                "status": probe["status"],
+                "status": saved["status"],
                 "capacity_probe": str(path.relative_to(output)),
-                "capacity_source": "legacy_json" if "legacy_probe" in probe else "live",
-                **{key: probe[key] for key in ("error_type", "error") if key in probe},
+                "capacity_source": (
+                    "prefix_tensorboard"
+                    if "prefix_probe" in saved
+                    else "legacy_json"
+                    if "legacy_probe" in saved
+                    else "live"
+                ),
+                **{key: saved[key] for key in ("error_type", "error") if key in saved},
             }
         )
     matrix = {"conditions": rows, "seeds": list(SEEDS), "budget": BUDGET, "horizon": HORIZON}
@@ -177,6 +200,14 @@ def _counters(point, timesteps, updates):
     )
 
 
+def _scores_valid(scores, episodes):
+    return (
+        isinstance(scores, list)
+        and len(scores) == episodes
+        and all(_time(score) and 1 <= score <= 500 and score % 1 == 0 for score in scores)
+    )
+
+
 def _training_episode_counts(result, rollout, num_points):
     points = result.get("checkpoints")
     if not isinstance(points, list) or len(points) != num_points:
@@ -194,21 +225,38 @@ def _training_episode_counts(result, rollout, num_points):
     return totals if _count(result.get("completed_episodes"), total) else []
 
 
+def _full_budget_configs(config):
+    """Match both the implicit and explicit forms of the full-budget schedule."""
+    budget = config.lr_schedule_timesteps
+    if budget is not None and budget > config.total_timesteps:
+        yield replace(config, total_timesteps=budget, lr_schedule_timesteps=None)
+        yield replace(config, total_timesteps=budget)
+
+
 def legacy_points(record, config, runtime):
     """Return validated raw evaluation telemetry from a completed legacy trial."""
     evaluation = study_evaluation(config, comparison=True, each_update=True)
-    expected_config, expected_evaluation = asdict(config), asdict(evaluation)
+    expected_evaluation = asdict(evaluation)
     try:
         request, result = record["request"], record["result"]
         saved_evaluation = result["evaluation"]
         points = saved_evaluation["checkpoints"]
+        saved_config = request["config"]
+        original = next(
+            (
+                item
+                for item in (config, *_full_budget_configs(config))
+                if _same_config(saved_config, item)
+            ),
+            None,
+        )
         if (
             record["status"] != "completed"
             or record["timing_scope"] != "isolated"
             or not _count(record["seed"], config.seed)
             or request["runtime"] != runtime
-            or request["config"] != expected_config
-            or result["config"] != expected_config
+            or original is None
+            or not _same_config(result["config"], original)
             or request["evaluation"] != expected_evaluation
             or saved_evaluation["config"] != expected_evaluation
             or saved_evaluation["env_id"] != config.env_id
@@ -219,11 +267,14 @@ def legacy_points(record, config, runtime):
             return None
         rollout = evaluation.interval
         num_points = config.total_timesteps // rollout
+        original_points = original.total_timesteps // rollout
         updates = config.num_minibatches * config.update_epochs
         if (
-            not isinstance(points, list)
-            or len(points) != num_points
-            or not _counters(result, config.total_timesteps, num_points * updates)
+            not num_points
+            or config.total_timesteps % rollout
+            or not isinstance(points, list)
+            or len(points) != original_points
+            or not _counters(result, original.total_timesteps, original_points * updates)
             or not _time(result["wall_seconds"])
         ):
             return None
@@ -241,22 +292,18 @@ def legacy_points(record, config, runtime):
                 startup[name] = value
             else:
                 missing.append(name)
-        episodes = _training_episode_counts(result, rollout, num_points)
+        episodes = _training_episode_counts(result, rollout, original_points)
         if not episodes:
             missing.append("completed_episodes")
         migrated = []
         previous = 0
-        for index, point in enumerate(points, start=1):
+        for index, point in enumerate(points[:num_points], start=1):
             elapsed, scores = point["wall_seconds"], point["episode_returns"]
             if (
                 not _counters(point, index * rollout, index * updates)
                 or not _time(elapsed)
                 or not previous < elapsed <= result["wall_seconds"]
-                or not isinstance(scores, list)
-                or len(scores) != evaluation.episodes
-                or not all(
-                    _time(score) and 1 <= score <= 500 and score % 1 == 0 for score in scores
-                )
+                or not _scores_valid(scores, evaluation.episodes)
             ):
                 return None
             previous = elapsed
@@ -273,9 +320,10 @@ def legacy_points(record, config, runtime):
                     **({"completed_episodes": episodes[index - 1]} if episodes else {}),
                 }
             )
-        for name in ("collection_seconds", "update_seconds"):
-            if _time(phases.get(name)):
-                migrated[-1][name] = phases[name]
+        if original_points == num_points:
+            for name in ("collection_seconds", "update_seconds"):
+                if _time(phases.get(name)):
+                    migrated[-1][name] = phases[name]
     except (AttributeError, KeyError, TypeError, OverflowError):
         return None
     return migrated, missing
@@ -301,32 +349,203 @@ def _migrate_legacy(legacy, protocol, config, runtime, output):
     metadata = _run_metadata(
         config, runtime, source="legacy_json", code_version=protocol.get("git_sha") or source
     )
-    request = {
-        "config": metadata["config"],
-        "evaluation": metadata["evaluation"],
-        "source": source,
-        "runtime": runtime,
-    }
-    # The legacy controller hashes the request, including its own training fingerprint.
-    key = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()[:24]
-    path = legacy / "trials" / f"{key}.json"
-    record = _read_record(path)
-    if record.get("request") != request:
-        return False
-    trial = legacy_points(record, config, runtime)
-    if trial is None:
-        return False
+    for original in (config, *_full_budget_configs(config)):
+        saved = asdict(original)
+        configs = [saved]
+        if original.lr_schedule_timesteps is None:
+            configs.append(
+                {key: value for key, value in saved.items() if key != "lr_schedule_timesteps"}
+            )
+        for saved_config in configs:
+            request = {
+                "config": saved_config,
+                "evaluation": metadata["evaluation"],
+                "source": source,
+                "runtime": runtime,
+            }
+            # The old controller hashed the complete request with its training fingerprint.
+            key = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()[:24]
+            path = legacy / "trials" / f"{key}.json"
+            record = _read_record(path)
+            if record.get("request") != request:
+                continue
+            trial = legacy_points(record, config, runtime)
+            if trial is None:
+                continue
+            points, missing = trial
+            metadata.update(
+                legacy_record=str(path.resolve()),
+                legacy_source_fingerprint=source,
+                missing_fields=missing,
+            )
+            if original.total_timesteps != config.total_timesteps:
+                metadata["reused_prefix"] = _prefix_provenance(path, original, metadata)
+            _write_seed(output, metadata, points)
+            return True
+    return False
 
+
+def _prefix_provenance(path, config, metadata):
+    return {
+        "path": str(path.resolve()),
+        "budget": config.total_timesteps,
+        "code_version": metadata["code_version"],
+    }
+
+
+def _write_seed(output, metadata, points):
     from gymtosha.benchmarks.cartpole_events import EventRun
 
-    points, missing = trial
-    metadata.update(
-        legacy_record=str(path.resolve()), legacy_source_fingerprint=source, missing_fields=missing
-    )
     with EventRun(output, metadata) as run:
         for point in points:
             run.record(point)
         run.finish()
+
+
+def _read_event_prefix(path, metadata, config, optional):
+    from google.protobuf.message import DecodeError
+    from tensorboard.backend.event_processing.event_file_loader import LegacyEventFileLoader
+    from tensorboard.util.tensor_util import make_ndarray
+
+    from gymtosha.benchmarks.cartpole_events import METRIC_TAGS
+
+    paths = list(path.glob("events.out.tfevents.*"))
+    if len(paths) != 1:
+        return None
+    rollout = metadata["evaluation"]["interval"]
+    count = config.total_timesteps // rollout
+    if not count or config.total_timesteps % rollout:
+        return None
+    updates = config.num_minibatches * config.update_epochs
+    planned_updates = (
+        config.lr_schedule_timesteps // config.ppo_minibatch_size
+    ) * config.update_epochs
+    names = {tag: name for name, tag in METRIC_TAGS.items()}
+    names["eval/episode_returns"] = "episode_returns"
+    required = set(names.values()) - optional
+    startup = ("setup_seconds", "warmup_seconds", "learner_setup_seconds")
+    cumulative = ("wall_seconds", "collection_seconds", "update_seconds")
+    expected_metadata = {key: val for key, val in metadata.items() if key != "error"}
+    expected_metadata["status"] = "running"
+    points, missing = [], set()
+    previous = {key: 0 for key in (*cumulative, "completed_episodes")}
+    episode_step = 0
+    saw_metadata = False
+    try:
+        for event in LegacyEventFileLoader(str(paths[0])).Load():
+            if event.step > count:
+                break
+            point = {}
+            for value in event.summary.value:
+                if value.tag == "run/metadata":
+                    if (
+                        saw_metadata
+                        or json.loads(make_ndarray(value.tensor).item()) != expected_metadata
+                    ):
+                        return None
+                    saw_metadata = True
+                if value.tag not in names:
+                    continue
+                name = names[value.tag]
+                if name in point:
+                    return None
+                array = make_ndarray(value.tensor)
+                if array.dtype.kind not in "iuf":
+                    return None
+                if name == "episode_returns":
+                    if array.shape != (metadata["evaluation"]["episodes"],):
+                        return None
+                    point[name] = array.tolist()
+                elif array.shape == () and isfinite(array.item()):
+                    point[name] = array.item()
+                else:
+                    return None
+            if not point:
+                continue
+            step = len(points) + 1
+            point["timesteps"] = step * rollout
+            if (
+                not saw_metadata
+                or required.difference(point)
+                or event.step != step
+                or not _count(point["ppo_update"], step)
+                or not _counters(point, step * rollout, step * updates)
+                or not _scores_valid(point["episode_returns"], metadata["evaluation"]["episodes"])
+                or point["wall_seconds"] <= previous["wall_seconds"]
+                or any(point[key] < previous[key] for key in cumulative if key in point)
+                or any(point[key] < 0 for key in startup if key in point)
+            ):
+                return None
+            if "completed_episodes" in point:
+                episodes = point["completed_episodes"]
+                if (
+                    type(episodes) is not int
+                    or not 0
+                    <= episodes - previous["completed_episodes"]
+                    <= (step - episode_step) * rollout
+                ):
+                    return None
+                previous["completed_episodes"] = episodes
+                episode_step = step
+            if "learning_rate" in point:
+                rate = config.learning_rate or 2.5e-4
+                if config.anneal_learning_rate:
+                    rate *= 1 - (step * updates - 1) / planned_updates
+                if not isclose(point["learning_rate"], rate, rel_tol=1e-6):
+                    return None
+            previous.update({key: point[key] for key in cumulative if key in point})
+            missing.update(optional.difference(point))
+            points.append(point)
+    except (DecodeError, OSError, TypeError, ValueError, OverflowError):
+        return None
+    return (points, missing) if len(points) == count else None
+
+
+def _migrate_prefix(path, config, runtime, output):
+    from gymtosha.benchmarks.cartpole_events import METRIC_TAGS
+
+    metadata = _read_record(path / "metadata.json")
+    original = next(
+        (
+            item
+            for item in _full_budget_configs(config)
+            if _same_config(metadata.get("config"), item)
+        ),
+        None,
+    )
+    source, code_version = metadata.get("source"), metadata.get("code_version")
+    expected = _run_metadata(config, runtime, source=source, code_version=code_version)
+    missing = metadata.get("missing_fields")
+    core = {"valid_transitions", "gradient_updates", "ppo_update", "wall_seconds"}
+    if (
+        original is None
+        or metadata.get("status") not in ("running", "completed", "interrupted", "failed")
+        or source not in ("live", "legacy_json")
+        or not isinstance(code_version, str)
+        or not code_version
+        or any(
+            metadata.get(key) != expected[key]
+            for key in ("host", "runtime", "evaluation", "timing_scope")
+        )
+        or not isinstance(missing, list)
+        or any(
+            not isinstance(field, str) or field not in METRIC_TAGS or field in core
+            for field in missing
+        )
+        or (source == "live" and missing)
+    ):
+        return False
+    prefix = _read_event_prefix(path, metadata, config, set(missing))
+    if prefix is None:
+        return False
+    points, gaps = prefix
+    migrated = {key: val for key, val in metadata.items() if key not in ("status", "error")}
+    migrated.update(
+        config=expected["config"],
+        missing_fields=[field for field in missing if field in gaps],
+        reused_prefix=_prefix_provenance(path, original, metadata),
+    )
+    _write_seed(output, migrated, points)
     return True
 
 
@@ -419,9 +638,14 @@ def _execution_key(row):
     return EXECUTION_ORDER.index(variant), row["num_envs"]
 
 
-def run_final(baseline, output, devices, legacy):
-    if legacy is not None and (not legacy.is_dir() or legacy.resolve() == output.resolve()):
-        raise ValueError("the legacy directory must exist and differ from the final output")
+def run_final(baseline, output, devices, legacy, *, prefix_from=None):
+    for source in (prefix_from, legacy):
+        if source is not None and (
+            not source.is_dir() or output.resolve().is_relative_to(source.resolve())
+        ):
+            raise ValueError(
+                "the source directory must exist and be separate from the final output"
+            )
     with study_lock(output):
         base, _ = load_baseline(baseline)
         selected = final_presets(base)
@@ -434,6 +658,7 @@ def run_final(baseline, output, devices, legacy):
             "seeds": list(SEEDS),
             "horizon": HORIZON,
             "budget": BUDGET,
+            "lr_schedule_timesteps": LR_SCHEDULE_TIMESTEPS,
         }
         protocol_path = output / "protocol.json"
         if protocol_path.exists():
@@ -445,8 +670,9 @@ def run_final(baseline, output, devices, legacy):
             ):
                 raise ValueError("final output already has artifacts without a recorded protocol")
             _write(protocol, protocol_path)
-        matrix = verify_matrix(selected, output, devices, legacy, runtime)
+        matrix = verify_matrix(selected, output, devices, legacy, runtime, prefix_from=prefix_from)
         previous = _read_record(legacy / "protocol.json") if legacy else {}
+        pending = []
         for row in sorted(matrix["conditions"], key=_execution_key):
             if row["status"] != "passed":
                 continue
@@ -459,18 +685,26 @@ def run_final(baseline, output, devices, legacy):
                 path = output / "events" / name / f"seed-{seed}"
                 if _completed(path, trial, runtime):
                     continue
+                if prefix_from is not None and _migrate_prefix(
+                    prefix_from / "events" / name / f"seed-{seed}", trial, runtime, path
+                ):
+                    print(f"reused event prefix {name} seed={seed}", flush=True)
+                    continue
                 if _migrate_legacy(legacy, previous, trial, runtime, path):
                     print(f"migrated {name} seed={seed}", flush=True)
                     continue
-                print(f"training {name} seed={seed}", flush=True)
-                _run_worker(trial, runtime, version, path, output, name)
+                pending.append((name, trial, path))
+        for name, trial, path in pending:
+            print(f"training {name} seed={trial.seed}", flush=True)
+            _run_worker(trial, runtime, version, path, output, name)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", type=Path)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--legacy", type=Path)
+    parser.add_argument("--legacy", type=Path, help="prior same-host CartPole JSON study")
+    parser.add_argument("--prefix-from", type=Path, help="prior same-host 8M TensorBoard study")
     parser.add_argument("--devices", nargs="+", choices=("cpu", "cuda", "mps"))
     parser.add_argument("--worker-request", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--worker-output", type=Path, help=argparse.SUPPRESS)
@@ -483,7 +717,9 @@ def main():
     elif len(set(args.devices)) != len(args.devices):
         parser.error("--devices must not contain duplicates")
     else:
-        run_final(args.baseline, args.output, args.devices, args.legacy)
+        run_final(
+            args.baseline, args.output, args.devices, args.legacy, prefix_from=args.prefix_from
+        )
 
 
 if __name__ == "__main__":

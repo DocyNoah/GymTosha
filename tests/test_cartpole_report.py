@@ -6,7 +6,9 @@ import shutil
 import pytest
 
 
-def write_matrix(root, *, host="RTX 3090", seeds=range(1001, 1006), device="cuda", extra=()):
+def write_matrix(
+    root, *, host="RTX 3090", seeds=range(1001, 1006), device="cuda", extra=(), budget=2_097_152
+):
     root.mkdir()
     (root / "matrix.json").write_text(
         json.dumps(
@@ -16,7 +18,7 @@ def write_matrix(root, *, host="RTX 3090", seeds=range(1001, 1006), device="cuda
                         "backend": "gymtosha",
                         "device": device,
                         "compile_env": False,
-                        "num_envs": 16384,
+                        "num_envs": 1024,
                         "host": host,
                         "status": "passed",
                     },
@@ -24,7 +26,7 @@ def write_matrix(root, *, host="RTX 3090", seeds=range(1001, 1006), device="cuda
                         "backend": "gymtosha",
                         "device": device,
                         "compile_env": True,
-                        "num_envs": 16384,
+                        "num_envs": 1024,
                         "host": host,
                         "status": "failed",
                     },
@@ -32,7 +34,7 @@ def write_matrix(root, *, host="RTX 3090", seeds=range(1001, 1006), device="cuda
                 ],
                 "seeds": list(seeds),
                 "horizon": 64,
-                "budget": 8388608,
+                "budget": budget,
             }
         )
     )
@@ -42,17 +44,18 @@ def write_seed(
     root,
     seed,
     *,
-    scores=(474, 475, 450, 480, 480, 480, 480, 480),
+    scores=(474, 475, 450) + (480,) * 29,
     mutate=None,
     status="completed",
     missing_fields=(),
     source="live",
-    count=16384,
+    count=1024,
     host="RTX 3090",
     device="cuda",
     duplicate_update=None,
     config_overrides=None,
     error=None,
+    reused_prefix=None,
 ):
     from tensorboard.compat.proto.event_pb2 import Event
     from tensorboard.compat.proto.summary_pb2 import Summary
@@ -64,12 +67,13 @@ def write_seed(
     writer = EventFileWriter(str(folder))
     try:
         for step, score in enumerate(scores, start=1):
+            optimizer_calls = count * step // 2
             metrics = {
                 "eval/episode_returns": [score] * 100,
                 "eval/mean_return": 500,
                 "train/valid_transitions": count * 64 * step,
                 "time/training_seconds": 2.5 * step,
-                "train/optimizer_calls": count * step // 2,
+                "train/optimizer_calls": optimizer_calls,
                 "train/ppo_update": step,
                 "train/completed_episodes": 20 * step,
                 "time/setup_seconds": 0.1,
@@ -77,7 +81,7 @@ def write_seed(
                 "time/learner_setup_seconds": 0.3,
                 "time/collection_seconds": 0.4 * step,
                 "time/update_seconds": 0.5 * step,
-                "ppo/learning_rate": 0.001,
+                "ppo/learning_rate": 0.003 * (1 - (optimizer_calls - 1) / 65_536),
                 "ppo/entropy": 0.6,
                 "ppo/policy_loss": -0.1,
                 "ppo/value_loss": 0.7,
@@ -108,7 +112,9 @@ def write_seed(
                     "compile_env": False,
                     "num_envs": count,
                     "rollout_steps": 64,
-                    "total_timesteps": 8_388_608,
+                    "total_timesteps": 2_097_152,
+                    "lr_schedule_timesteps": 8_388_608,
+                    "learning_rate": 0.003,
                     "ppo_minibatch_size": 512,
                     "num_minibatches": count // 8,
                     "update_epochs": 4,
@@ -141,6 +147,7 @@ def write_seed(
                 "missing_fields": missing_fields,
                 "code_version": "test",
                 **({"error": error} if error is not None else {}),
+                **({"reused_prefix": reused_prefix} if reused_prefix is not None else {}),
             }
         )
     )
@@ -168,37 +175,38 @@ def test_report_uses_first_raw_mean_and_preserves_censoring(tmp_path):
     output = tmp_path / "report"
     write_matrix(root)
     write_seed(root, 1001)
-    write_seed(root, 1002, scores=(474, 474, 475, 490, 480, 480, 480, 480))
+    write_seed(root, 1002, scores=(474, 474, 475, 490) + (480,) * 28)
     for seed in (1003, 1004):
-        write_seed(root, seed, scores=(474,) * 8)
-    write_seed(root, 1005, scores=(474,) * 8, mutate=slower_training)
+        write_seed(root, seed, scores=(474,) * 32)
+    write_seed(root, 1005, scores=(474,) * 32, mutate=slower_training)
 
     main(["--inputs", str(root), "--output", str(output)])
 
     seed, second, censored, *_ = rows(output / "seeds.csv")
     assert seed["status"] == "reached"
     assert seed["target_update"] == "2"
-    assert seed["target_transitions"] == "2097152"
+    assert seed["target_transitions"] == "131072"
     assert float(seed["target_training_seconds"]) == 5
-    assert seed["target_optimizer_calls"] == "16384"
+    assert seed["target_optimizer_calls"] == "1024"
     assert second["target_update"] == "3"
     assert censored["status"] == "censored"
     assert censored["target_transitions"] == ""
-    assert censored["last_transitions"] == "8388608"
+    assert censored["last_transitions"] == "2097152"
+    assert censored["last_optimizer_calls"] == "16384"
     assert float(censored["last_mean_return"]) == 474
 
     (condition,) = rows(output / "conditions.csv")
     assert condition["host"] == "RTX 3090"
-    assert condition["evaluation_spacing_transitions"] == "1048576"
+    assert condition["evaluation_spacing_transitions"] == "65536"
     assert condition["completed_seeds"] == "5"
     assert condition["censored_seeds"] == "3"
     assert condition["reached_seeds"] == "2"
     assert float(condition["reach_rate"]) == 0.4
-    assert float(condition["mean_target_transitions"]) == 2621440
-    assert float(condition["sd_target_transitions"]) == pytest.approx(741455.20019)
+    assert float(condition["mean_target_transitions"]) == 163840
+    assert float(condition["sd_target_transitions"]) == pytest.approx(46340.95001)
     assert float(condition["mean_target_training_seconds"]) == 6.25
     assert float(condition["sd_target_training_seconds"]) == pytest.approx(1.76776695)
-    assert len(rows(output / "checkpoints.csv")) == 40
+    assert len(rows(output / "checkpoints.csv")) == 160
     assert len(rows(output / "capacity.csv")) == 2
     assert len(rows(output / "best-n.csv")) == 1
     assert list(output.glob("same-n-*.png"))
@@ -206,15 +214,17 @@ def test_report_uses_first_raw_mean_and_preserves_censoring(tmp_path):
 
     payload = dashboard_data(output / "index.html")
     assert payload["partial"] is False
-    assert (payload["target"], payload["budget"], payload["horizon"]) == (475, 8388608, 64)
+    assert (payload["target"], payload["budget"], payload["horizon"]) == (475, 2097152, 64)
+    assert payload["lr_schedule_timesteps"] == 8388608
     assert payload["generated_at"].endswith("+00:00")
     passed, failed = payload["conditions"]
-    assert passed["id"] == "RTX 3090/gymtosha-cuda-0-16384"
+    assert passed["id"] == "RTX 3090/gymtosha-cuda-0-1024"
     assert passed["status"] == "passed"
     assert passed["best"] is True
     assert passed["reached_seeds"] == 2
     assert passed["mean_target_training_seconds"] == 6.25
-    assert passed["curve"]["x"][:2] == [1048576, 2097152]
+    assert passed["curve"]["x"][:2] == [65536, 131072]
+    assert passed["curve"]["x"][-1] == 2097152
     assert passed["curve"]["time"][:2] == [3.0, 6.0]
     assert passed["curve"]["mean"][:2] == [474, 474.2]
     assert passed["curve"]["sd"][:2] == pytest.approx([0.0, 0.4472135955])
@@ -236,7 +246,7 @@ def test_partial_mode_distinguishes_unfinished_missing_and_censored_seeds(tmp_pa
     root = tmp_path / "input"
     output = tmp_path / "report"
     write_matrix(root)
-    write_seed(root, 1001, scores=(474,) * 8)
+    write_seed(root, 1001, scores=(474,) * 32)
     write_seed(root, 1002, scores=(474, 475), status="running")
 
     with pytest.raises(SystemExit) as error:
@@ -264,7 +274,7 @@ def test_partial_mode_distinguishes_unfinished_missing_and_censored_seeds(tmp_pa
     assert payload["partial"] is True
     passed, _ = payload["conditions"]
     assert passed["coverage"] == 0.2
-    assert passed["curve"]["mean"] == [474.0] * 8
+    assert passed["curve"]["mean"] == [474.0] * 32
     assert passed["curve"]["sd"] is None
     assert [seed["status"] for seed in passed["seeds"]] == [
         "censored",
@@ -289,7 +299,7 @@ def test_dashboard_preserves_capacity_errors_without_closing_data_script(tmp_pat
                 "backend": "gymtosha",
                 "device": "mps",
                 "compile_env": True,
-                "num_envs": 8192,
+                "num_envs": 512,
                 "status": "failed",
                 "capacity_source": "legacy_json",
                 "error": error,
@@ -362,9 +372,9 @@ def test_live_dashboard_publishes_terminal_status_and_provisional_statistics(tmp
     assert not (output / "checkpoints.csv").exists()
 
     for seed in (1002, 1003, 1004):
-        shutil.rmtree(root / "events" / "gymtosha-cuda-0-16384" / f"seed-{seed}")
+        shutil.rmtree(root / "events" / "gymtosha-cuda-0-1024" / f"seed-{seed}")
     for seed in (1002, 1003, 1004, 1005):
-        write_seed(root, seed, scores=(474,) * 8)
+        write_seed(root, seed, scores=(474,) * 32)
     capacity, results = report.analyze([root], partial=True)
     report.write_dashboard(output, capacity, results, partial=True)
 
@@ -392,7 +402,7 @@ def test_live_analysis_reuses_only_unchanged_validated_seeds(tmp_path):
     assert same[0] is first[0]
     assert same[4] is not first[4]
 
-    seed_folder = root / "events" / "gymtosha-cuda-0-16384" / "seed-1005"
+    seed_folder = root / "events" / "gymtosha-cuda-0-1024" / "seed-1005"
     metadata_path = seed_folder / "metadata.json"
     metadata = json.loads(metadata_path.read_text())
     metadata_path.write_text(json.dumps({**metadata, "status": "completed"}))
@@ -423,6 +433,7 @@ def test_live_analysis_reuses_only_unchanged_validated_seeds(tmp_path):
         ("train/optimizer_calls", 12, "optimizer"),
         ("train/ppo_update", 12, "PPO update"),
         ("ppo/approx_kl", float("nan"), "ppo/approx_kl.*finite"),
+        ("ppo/learning_rate", 0.00281268310546875, "learning rate.*optimizer"),
     ],
 )
 def test_invalid_raw_checkpoint_rejects_final_report(tmp_path, field, value, error):
@@ -451,6 +462,49 @@ def test_extra_seed_directory_is_rejected(tmp_path):
         analyze([root])
 
 
+def test_old_budget_matrix_is_rejected(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    root = tmp_path / "input"
+    write_matrix(root, budget=8_388_608)
+
+    with pytest.raises(ValueError, match="budget 2097152"):
+        analyze([root])
+
+
+@pytest.mark.parametrize("seeds", [range(1001, 1007), [1001, 1002, 1003, 1004, 1004]])
+def test_matrix_requires_exact_protocol_seeds(tmp_path, seeds):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    root = tmp_path / "input"
+    write_matrix(root, seeds=seeds)
+
+    with pytest.raises(ValueError, match="exactly seeds 1001–1005"):
+        analyze([root], partial=True)
+
+
+def test_matrix_rejects_capacity_condition_above_protocol_cap(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    root = tmp_path / "input"
+    write_matrix(
+        root,
+        extra=[
+            {
+                "host": "RTX 3090",
+                "backend": "gymtosha",
+                "device": "cuda",
+                "compile_env": False,
+                "num_envs": 2048,
+                "status": "passed",
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match="invalid capacity condition"):
+        analyze([root], partial=True)
+
+
 @pytest.mark.parametrize("duplicate", [False, True])
 def test_completed_seed_rejects_short_stream_or_duplicate_step(tmp_path, duplicate):
     from gymtosha.benchmarks.cartpole_report import analyze
@@ -462,7 +516,7 @@ def test_completed_seed_rejects_short_stream_or_duplicate_step(tmp_path, duplica
         error = "duplicate .* PPO update 2"
     else:
         write_seed(root, 1001, scores=(474, 475))
-        error = "found 2 checkpoints, expected 8"
+        error = "found 2 checkpoints, expected 32"
 
     with pytest.raises(ValueError, match=error):
         analyze([root])
@@ -481,25 +535,25 @@ def test_best_n_prioritizes_reach_rate_within_each_host(tmp_path):
                 "backend": "gymtosha",
                 "device": "cuda",
                 "compile_env": False,
-                "num_envs": 8192,
+                "num_envs": 512,
                 "status": "passed",
             }
         ],
     )
     write_matrix(mac, host="Mac", device="mps")
     for seed in range(1001, 1006):
-        rtx_early_scores = (475,) * 8 if seed == 1001 else (474,) * 8
+        rtx_early_scores = (475,) * 32 if seed == 1001 else (474,) * 32
         write_seed(rtx, seed, scores=rtx_early_scores)
-        write_seed(rtx, seed, count=8192, scores=(474, 474) + (475,) * 14)
-        write_seed(mac, seed, scores=(400,) * 8, host="Mac", device="mps")
+        write_seed(rtx, seed, count=512, scores=(474, 474) + (475,) * 62)
+        write_seed(mac, seed, scores=(400,) * 32, host="Mac", device="mps")
 
     main(["--inputs", str(rtx), str(mac), "--output", str(output)])
 
     best = {row["host"]: row for row in rows(output / "best-n.csv")}
-    assert best["RTX 3090"]["num_envs"] == "8192"
+    assert best["RTX 3090"]["num_envs"] == "512"
     assert best["RTX 3090"]["reached_seeds"] == "5"
-    assert best["RTX 3090"]["evaluation_spacing_transitions"] == "524288"
-    assert best["Mac"]["num_envs"] == "16384"
+    assert best["RTX 3090"]["evaluation_spacing_transitions"] == "32768"
+    assert best["Mac"]["num_envs"] == "1024"
     assert best["Mac"]["mean_target_training_seconds"] == ""
     assert len(list(output.glob("best-n-*.png"))) == 2
 
@@ -508,7 +562,8 @@ def test_legacy_seed_preserves_source_and_missing_diagnostics(tmp_path):
     from gymtosha.benchmarks.cartpole_report import main
 
     def omit_historical_diagnostic(step, metrics):
-        if step < 8:
+        del metrics["ppo/learning_rate"]
+        if step < 32:
             del metrics["time/collection_seconds"]
 
     root = tmp_path / "input"
@@ -518,7 +573,7 @@ def test_legacy_seed_preserves_source_and_missing_diagnostics(tmp_path):
         root,
         1001,
         source="legacy_json",
-        missing_fields=("collection_seconds",),
+        missing_fields=("collection_seconds", "learning_rate"),
         mutate=omit_historical_diagnostic,
     )
     main(["--inputs", str(root), "--output", str(output), "--partial"])
@@ -526,7 +581,51 @@ def test_legacy_seed_preserves_source_and_missing_diagnostics(tmp_path):
     seed, *_ = rows(output / "seeds.csv")
     assert seed["status"] == "reached"
     assert seed["source"] == "legacy_json"
-    assert seed["missing_fields"] == "collection_seconds"
+    assert seed["missing_fields"] == "collection_seconds,learning_rate"
+
+
+@pytest.mark.parametrize("source", ["live", "legacy_json"])
+def test_reused_seed_preserves_original_source_and_prefix_provenance(tmp_path, source):
+    from gymtosha.benchmarks.cartpole_report import main
+
+    root = tmp_path / "input"
+    output = tmp_path / "report"
+    write_matrix(root)
+    provenance = {"budget": 8_388_608, "path": "/original/events/seed-1001", "code_version": "test"}
+    write_seed(root, 1001, source=source, reused_prefix=provenance)
+    write_seed(root, 1002)
+
+    main(["--inputs", str(root), "--output", str(output), "--partial"])
+
+    reused, fresh, *_ = rows(output / "seeds.csv")
+    assert reused["source"] == source
+    assert json.loads(reused["reused_prefix"]) == provenance
+    assert fresh["reused_prefix"] == ""
+    (condition,) = rows(output / "conditions.csv")
+    assert condition["reused_prefix_seeds"] == "1"
+    passed, _ = dashboard_data(output / "index.html")["conditions"]
+    assert passed["reused_prefix_seeds"] == 1
+    assert passed["seeds"][0]["reused_prefix"] == provenance
+    assert passed["seeds"][1]["reused_prefix"] is None
+    assert {(row["seed"], row["reused_prefix"]) for row in rows(output / "checkpoints.csv")} == {
+        ("1001", "True"),
+        ("1002", "False"),
+    }
+
+
+def test_reused_seed_requires_original_budget_provenance(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    root = tmp_path / "input"
+    write_matrix(root)
+    write_seed(
+        root,
+        1001,
+        reused_prefix={"budget": 2_097_152, "path": "/original/seed-1001", "code_version": "test"},
+    )
+
+    with pytest.raises(ValueError, match="reused prefix provenance"):
+        analyze([root])
 
 
 @pytest.mark.parametrize("source", ["live", "legacy_json"])
@@ -544,12 +643,22 @@ def test_undeclared_missing_diagnostic_is_rejected(tmp_path, source):
         analyze([root])
 
 
-def test_seed_configuration_requires_matched_gae(tmp_path):
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("gae_lambda", 0.95),
+        ("learning_rate", 0.001),
+        ("total_timesteps", 8_388_608),
+        ("lr_schedule_timesteps", 2_097_152),
+        ("lr_schedule_timesteps", None),
+    ],
+)
+def test_seed_configuration_requires_matched_training_protocol(tmp_path, name, value):
     from gymtosha.benchmarks.cartpole_report import analyze
 
     root = tmp_path / "input"
     write_matrix(root)
-    write_seed(root, 1001, config_overrides={"gae_lambda": 0.95})
+    write_seed(root, 1001, config_overrides={name: value})
 
-    with pytest.raises(ValueError, match="config gae_lambda"):
+    with pytest.raises(ValueError, match=f"config {name}"):
         analyze([root])

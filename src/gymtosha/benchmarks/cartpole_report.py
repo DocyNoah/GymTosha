@@ -17,14 +17,20 @@ from uuid import uuid4
 import numpy as np
 
 HORIZON = 64
-BUDGET = 8_388_608
+BUDGET = 2_097_152
+LR_SCHEDULE_TIMESTEPS = 8_388_608
+LEARNING_RATE = 0.003
+MAX_NUM_ENVS = 1024
+MINIBATCH_SIZE = 512
+UPDATE_EPOCHS = 4
 TARGET = 475
-INITIAL_SEEDS = frozenset(range(1001, 1006))
+SEEDS = (1001, 1002, 1003, 1004, 1005)
 RETURNS = "eval/episode_returns"
 TRANSITIONS = "train/valid_transitions"
 TRAINING_SECONDS = "time/training_seconds"
 OPTIMIZER_CALLS = "train/optimizer_calls"
 UPDATE = "train/ppo_update"
+PPO_LEARNING_RATE = "ppo/learning_rate"
 REQUIRED_TAGS = {RETURNS, TRANSITIONS, TRAINING_SECONDS, OPTIMIZER_CALLS, UPDATE}
 COMPLETED_STATUSES = ("reached", "censored")
 TERMINAL_ERRORS = ("failed", "interrupted")
@@ -33,8 +39,10 @@ FIXED_CONFIG = {
     "algorithm": "ppo",
     "rollout_steps": HORIZON,
     "total_timesteps": BUDGET,
-    "ppo_minibatch_size": 512,
-    "update_epochs": 4,
+    "lr_schedule_timesteps": LR_SCHEDULE_TIMESTEPS,
+    "learning_rate": LEARNING_RATE,
+    "ppo_minibatch_size": MINIBATCH_SIZE,
+    "update_epochs": UPDATE_EPOCHS,
     "gae_lambda": 0.99,
     "hidden_sizes": [256, 256, 256],
     "num_threads": 1,
@@ -68,6 +76,7 @@ SEED_FIELDS = (
     "seed",
     "status",
     "source",
+    "reused_prefix",
     "code_version",
     "missing_fields",
     "issue",
@@ -98,6 +107,7 @@ SUMMARY_FIELDS = (
     "censored_seeds",
     "reach_rate",
     "sources",
+    "reused_prefix_seeds",
     "mean_target_transitions",
     "sd_target_transitions",
     "mean_target_training_seconds",
@@ -170,19 +180,24 @@ class SeedResult:
     missing_fields: tuple[str, ...] = ()
     issue: str = ""
     terminal: bool = False
+    reused_prefix: dict | None = None
 
     @property
     def first_target(self):
         return next((point for point in self.points if point.mean_return >= TARGET), None)
 
-    def columns(self, condition):
+    def columns(self, condition, *, serialize_prefix=False):
         hit = self.first_target
         last = self.points[-1] if self.points else None
+        prefix = self.reused_prefix
+        if serialize_prefix and prefix is not None:
+            prefix = json.dumps(prefix, sort_keys=True)
         return {
             **condition.columns(),
             "seed": self.seed,
             "status": self.status,
             "source": self.source,
+            "reused_prefix": prefix,
             "code_version": self.code_version,
             "missing_fields": ",".join(self.missing_fields),
             "issue": self.issue,
@@ -261,6 +276,7 @@ def _read_checkpoints(folder, condition, *, complete, optional):
     points = []
     previous_time = 0.0
     observed_gaps = set()
+    schedule_calls = LR_SCHEDULE_TIMESTEPS * UPDATE_EPOCHS // MINIBATCH_SIZE
     for expected_step, step in enumerate(sorted(records), start=1):
         values = records[step]
         if missing := expected_tags.difference(values):
@@ -271,9 +287,13 @@ def _read_checkpoints(folder, condition, *, complete, optional):
         transitions = step * condition.spacing
         if values[TRANSITIONS] != transitions:
             raise ValueError(f"PPO update {step} expected {transitions} valid transitions")
-        optimizer_calls = transitions * 4 // 512
+        optimizer_calls = transitions * UPDATE_EPOCHS // MINIBATCH_SIZE
         if values[OPTIMIZER_CALLS] != optimizer_calls:
             raise ValueError(f"PPO update {step} expected {optimizer_calls} optimizer calls")
+        if PPO_LEARNING_RATE in values:
+            rate = LEARNING_RATE * (1 - (optimizer_calls - 1) / schedule_calls)
+            if not math.isclose(values[PPO_LEARNING_RATE], rate, rel_tol=1e-6):
+                raise ValueError(f"PPO update {step} learning rate differs from optimizer schedule")
         elapsed = float(values[TRAINING_SECONDS])
         if not math.isfinite(elapsed) or elapsed < previous_time:
             raise ValueError(f"PPO update {step} training seconds must be finite and monotonic")
@@ -319,6 +339,18 @@ def _read_seed(folder, condition, seed, *, partial):
             "code_version": code_version,
             "missing_fields": tuple(missing_fields),
         }
+        if "reused_prefix" in metadata:
+            prefix = metadata["reused_prefix"]
+            if (
+                not isinstance(prefix, dict)
+                or prefix.get("budget") != LR_SCHEDULE_TIMESTEPS
+                or not isinstance(prefix.get("path"), str)
+                or not prefix["path"]
+                or not isinstance(prefix.get("code_version"), str)
+                or not prefix["code_version"]
+            ):
+                raise ValueError("invalid reused prefix provenance")
+            provenance["reused_prefix"] = prefix
         if set(missing_fields).difference(METRIC_TAGS):
             raise ValueError("unknown missing fields in metadata")
         optional = {METRIC_TAGS[field] for field in missing_fields}
@@ -333,7 +365,7 @@ def _read_seed(folder, condition, seed, *, partial):
             **FIXED_CONFIG,
             "seed": seed,
             "num_envs": condition.num_envs,
-            "num_minibatches": condition.spacing // 512,
+            "num_minibatches": condition.spacing // MINIBATCH_SIZE,
             "backend": condition.backend,
             "device": condition.device,
             "compile_env": condition.compile_env,
@@ -398,7 +430,6 @@ def analyze(roots, *, partial=False, cache=None):
     capacity = []
     results = {}
     seen_conditions = set()
-    expected_seeds = None
     incomplete = []
     for root in roots:
         manifest = _read_json(root / "matrix.json")
@@ -407,12 +438,8 @@ def analyze(roots, *, partial=False, cache=None):
         declared = manifest.get("seeds", [])
         if not isinstance(declared, list) or any(type(seed) is not int for seed in declared):
             raise ValueError(f"{root}: seeds must be a list of integers")
-        seeds = set(declared)
-        if len(seeds) != len(declared) or not INITIAL_SEEDS <= seeds:
-            raise ValueError(f"{root}: duplicate seed or missing one of seeds 1001–1005")
-        if expected_seeds is not None and expected_seeds != seeds:
-            raise ValueError(f"{root}: all matrices must declare the same seeds")
-        expected_seeds = seeds
+        if tuple(sorted(declared)) != SEEDS:
+            raise ValueError(f"{root}: matrix must declare exactly seeds 1001–1005")
         if not manifest.get("conditions"):
             raise ValueError(f"{root}: matrix has no capacity outcomes")
         for entry in manifest["conditions"]:
@@ -424,10 +451,10 @@ def analyze(roots, *, partial=False, cache=None):
             if (
                 not condition.host
                 or type(condition.num_envs) is not int
-                or condition.num_envs < 1
+                or not 1 <= condition.num_envs <= MAX_NUM_ENVS
                 or not isinstance(condition.compile_env, bool)
                 or status not in ("passed", "failed")
-                or condition.spacing % 512
+                or condition.spacing % MINIBATCH_SIZE
                 or BUDGET % condition.spacing
                 or not re.fullmatch(r"[a-z0-9_-]+", condition.folder)
             ):
@@ -441,7 +468,7 @@ def analyze(roots, *, partial=False, cache=None):
             if status == "failed":
                 continue
             folder = root / "events" / condition.folder
-            known_folders = {f"seed-{seed}" for seed in seeds}
+            known_folders = {f"seed-{seed}" for seed in SEEDS}
             for seed_folder in folder.glob("seed-*"):
                 if seed_folder.name not in known_folders:
                     raise ValueError(f"{root}: undeclared seed directory {seed_folder}")
@@ -449,7 +476,7 @@ def analyze(roots, *, partial=False, cache=None):
                 _read_cached_seed(folder / f"seed-{seed}", condition, seed, cache)
                 if partial and cache is not None
                 else _read_seed(folder / f"seed-{seed}", condition, seed, partial=partial)
-                for seed in sorted(seeds)
+                for seed in SEEDS
             ]
             if not partial:
                 incomplete.extend(
@@ -476,6 +503,7 @@ def _summarize(condition, runs):
         "reached_seeds": len(hits),
         "reach_rate": len(hits) / len(completed) if completed else None,
         "sources": ",".join(sorted({run.source for run in completed})),
+        "reused_prefix_seeds": sum(run.reused_prefix is not None for run in completed),
     }
     for status in ("incomplete", "missing", "invalid", "censored", *TERMINAL_ERRORS):
         row[f"{status}_seeds"] = sum(run.status == status for run in runs)
@@ -536,6 +564,7 @@ def _checkpoint_rows(results):
                     "seed": run.seed,
                     "status": run.status,
                     "source": run.source,
+                    "reused_prefix": run.reused_prefix is not None,
                     "ppo_update": point.update,
                     "mean_return": point.mean_return,
                     "valid_transitions": point.transitions,
@@ -631,6 +660,7 @@ def _comparison_table(conditions, summaries):
         "Evaluation spacing",
         "Complete",
         "Reached",
+        "Reused prefixes",
         "Transitions to target",
         "Training seconds to target",
     )
@@ -654,6 +684,7 @@ def _comparison_table(conditions, summaries):
             f"{condition.spacing:,}",
             f"{row['completed_seeds']}/{row['expected_seeds']}",
             f"{row['reached_seeds']}/{row['completed_seeds']}" if row["completed_seeds"] else "—",
+            f"{row['reused_prefix_seeds']}",
             estimate(row, "transitions", 0),
             estimate(row, "training_seconds", 3),
         )
@@ -686,7 +717,11 @@ def _write_summary_tables(output, capacity, results, summaries, best, ordered):
     _write_csv(
         output / "seeds.csv",
         (*CONDITION_FIELDS, *SEED_FIELDS),
-        (run.columns(condition) for condition, runs in results.items() for run in runs),
+        (
+            run.columns(condition, serialize_prefix=True)
+            for condition, runs in results.items()
+            for run in runs
+        ),
     )
 
 
@@ -697,6 +732,7 @@ def _publish_dashboard(output, capacity, results, summaries, curves, best, *, pa
         "partial": partial,
         "target": TARGET,
         "budget": BUDGET,
+        "lr_schedule_timesteps": LR_SCHEDULE_TIMESTEPS,
         "horizon": HORIZON,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "conditions": list(_dashboard_conditions(capacity, results, summaries, curves, best)),
@@ -732,6 +768,7 @@ def write_report(output, capacity, results, *, partial=False):
             "seed",
             "status",
             "source",
+            "reused_prefix",
             "ppo_update",
             "mean_return",
             "valid_transitions",
@@ -786,8 +823,9 @@ th:nth-child(-n+2), td:nth-child(-n+2) {{text-align: left}}
 <h1>CartPole T=64 · {label}</h1>
 <p>The first mean of 100 raw evaluation returns at or above 475 is the target checkpoint.
 Each condition evaluates after every PPO update, spaced by N × 64 valid transitions.
-Each complete seed uses 8,388,608 valid transitions. The recorded training clock excludes
-evaluation.</p>
+Each complete seed uses {BUDGET:,} valid transitions. The optimizer-step learning rate
+starts at {LEARNING_RATE} and follows the original {LR_SCHEDULE_TIMESTEPS:,}-transition
+annealing schedule. The recorded training clock excludes evaluation.</p>
 <p>Coverage is complete seeds divided by declared seeds. Reach rate is reached seeds divided
 by complete seeds. Complete non-reaching seeds are right-censored at their last checkpoint.
 Target means and sample standard deviations use reached seeds. Standard deviations are blank
@@ -800,6 +838,9 @@ fewer mean transitions among reached seeds. If none reach, higher mean final ret
 first. A remaining tie favors smaller N.</p>
 <p>The source columns identify migrated legacy runs and live TensorBoard runs. Legacy timings
 come from the original collector, before the diagnostic instrumentation used in live runs.</p>
+<p>The reused prefix count identifies seeds measured during an earlier
+{LR_SCHEDULE_TIMESTEPS:,}-transition run. The seed table records the original run location
+and code version for each reused prefix.</p>
 <ul>{links}</ul>
 <h2>Backends at the same environment count</h2>{same_table}
 <h2>Best environment count per backend</h2>{best_table}
