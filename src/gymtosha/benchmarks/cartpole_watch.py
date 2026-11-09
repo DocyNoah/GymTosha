@@ -94,6 +94,7 @@ def watch(args):
     last = None
     cache = {}
     reconnect = 0
+    pending = b""
     with selectors.DefaultSelector() as selector:
         try:
             while True:
@@ -103,18 +104,21 @@ def watch(args):
                             ["ssh", *SSH_OPTIONS, args.ssh_host, command],
                             stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE,
-                            text=True,
                         )
                         selector.register(stream.stdout, selectors.EVENT_READ)
                     if stream is not None and selector.select(timeout=args.interval):
-                        line = stream.stdout.readline()
-                        if line:
-                            remote = json.loads(line)
+                        chunk = os.read(stream.stdout.fileno(), 65_536)
+                        if chunk:
+                            lines = (pending + chunk).split(b"\n")
+                            pending = lines.pop()
+                            if lines:
+                                remote = json.loads(lines[-1])
                         else:
                             selector.unregister(stream.stdout)
                             stream.stdout.close()
                             stream.wait(timeout=5)
                             stream = None
+                            pending = b""
                             reconnect = time.monotonic() + 10
                     elif stream is None:
                         time.sleep(args.interval)
