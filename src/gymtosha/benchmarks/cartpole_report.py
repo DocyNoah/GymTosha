@@ -16,6 +16,8 @@ from uuid import uuid4
 
 import numpy as np
 
+from gymtosha.benchmarks.cartpole_final import SEED_BLOCKS
+
 HORIZON = 64
 BUDGET = 2_097_152
 LR_SCHEDULE_TIMESTEPS = 8_388_608
@@ -24,7 +26,6 @@ MAX_NUM_ENVS = 1024
 MINIBATCH_SIZE = 512
 UPDATE_EPOCHS = 4
 TARGET = 475
-SEEDS = (1001, 1002, 1003, 1004, 1005)
 RETURNS = "eval/episode_returns"
 TRANSITIONS = "train/valid_transitions"
 TRAINING_SECONDS = "time/training_seconds"
@@ -431,6 +432,7 @@ def analyze(roots, *, partial=False, cache=None):
     results = {}
     seen_conditions = set()
     incomplete = []
+    expected_seeds = None
     for root in roots:
         manifest = _read_json(root / "matrix.json")
         if manifest.get("horizon") != HORIZON or manifest.get("budget") != BUDGET:
@@ -438,8 +440,12 @@ def analyze(roots, *, partial=False, cache=None):
         declared = manifest.get("seeds", [])
         if not isinstance(declared, list) or any(type(seed) is not int for seed in declared):
             raise ValueError(f"{root}: seeds must be a list of integers")
-        if tuple(sorted(declared)) != SEEDS:
-            raise ValueError(f"{root}: matrix must declare exactly seeds 1001–1005")
+        seeds = tuple(sorted(declared))
+        if seeds not in SEED_BLOCKS.values():
+            raise ValueError(f"{root}: expected a registered block of exactly five seeds")
+        if expected_seeds is not None and seeds != expected_seeds:
+            raise ValueError(f"{root}: compared matrices must use the same seed block")
+        expected_seeds = seeds
         if not manifest.get("conditions"):
             raise ValueError(f"{root}: matrix has no capacity outcomes")
         for entry in manifest["conditions"]:
@@ -468,7 +474,7 @@ def analyze(roots, *, partial=False, cache=None):
             if status == "failed":
                 continue
             folder = root / "events" / condition.folder
-            known_folders = {f"seed-{seed}" for seed in SEEDS}
+            known_folders = {f"seed-{seed}" for seed in seeds}
             for seed_folder in folder.glob("seed-*"):
                 if seed_folder.name not in known_folders:
                     raise ValueError(f"{root}: undeclared seed directory {seed_folder}")
@@ -476,7 +482,7 @@ def analyze(roots, *, partial=False, cache=None):
                 _read_cached_seed(folder / f"seed-{seed}", condition, seed, cache)
                 if partial and cache is not None
                 else _read_seed(folder / f"seed-{seed}", condition, seed, partial=partial)
-                for seed in SEEDS
+                for seed in seeds
             ]
             if not partial:
                 incomplete.extend(
@@ -734,6 +740,7 @@ def _publish_dashboard(output, capacity, results, summaries, curves, best, *, pa
         "budget": BUDGET,
         "lr_schedule_timesteps": LR_SCHEDULE_TIMESTEPS,
         "horizon": HORIZON,
+        "seeds": sorted({run.seed for runs in results.values() for run in runs}),
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "conditions": list(_dashboard_conditions(capacity, results, summaries, curves, best)),
     }

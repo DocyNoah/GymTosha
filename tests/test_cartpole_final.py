@@ -284,7 +284,10 @@ def test_capacity_matrix_reuses_only_exact_host_probes_and_includes_failures(tmp
     assert final.verify_matrix(selected, output, ["cpu"], legacy, RUNTIME) == matrix
 
 
-def test_controller_stops_on_worker_failure_and_reuses_completed_seed(tmp_path, monkeypatch):
+@pytest.mark.parametrize("first_seed", [1001, 1006])
+def test_controller_stops_on_worker_failure_and_reuses_completed_seed(
+    tmp_path, monkeypatch, first_seed
+):
     from gymtosha.benchmarks import cartpole_final as final
     from gymtosha.benchmarks import study_grouped
 
@@ -304,7 +307,7 @@ def test_controller_stops_on_worker_failure_and_reuses_completed_seed(tmp_path, 
         assert (root / "matrix.json").is_file()
         assert name == condition
         calls.append(config.seed)
-        if calls == [1001, 1002]:
+        if calls == [first_seed, first_seed + 1]:
             raise RuntimeError("test worker failure")
         path.mkdir(parents=True)
         final._write(
@@ -320,10 +323,10 @@ def test_controller_stops_on_worker_failure_and_reuses_completed_seed(tmp_path, 
     monkeypatch.setattr(final, "runtime_fingerprint", lambda: RUNTIME)
     monkeypatch.setattr(final, "_run_worker", worker)
     with pytest.raises(RuntimeError, match="test worker failure"):
-        final.run_final(BASELINE, tmp_path, ["cpu"], None)
-    assert calls == [1001, 1002]
-    final.run_final(BASELINE, tmp_path, ["cpu"], None)
-    assert calls == [1001, 1002, 1002, 1003, 1004, 1005]
+        final.run_final(BASELINE, tmp_path, ["cpu"], None, seed_start=first_seed)
+    assert calls == [first_seed, first_seed + 1]
+    final.run_final(BASELINE, tmp_path, ["cpu"], None, seed_start=first_seed)
+    assert calls == [first_seed, first_seed + 1, *range(first_seed + 1, first_seed + 5)]
     assert len(probe_calls) == 17
 
 

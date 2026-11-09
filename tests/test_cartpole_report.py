@@ -479,8 +479,20 @@ def test_matrix_requires_exact_protocol_seeds(tmp_path, seeds):
     root = tmp_path / "input"
     write_matrix(root, seeds=seeds)
 
-    with pytest.raises(ValueError, match="exactly seeds 1001–1005"):
+    with pytest.raises(ValueError, match="exactly five seeds"):
         analyze([root], partial=True)
+
+
+def test_report_accepts_next_seed_block_but_rejects_mixing_blocks(tmp_path):
+    from gymtosha.benchmarks.cartpole_report import analyze
+
+    first, second = tmp_path / "first", tmp_path / "second"
+    write_matrix(first)
+    write_matrix(second, host="Mac", device="mps", seeds=range(1006, 1011))
+    _, results = analyze([second], partial=True)
+    assert [run.seed for runs in results.values() for run in runs] == list(range(1006, 1011))
+    with pytest.raises(ValueError, match="same seed block"):
+        analyze([first, second], partial=True)
 
 
 def test_matrix_rejects_capacity_condition_above_protocol_cap(tmp_path):

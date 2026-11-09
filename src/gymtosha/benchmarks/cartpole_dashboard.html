@@ -290,6 +290,8 @@ function renderSummary() {
     '<span>시드당 예산 <strong>' + format(data.budget) + '</strong></span>' +
     (data.lr_schedule_timesteps ? '<span>학습률 감쇠 기준 <strong>' +
       format(data.lr_schedule_timesteps) + '</strong></span>' : '') +
+    (data.seeds?.length ? '<span>시드 <strong>' + data.seeds[0] + '–' +
+      data.seeds.at(-1) + '</strong></span>' : '') +
     '<span>업데이트당 평가 <strong>100</strong> 에피소드</span>' +
     '<span>목표 <strong>' + format(data.target) + '</strong>점</span>';
   const timestamp = Date.parse(data.generated_at);

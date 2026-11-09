@@ -45,7 +45,7 @@ $S_{\rm tune}$은 탐색에서 가장 큰 배치인 $1{,}024\times512$의 rollou
 - CPU·CUDA·MPS 후보는 **32, 256, 512, 1,024개**이고, Gymnasium Async는 **32개**만 비교합니다. 기존 1,024개 초과 결과와 이전 실행 매트릭스는 보존합니다.
 - 시드당 예산은 **2,097,152 유효 트랜지션**입니다. $T=64$, $M=512$, $E=4$를 사용하므로 시드마다 optimizer를 16,384회 호출합니다. 가장 큰 환경 수인 1,024개에서는 PPO rollout과 평가를 각각 32회 수행합니다.
 - 동일한 호스트·런타임·학습 설정에서 완료된 T=64 용량 검사를 재사용합니다. 추가 검사는 환경 초기화부터 PPO 업데이트 한 번까지 60초 이내에 완료해야 통과입니다.
-- 통과한 조건마다 **시드 1001–1005**를 단독 실행합니다. 나머지 15개 시드는 후속 실행에 사용합니다. Gymnasium과 GymTosha CPU·CUDA는 RTX 3090 호스트에서, GymTosha MPS는 Mac에서 측정합니다.
+- 통과한 조건마다 첫 비교에 **시드 1001–1005**를 사용합니다. 후속 실행은 `--seed-start`와 새 출력 경로를 사용합니다. 서로 다른 시드 묶음은 별도 보고서로 생성합니다. Gymnasium과 GymTosha CPU·CUDA는 RTX 3090 호스트에서, GymTosha MPS는 Mac에서 측정합니다.
 - RTX 3090의 실행 순서는 GymTosha CUDA compile, CUDA eager, GymTosha CPU compile과 eager, Gymnasium NumPy, Sync, Async입니다. Mac은 MPS compile, MPS eager 순입니다. 같은 구성에서는 작은 환경 수부터 실행하며, 완료된 시드는 재사용합니다.
 - 목표 도달 월타임은 환경 생성부터 컴파일·워밍업과 최초로 475점을 달성한 정책의 PPO 업데이트 종료까지입니다. 도달률과 함께 도달한 시드의 트랜지션·월타임 평균 및 표본 표준편차를 표시합니다.
 
@@ -95,3 +95,15 @@ uv run --no-sync python -m http.server 8782 --bind 127.0.0.1 \
 ```
 
 브라우저에서 `http://127.0.0.1:8782/`를 열면 현재 필터를 유지한 채 새 스냅샷을 표시합니다. 모든 시드가 완료되면 원시 이벤트를 다시 읽어 최종 CSV와 학습 곡선을 생성합니다. 수동 중간 집계에는 보고서 명령의 `--partial` 옵션을 사용합니다. 이전 그룹별 비교는 [기존 CartPole 실험 명세](CARTPOLE_STUDY.md)에 있습니다.
+
+## 7. Mac 후속 시드 1006–1010
+
+```bash
+uv run --no-sync python -m gymtosha.benchmarks.cartpole_final \
+  --baseline benchmarks/results/cartpole-study/scaling/selected.json \
+  --output outputs/cartpole-t64-2m-mps-6-10 --prefix-from outputs/cartpole-t64-tb-mps \
+  --devices mps --seed-start 1006
+
+uv run --no-sync python -m gymtosha.benchmarks.cartpole_watch \
+  --inputs outputs/cartpole-t64-2m-mps-6-10 --output outputs/cartpole-t64-mps-6-10-report
+```

@@ -31,7 +31,8 @@ BUDGET = 2_097_152
 LR_SCHEDULE_TIMESTEPS = 8_388_608
 ENV_COUNTS = (32, 256, 512, 1024)
 CAPACITY_SECONDS = 60
-SEEDS = (1001, 1002, 1003, 1004, 1005)
+SEED_BLOCKS = {start: tuple(range(start, start + 5)) for start in range(1001, 1021, 5)}
+SEEDS = SEED_BLOCKS[1001]
 EXECUTION_ORDER = (
     ("gymtosha", "cuda", True),
     ("gymtosha", "cuda", False),
@@ -111,7 +112,7 @@ def _valid_probe(record, config, runtime):
     )
 
 
-def verify_matrix(selected, output, devices, legacy, runtime, *, prefix_from=None):
+def verify_matrix(selected, output, devices, legacy, runtime, *, prefix_from=None, seeds=SEEDS):
     capacity = output / "capacity-selected"
     matrix_path = output / "matrix.json"
     published = matrix_path.exists()
@@ -163,7 +164,7 @@ def verify_matrix(selected, output, devices, legacy, runtime, *, prefix_from=Non
                 **{key: saved[key] for key in ("error_type", "error") if key in saved},
             }
         )
-    matrix = {"conditions": rows, "seeds": list(SEEDS), "budget": BUDGET, "horizon": HORIZON}
+    matrix = {"conditions": rows, "seeds": list(seeds), "budget": BUDGET, "horizon": HORIZON}
     if published:
         previous = _read_record(matrix_path)
         if matrix == previous:
@@ -638,7 +639,8 @@ def _execution_key(row):
     return EXECUTION_ORDER.index(variant), row["num_envs"]
 
 
-def run_final(baseline, output, devices, legacy, *, prefix_from=None):
+def run_final(baseline, output, devices, legacy, *, prefix_from=None, seed_start=1001):
+    seeds = SEED_BLOCKS[seed_start]
     for source in (prefix_from, legacy):
         if source is not None and (
             not source.is_dir() or output.resolve().is_relative_to(source.resolve())
@@ -655,7 +657,7 @@ def run_final(baseline, output, devices, legacy, *, prefix_from=None):
             "runtime": runtime,
             "baseline": asdict(base),
             "devices": devices,
-            "seeds": list(SEEDS),
+            "seeds": list(seeds),
             "horizon": HORIZON,
             "budget": BUDGET,
             "lr_schedule_timesteps": LR_SCHEDULE_TIMESTEPS,
@@ -670,7 +672,9 @@ def run_final(baseline, output, devices, legacy, *, prefix_from=None):
             ):
                 raise ValueError("final output already has artifacts without a recorded protocol")
             _write(protocol, protocol_path)
-        matrix = verify_matrix(selected, output, devices, legacy, runtime, prefix_from=prefix_from)
+        matrix = verify_matrix(
+            selected, output, devices, legacy, runtime, prefix_from=prefix_from, seeds=seeds
+        )
         previous = _read_record(legacy / "protocol.json") if legacy else {}
         pending = []
         for row in sorted(matrix["conditions"], key=_execution_key):
@@ -706,6 +710,7 @@ def main():
     parser.add_argument("--legacy", type=Path, help="prior same-host CartPole JSON study")
     parser.add_argument("--prefix-from", type=Path, help="prior same-host 8M TensorBoard study")
     parser.add_argument("--devices", nargs="+", choices=("cpu", "cuda", "mps"))
+    parser.add_argument("--seed-start", type=int, choices=SEED_BLOCKS, default=1001)
     parser.add_argument("--worker-request", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--worker-output", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -718,7 +723,12 @@ def main():
         parser.error("--devices must not contain duplicates")
     else:
         run_final(
-            args.baseline, args.output, args.devices, args.legacy, prefix_from=args.prefix_from
+            args.baseline,
+            args.output,
+            args.devices,
+            args.legacy,
+            prefix_from=args.prefix_from,
+            seed_start=args.seed_start,
         )
 
 
