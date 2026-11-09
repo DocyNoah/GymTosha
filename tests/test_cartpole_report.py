@@ -319,7 +319,9 @@ def test_live_dashboard_publishes_terminal_status_and_provisional_statistics(tmp
     output = tmp_path / "report"
     write_matrix(root)
     write_seed(root, 1001)
-    write_seed(root, 1002, scores=(480,), status="failed", error="worker exited")
+    write_seed(
+        root, 1002, scores=(480,), status="failed", error="worker exited", duplicate_update=1
+    )
     write_seed(root, 1003, scores=(480,), status="interrupted")
     write_seed(root, 1004, scores=(480,), status="running")
 
@@ -348,7 +350,8 @@ def test_live_dashboard_publishes_terminal_status_and_provisional_statistics(tmp
     assert passed["interrupted_seeds"] == 1
     assert passed["statistics_final"] is False
     assert passed["mean_target_training_seconds"] == 5
-    assert passed["seeds"][1]["issue"] == "worker exited"
+    assert passed["seeds"][1]["issue"].startswith("worker exited\n")
+    assert "duplicate" in passed["seeds"][1]["issue"]
     assert passed["curve"]["mean"][:2] == [474, 475]
     assert failed["statistics_final"] is False
     assert rows(output / "seeds.csv")[1]["status"] == "failed"
@@ -406,6 +409,7 @@ def test_live_analysis_reuses_only_unchanged_validated_seeds(tmp_path):
     _, invalid_results = analyze([root], partial=True, cache=cache)
     invalid = next(iter(invalid_results.values()))
     assert invalid[4].status == "invalid"
+    assert invalid[4].terminal is True
     assert "duplicate" in invalid[4].issue
 
 

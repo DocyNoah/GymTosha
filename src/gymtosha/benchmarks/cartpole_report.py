@@ -297,9 +297,10 @@ def _read_seed(folder, condition, seed, *, partial):
     provenance = {}
     try:
         metadata = _read_json(metadata_path)
-        complete = metadata["status"] == "completed"
-        if metadata["status"] in TERMINAL_ERRORS:
-            status = metadata["status"]
+        run_status = metadata["status"]
+        complete = run_status == "completed"
+        if run_status in TERMINAL_ERRORS:
+            status = run_status
         terminal = complete or status in TERMINAL_ERRORS
         issue = str(metadata.get("error") or "")
         source, code_version = metadata["source"], metadata["code_version"]
@@ -450,12 +451,13 @@ def analyze(roots, *, partial=False, cache=None):
                 else _read_seed(folder / f"seed-{seed}", condition, seed, partial=partial)
                 for seed in sorted(seeds)
             ]
-            incomplete.extend(
-                f"{condition.host}/{condition.folder}/seed-{result.seed} ({result.status})"
-                for result in results[condition]
-                if result.status not in COMPLETED_STATUSES
-            )
-    if incomplete and not partial:
+            if not partial:
+                incomplete.extend(
+                    f"{condition.host}/{condition.folder}/seed-{result.seed} ({result.status})"
+                    for result in results[condition]
+                    if result.status not in COMPLETED_STATUSES
+                )
+    if incomplete:
         examples = ", ".join(incomplete[:8])
         raise ValueError(f"{len(incomplete)} missing or incomplete eligible runs: {examples}")
     return capacity, results
