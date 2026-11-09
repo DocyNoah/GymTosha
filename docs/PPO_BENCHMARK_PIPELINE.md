@@ -46,6 +46,7 @@ $S_{\rm tune}$은 탐색에서 가장 큰 배치인 $1{,}024\times512$의 rollou
 - 모든 rollout을 끝까지 실행할 수 있도록 예산 산정 단위 $A$는 모든 $NT$의 최소공배수로 정합니다. $S_{\rm final}$은 $S_{\rm tune}$과 $8A$ 이상인 최소 $A$의 배수입니다. $T=64$에서는 $A=1{,}048{,}576$, $S_{\rm final}=8{,}388{,}608$이고, $M=512$, $E=4$이므로 시드마다 optimizer를 65,536회 호출합니다. 환경 수별 평가 간격과 rollout 횟수는 `final_plan.json`에 기록합니다.
 - 동일한 호스트·런타임·학습 설정에서 완료된 T=64 용량 검사를 재사용합니다. 추가 검사는 환경 초기화부터 PPO 업데이트 한 번까지 60초 이내에 완료해야 통과입니다.
 - 통과한 조건마다 **시드 1001–1005**를 단독 실행합니다. 나머지 15개 시드는 후속 실행에 사용합니다. Gymnasium과 GymTosha CPU·CUDA는 RTX 3090 호스트에서, GymTosha MPS는 Mac에서 측정합니다.
+- RTX 3090의 실행 순서는 GymTosha CUDA compile, CUDA eager, GymTosha CPU compile과 eager, Gymnasium NumPy, Sync, Async입니다. Mac은 MPS compile, MPS eager 순입니다. 같은 구성에서는 작은 환경 수부터 실행하며, 완료된 시드는 재사용합니다.
 - 목표 도달 월타임은 환경 생성부터 컴파일·워밍업과 최초로 475점을 달성한 정책의 PPO 업데이트 종료까지입니다. 도달률과 함께 도달한 시드의 트랜지션·월타임 평균 및 표본 표준편차를 표시합니다.
 
 ## 5. 결과 기록과 실행

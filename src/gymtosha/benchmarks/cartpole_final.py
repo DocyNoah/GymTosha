@@ -33,6 +33,17 @@ HORIZON = 64
 BUDGET = 8_388_608
 CAPACITY_SECONDS = 60
 SEEDS = (1001, 1002, 1003, 1004, 1005)
+EXECUTION_ORDER = (
+    ("gymtosha", "cuda", True),
+    ("gymtosha", "cuda", False),
+    ("gymtosha", "mps", True),
+    ("gymtosha", "mps", False),
+    ("gymtosha", "cpu", True),
+    ("gymtosha", "cpu", False),
+    ("gymnasium-native", "cpu", False),
+    ("gymnasium-sync", "cpu", False),
+    ("gymnasium-async", "cpu", False),
+)
 LEGACY_MISSING = (
     "collection_seconds",
     "update_seconds",
@@ -392,6 +403,11 @@ def _run_worker(config, runtime, version, output, root, condition):
         raise RuntimeError(f"CartPole worker exited with code {returncode}: {log_path}")
 
 
+def _execution_key(row):
+    variant = (row["backend"], row["device"], row["compile_env"])
+    return EXECUTION_ORDER.index(variant), row["num_envs"]
+
+
 def run_final(baseline, output, devices, legacy):
     if legacy is not None and (not legacy.is_dir() or legacy.resolve() == output.resolve()):
         raise ValueError("the legacy directory must exist and differ from the final output")
@@ -420,7 +436,7 @@ def run_final(baseline, output, devices, legacy):
             _write(protocol, protocol_path)
         matrix = verify_matrix(selected, output, devices, legacy, runtime)
         previous = _read_record(legacy / "protocol.json") if legacy else {}
-        for row in matrix["conditions"]:
+        for row in sorted(matrix["conditions"], key=_execution_key):
             if row["status"] != "passed":
                 continue
             name = row["id"]

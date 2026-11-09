@@ -218,3 +218,28 @@ def test_controller_stops_on_worker_failure_and_reuses_completed_seed(tmp_path, 
     final.run_final(BASELINE, tmp_path, ["cpu"], None)
     assert calls == [1001, 1002, 1002, 1003, 1004, 1005]
     assert len(probe_calls) == 17
+
+
+def test_execution_order_finishes_accelerator_variants_before_cpu():
+    from gymtosha.benchmarks import cartpole_final as final
+
+    priority = [
+        ("gymtosha", "cuda", True),
+        ("gymtosha", "cuda", False),
+        ("gymtosha", "mps", True),
+        ("gymtosha", "mps", False),
+        ("gymtosha", "cpu", True),
+        ("gymtosha", "cpu", False),
+        ("gymnasium-native", "cpu", False),
+        ("gymnasium-sync", "cpu", False),
+        ("gymnasium-async", "cpu", False),
+    ]
+    rows = [
+        {"backend": backend, "device": device, "compile_env": compiled, "num_envs": count}
+        for backend, device, compiled in reversed(priority)
+        for count in (256, 32)
+    ]
+    order = sorted(rows, key=final._execution_key)
+    assert [
+        (row["backend"], row["device"], row["compile_env"], row["num_envs"]) for row in order
+    ] == [(*variant, count) for variant in priority for count in (32, 256)]
