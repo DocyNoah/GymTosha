@@ -110,14 +110,15 @@ uv run --no-sync python -m gymtosha.benchmarks.cartpole_watch \
   --inputs outputs/cartpole-t64-2m-mps-6-10 --output outputs/cartpole-t64-mps-6-10-report
 ```
 
-메인 대시보드의 매트릭스와 통계에 Mac 후속 결과를 합치려면 보고서 생성기 또는 감시기에 `--follow-up outputs/cartpole-t64-2m-mps-6-10`을 추가합니다. Mac은 조건당 10개, RTX는 5개 시드를 표시합니다. 두 보고서 폴더를 연결하면 Mac 후속 5개 시드만 따로 확인할 수도 있습니다.
+Mac의 1006–1010 묶음은 별도 보고서로 보존합니다.
+
+## 8. 최종 10개 시드 비교
+
+두 호스트에서 모두 완료된 1001–1005와 1011–1015를 집계합니다. RTX 3090 CUDA compile 256개 조건에는 기존 시드 교체를 적용해 1005 대신 1006을 집계합니다. 1006–1010 묶음의 별도 기록과 중단 시점까지 수집된 원시 로그는 보존합니다.
 
 ```bash
-ln -s ../cartpole-t64-mps-6-10-report outputs/cartpole-t64-tb-report/mps-6-10
+uv run --no-sync python -m gymtosha.benchmarks.cartpole_report \
+  --inputs outputs/cartpole-t64-2m-3090 outputs/cartpole-t64-2m-mps \
+  --follow-up outputs/cartpole-t64-2m-3090-11-15 outputs/cartpole-t64-2m-mps-11-15 \
+  --output outputs/cartpole-t64-tb-report
 ```
-
-## 8. 조건당 15개와 20개 시드 비교
-
-RTX 3090과 Mac에서 `--seed-start 1006`, `1011`, `1016`을 각각 별도 출력 경로에 실행합니다. 완료된 Mac 1006–1010은 재사용합니다. RTX 3090 CUDA compile 256개 조건은 첫 묶음에서 이미 1006을 사용했으므로 둘째 묶음에 `{"gymtosha-cuda-1-256": {"1006": 1021}}`을 기록해 1021을 실행합니다.
-
-15개 시드 비교는 최초 두 호스트 출력 경로를 `--inputs`에 넣고, 두 호스트의 1006–1010과 1011–1015 출력 경로를 `--follow-up`에 추가해 별도 보고서로 저장합니다. 모든 조건에서 15개가 검증된 뒤 1016–1020 실행을 시작합니다. 20개 시드 비교에는 마지막 두 출력 경로도 `--follow-up`에 추가합니다.

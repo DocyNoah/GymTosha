@@ -283,6 +283,7 @@ function renderSummary() {
   const hostSamples = distinct(passed.map(row =>
     markup(hostName(row.host)) + " " + format(row.expected_seeds) + "개"
   )).join(" · ");
+  const seedSamples = sampleSizes.length === 1 ? format(sampleSizes[0]) + "개" : hostSamples;
   const cells = [
     ["종료 시드", format(finished) + " / " + format(expected),
       "완료 " + format(done) + " · 실패·중단·오류 " + format(failed) +
@@ -302,9 +303,7 @@ function renderSummary() {
     '<span>시드당 예산 <strong>' + format(data.budget) + '</strong></span>' +
     (data.lr_schedule_timesteps ? '<span>학습률 감쇠 기준 <strong>' +
       format(data.lr_schedule_timesteps) + '</strong></span>' : '') +
-    (sampleSizes.length > 1 ? '<span>조건당 시드 <strong>' + hostSamples + '</strong></span>' :
-      data.seeds?.length ? '<span>시드 <strong>' + data.seeds[0] + '–' +
-      data.seeds.at(-1) + '</strong></span>' : '') +
+    (seedSamples ? '<span>조건당 시드 <strong>' + seedSamples + '</strong></span>' : '') +
     '<span>업데이트당 평가 <strong>100</strong> 에피소드</span>' +
     '<span>목표 <strong>' + format(data.target) + '</strong>점</span>';
   const timestamp = Date.parse(data.generated_at);
